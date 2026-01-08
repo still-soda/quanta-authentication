@@ -4,7 +4,7 @@ import (
 	"context"
 	"log"
 	"net/http"
-	"qauth-server/internal/config"
+	"qauth-server/config"
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-oauth2/oauth2/v4/manage"
