@@ -1,0 +1,7 @@
+{
+   "name": "@qauth/server",
+   "scripts": {
+      "dev": "go run cmd/server/main.go",
+      "build": "go build -o dist/server cmd/server/main.go"
+   }
+}
