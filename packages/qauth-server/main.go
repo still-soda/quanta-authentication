@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 	"qauth-server/internal/config"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-oauth2/oauth2/v4/manage"
@@ -25,13 +26,14 @@ func main() {
 	pgxConn, _ := pgx.Connect(context.TODO(), cfg.DatabaseURL)
 	adapter := pgx4adapter.NewConn(pgxConn)
 	pgStore, _ := pg.NewClientStore(adapter)
-
+	
 	// 初始化 Redis 令牌存储
 	tokenStore := oredis.NewRedisStore(&redis.Options{
 		Addr:     cfg.RedisURL,
 		Password: cfg.RedisPassword,
 		DB:       0,
 	})
+	defer tokenStore.Close()
 
 	manager := manage.NewDefaultManager()
 	manager.MapTokenStorage(tokenStore)
@@ -43,11 +45,6 @@ func main() {
 
 	// 初始化 OAuth 服务
 	srv := server.NewDefaultServer(manager)
-
-	// 用户授权处理器
-	srv.SetUserAuthorizationHandler(func(w http.ResponseWriter, r *http.Request) (userID string, err error) {
-		return "user_123456", nil
-	})
 
 	r := gin.Default()
 
@@ -65,6 +62,20 @@ func main() {
 		}
 	})
 
-	log.Println("🌍 Quanta Auth Server 运行在 :" + cfg.Port)
+	r.GET("/userinfo", func(ctx *gin.Context) {
+		ti, err := srv.ValidationBearerToken(ctx.Request)
+		if err != nil {
+			ctx.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
+			return
+		}
+
+		ctx.JSON(http.StatusOK, gin.H{
+			"user_id": ti.GetUserID(),
+			"client_id": ti.GetClientID(),
+			"expires_in": int64(time.Until(ti.GetAccessCreateAt().Add(ti.GetAccessExpiresIn())).Seconds()),
+		})
+	})
+
+	log.Println("[INFO] 🌍 Quanta Auth Server 运行在 :" + cfg.Port)
 	r.Run(":" + cfg.Port)
 }

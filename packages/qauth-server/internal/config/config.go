@@ -49,7 +49,7 @@ func New() *Config {
 	}
 
 	return &Config{
-		DatabaseURL:       GetEnv("DATABASE_URL", "postgres://user:password@localhost:5432/qauth_db"),
+		DatabaseURL:       GetEnv("DATABASE_URL", "postgres://still-soda@localhost:5432/qauth_db"),
 		RedisURL:          GetEnv("REDIS_URL", "127.0.0.1:6379"),
 		RedisPassword:     GetEnv("REDIS_PASSWORD", ""),
 		AccessTokenExpire: accessTokenExp,
