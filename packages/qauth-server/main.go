@@ -1,81 +1,65 @@
 package main
 
 import (
-	"context"
 	"log"
-	"net/http"
+	"os"
+	"os/signal"
 	"qauth-server/internal/config"
-	"time"
+	"qauth-server/internal/database"
+	"qauth-server/internal/middleware"
+	"qauth-server/internal/models"
+	"qauth-server/internal/routes"
+	"qauth-server/internal/storage"
+	"syscall"
 
 	"github.com/gin-gonic/gin"
-	"github.com/go-oauth2/oauth2/v4/manage"
-	"github.com/go-oauth2/oauth2/v4/server"
-	"github.com/go-redis/redis/v8"
-	"github.com/jackc/pgx/v4"
-
-	oredis "github.com/go-oauth2/redis/v4"
-	pg "github.com/vgarvardt/go-oauth2-pg/v4"
-	"github.com/vgarvardt/go-pg-adapter/pgx4adapter"
 )
 
-
 func main() {
+	// 加载配置
 	cfg := config.New()
 
-	// 初始化数据库连接
-	pgxConn, _ := pgx.Connect(context.TODO(), cfg.DatabaseURL)
-	adapter := pgx4adapter.NewConn(pgxConn)
-	pgStore, _ := pg.NewClientStore(adapter)
-	
-	// 初始化 Redis 令牌存储
-	tokenStore := oredis.NewRedisStore(&redis.Options{
-		Addr:     cfg.RedisURL,
-		Password: cfg.RedisPassword,
-		DB:       0,
-	})
-	defer tokenStore.Close()
+	gin.SetMode(cfg.Server.Mode)
 
-	manager := manage.NewDefaultManager()
-	manager.MapTokenStorage(tokenStore)
-	manager.MapClientStorage(pgStore)
+	// 初始化数据库
+	if err := database.InitDB(cfg); err != nil {
+		log.Fatalf("数据库初始化失败: %v", err)
+	}
+	defer database.Close()
 
-	// 设置令牌有效期
-	manager.SetAuthorizeCodeTokenCfg(manage.DefaultAuthorizeCodeTokenCfg)
-	manager.SetPasswordTokenCfg(&manage.Config{AccessTokenExp: cfg.AccessTokenExpire})
+	// 自动迁移数据库表
+	if err := database.AutoMigrate(&models.User{}, &models.File{}); err != nil {
+		log.Fatalf("数据库迁移失败: %v", err)
+	}
+	log.Println("数据库表迁移完成")
 
-	// 初始化 OAuth 服务
-	srv := server.NewDefaultServer(manager)
+	// 初始化存储服务
+	storageService, err := storage.NewCDKStorage(cfg)
+	if err != nil {
+		log.Fatalf("存储服务初始化失败: %v", err)
+	}
+	defer storageService.Close()
 
-	r := gin.Default()
+	r := gin.New()
 
-	r.GET("/authorize", func(c *gin.Context) {
-		err := srv.HandleAuthorizeRequest(c.Writer, c.Request)
-		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	// 使用中间件
+	middleware.UseMiddleware(r)
+
+	// 静态文件服务（用于访问上传的文件）
+	r.Static("/uploads", cfg.Storage.LocalDir)
+
+	// 注册路由
+	routes.SetupRoutes(r, storageService)
+
+	// 启动服务器
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+
+	go func() {
+		if err := r.Run(":" + cfg.Server.Port); err != nil {
+			log.Fatalf("服务器启动失败: %v", err)
 		}
-	})
+	}()
 
-	r.POST("/token", func(c *gin.Context) {
-		err := srv.HandleTokenRequest(c.Writer, c.Request)
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		}
-	})
-
-	r.GET("/userinfo", func(ctx *gin.Context) {
-		ti, err := srv.ValidationBearerToken(ctx.Request)
-		if err != nil {
-			ctx.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
-			return
-		}
-
-		ctx.JSON(http.StatusOK, gin.H{
-			"user_id": ti.GetUserID(),
-			"client_id": ti.GetClientID(),
-			"expires_in": int64(time.Until(ti.GetAccessCreateAt().Add(ti.GetAccessExpiresIn())).Seconds()),
-		})
-	})
-
-	log.Println("[INFO] 🌍 Quanta Auth Server 运行在 :" + cfg.Port)
-	r.Run(":" + cfg.Port)
+	<-quit
 }
