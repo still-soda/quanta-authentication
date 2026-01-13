@@ -2,37 +2,20 @@ package database
 
 import (
 	"fmt"
-	"log"
 	"qauth-server/internal/config"
+	"qauth-server/internal/models"
+	"qauth-server/internal/utilities"
 	"time"
 
+	"github.com/gin-gonic/gin"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
 )
 
-// DB 全局数据库实例
-var DB *gorm.DB
-
 // InitDB 初始化数据库连接
-func InitDB(cfg *config.Config) error {
-	var dsn string
-
-	// 优先使用完整的 DSN
-	if cfg.Database.DSN != "" {
-		dsn = cfg.Database.DSN
-	} else {
-		// 否则拼接 DSN
-		dsn = fmt.Sprintf(
-			"host=%s port=%d user=%s password=%s dbname=%s sslmode=%s",
-			cfg.Database.Host,
-			cfg.Database.Port,
-			cfg.Database.User,
-			cfg.Database.Password,
-			cfg.Database.DBName,
-			cfg.Database.SSLMode,
-		)
-	}
+func InitDB(cfg *config.Config) (*gorm.DB, error) {
+	dsn := cfg.Database.DSN
 
 	// 配置 GORM 日志
 	gormConfig := &gorm.Config{
@@ -40,18 +23,19 @@ func InitDB(cfg *config.Config) error {
 		NowFunc: func() time.Time {
 			return time.Now().Local()
 		},
+		DisableForeignKeyConstraintWhenMigrating: true,
 	}
 
 	// 连接数据库
 	db, err := gorm.Open(postgres.Open(dsn), gormConfig)
 	if err != nil {
-		return fmt.Errorf("failed to connect database: %w", err)
+		return nil, fmt.Errorf("failed to connect database: %w", err)
 	}
 
 	// 获取底层 SQL DB 进行连接池配置
 	sqlDB, err := db.DB()
 	if err != nil {
-		return fmt.Errorf("failed to get database instance: %w", err)
+		return nil, fmt.Errorf("failed to get database instance: %w", err)
 	}
 
 	// 设置连接池
@@ -59,20 +43,24 @@ func InitDB(cfg *config.Config) error {
 	sqlDB.SetMaxOpenConns(100)
 	sqlDB.SetConnMaxLifetime(time.Hour)
 
-	DB = db
-	log.Println("✅ 数据库连接成功")
+	utilities.GetLogger().Info("database connection established")
+	return db, nil
+}
+
+// GetDB 从 Gin 上下文中获取 GORM 数据库实例
+func GetDB(c *gin.Context) *gorm.DB {
+	if db, exists := c.Get("DB"); exists {
+		if gormDB, ok := db.(*gorm.DB); ok {
+			return gormDB
+		}
+	}
 	return nil
 }
 
-// GetDB 获取数据库实例
-func GetDB() *gorm.DB {
-	return DB
-}
-
 // Close 关闭数据库连接
-func Close() error {
-	if DB != nil {
-		sqlDB, err := DB.DB()
+func Close(db *gorm.DB) error {
+	if db != nil {
+		sqlDB, err := db.DB()
 		if err != nil {
 			return err
 		}
@@ -82,6 +70,18 @@ func Close() error {
 }
 
 // AutoMigrate 自动迁移数据库表
-func AutoMigrate(models ...interface{}) error {
-	return DB.AutoMigrate(models...)
+func AutoMigrate(db *gorm.DB) error {
+	return db.AutoMigrate(
+		&models.Users{},
+		&models.Roles{},
+		&models.Permissions{},
+		&models.UsersRoles{},
+		&models.RolesPermissions{},
+		&models.Organization{},
+		&models.OAuth2Client{},
+		&models.LoginState{},
+		&models.Images{},
+		&models.Files{},
+		&models.OperationRecord{},
+	)
 }

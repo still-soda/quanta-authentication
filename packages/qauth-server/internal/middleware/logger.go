@@ -1,7 +1,7 @@
 package middleware
 
 import (
-	"log"
+	"qauth-server/internal/utilities"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -19,7 +19,7 @@ func Logger() gin.HandlerFunc {
 		statusCode := c.Writer.Status()
 		clientIP := c.ClientIP()
 
-		log.Printf("| %3d | %13v | %15s | %s | %s |",
+		utilities.GetLogger().Info("| %3d | %13v | %15s | %s | %s |",
 			statusCode,
 			latencyTime,
 			clientIP,

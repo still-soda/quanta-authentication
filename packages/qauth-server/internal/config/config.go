@@ -61,13 +61,7 @@ type ServerConfig struct {
 
 // DatabaseConfig 数据库配置
 type DatabaseConfig struct {
-	Host     string
-	Port     int
-	User     string
-	Password string
-	DBName   string
-	SSLMode  string
-	DSN      string // 完整连接字符串（优先级高于单独配置）
+	DSN string
 }
 
 // RedisConfig Redis 配置
@@ -79,10 +73,7 @@ type RedisConfig struct {
 
 // StorageConfig 存储配置
 type StorageConfig struct {
-	Provider string // local, s3
 	LocalDir string // 本地存储目录
-	S3Bucket string // S3 bucket 名称
-	S3Region string // S3 区域
 }
 
 // JWTConfig JWT 配置
@@ -114,13 +105,7 @@ func New() *Config {
 			Mode: GetEnv("GIN_MODE", "debug"),
 		},
 		Database: DatabaseConfig{
-			DSN:      GetEnv("DATABASE_URL", ""),
-			Host:     GetEnv("DB_HOST", "localhost"),
-			Port:     GetEnvAsInt("DB_PORT", 5432),
-			User:     GetEnv("DB_USER", "postgres"),
-			Password: GetEnv("DB_PASSWORD", ""),
-			DBName:   GetEnv("DB_NAME", "qauth"),
-			SSLMode:  GetEnv("DB_SSLMODE", "disable"),
+			DSN: GetEnv("DATABASE_URL", ""),
 		},
 		Redis: RedisConfig{
 			Addr:     GetEnv("REDIS_ADDR", "localhost:6379"),
@@ -128,10 +113,7 @@ func New() *Config {
 			DB:       GetEnvAsInt("REDIS_DB", 0),
 		},
 		Storage: StorageConfig{
-			Provider: GetEnv("STORAGE_PROVIDER", "local"),
 			LocalDir: GetEnv("STORAGE_LOCAL_DIR", "./uploads"),
-			S3Bucket: GetEnv("STORAGE_S3_BUCKET", ""),
-			S3Region: GetEnv("STORAGE_S3_REGION", "us-east-1"),
 		},
 		JWT: JWTConfig{
 			Secret:          GetEnv("JWT_SECRET", "your-secret-key"),
