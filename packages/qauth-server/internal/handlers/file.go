@@ -17,11 +17,17 @@ func NewFileHandler(storage utilities.Storage) *FileHandler {
 }
 
 func (h *FileHandler) Upload(c *gin.Context) {
-	file, _, err := c.Request.FormFile("file")
+	file, header, err := c.Request.FormFile("file")
 	if err != nil {
 		c.JSON(400, gin.H{"error": "Failed to get file from request"})
 		return
 	}
 	defer file.Close()
 
+	bucketName := "uploads"
+	fileName, err := h.fileService.SaveFile(c, header, nil, &bucketName)
+
+	c.JSON(200, gin.H{
+		"fileName": fileName,
+	})
 }

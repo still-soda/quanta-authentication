@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"fmt"
 	"qauth-server/internal/utilities"
 	"time"
 
@@ -19,12 +20,14 @@ func Logger() gin.HandlerFunc {
 		statusCode := c.Writer.Status()
 		clientIP := c.ClientIP()
 
-		utilities.GetLogger().Info("| %3d | %13v | %15s | %s | %s |",
-			statusCode,
-			latencyTime,
-			clientIP,
-			reqMethod,
-			reqUri,
+		utilities.GetLogger().Info(
+			fmt.Sprintf("| %3d | %13v | %15s | %s | %s |",
+				statusCode,
+				latencyTime,
+				clientIP,
+				reqMethod,
+				reqUri,
+			),
 		)
 	}
 }

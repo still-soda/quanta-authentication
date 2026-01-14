@@ -17,7 +17,11 @@ func _getMimeType(file multipart.File) string {
 	if err != nil {
 		return "application/octet-stream"
 	}
-	return http.DetectContentType(buffer)
+	mimeType := http.DetectContentType(buffer)
+	if _, err := file.Seek(0, 0); err != nil {
+		return "application/octet-stream"
+	}
+	return mimeType
 }
 
 type FileService struct {

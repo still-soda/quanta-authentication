@@ -38,12 +38,12 @@ func main() {
 	logger.Info("successfully migrated database tables")
 
 	// 初始化存储服务
-	storageService, err := utilities.NewLocalStorage(cfg)
+	s, err := utilities.NewLocalStorage(cfg)
 	if err != nil {
 		logger.Error("failed to initialize storage service: ", err)
 		return
 	}
-	defer storageService.Close()
+	defer s.Close()
 
 	r := gin.New()
 
@@ -65,7 +65,7 @@ func main() {
 	r.Static("/uploads", cfg.Storage.LocalDir)
 
 	// 注册路由
-	routes.SetupRoutes(r)
+	routes.SetupRoutes(r, s)
 
 	// 启动服务器
 	logger.Info("server was running on port :" + cfg.Server.Port)
