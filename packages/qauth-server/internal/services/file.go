@@ -3,12 +3,11 @@ package services
 import (
 	"mime/multipart"
 	"net/http"
-	"qauth-server/internal/database"
 	"qauth-server/internal/models"
-	"qauth-server/internal/utilities"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"gorm.io/gorm"
 )
 
 func _getMimeType(file multipart.File) string {
@@ -25,11 +24,12 @@ func _getMimeType(file multipart.File) string {
 }
 
 type FileService struct {
-	storage utilities.Storage
+	storageService *StorageService
+	db             *gorm.DB
 }
 
-func NewFileService(storage utilities.Storage) *FileService {
-	return &FileService{storage: storage}
+func NewFileService(storageService *StorageService, db *gorm.DB) *FileService {
+	return &FileService{storageService: storageService, db: db}
 }
 
 func (s *FileService) SaveFile(
@@ -48,11 +48,10 @@ func (s *FileService) SaveFile(
 
 	mimeType := _getMimeType(file)
 
-	if err := s.storage.Upload(ctx, uniqueName, file); err != nil {
+	if err := s.storageService.Upload(ctx, uniqueName, file); err != nil {
 		return "", err
 	}
 
-	db := database.GetDB(ctx)
 	fileRecord := &models.Files{
 		StorageKey: uniqueName,
 		Bucket:     *bucketName,
@@ -61,7 +60,7 @@ func (s *FileService) SaveFile(
 		CreatorID:  creatorID,
 	}
 
-	if err := db.Create(fileRecord).Error; err != nil {
+	if err := s.db.Create(fileRecord).Error; err != nil {
 		return "", err
 	}
 

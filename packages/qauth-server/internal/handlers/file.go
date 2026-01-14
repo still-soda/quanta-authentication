@@ -1,8 +1,9 @@
 package handlers
 
 import (
+	app_error "qauth-server/internal/errors"
 	"qauth-server/internal/services"
-	"qauth-server/internal/utilities"
+	"qauth-server/pkg/response"
 
 	"github.com/gin-gonic/gin"
 )
@@ -11,15 +12,14 @@ type FileHandler struct {
 	fileService services.FileService
 }
 
-func NewFileHandler(storage utilities.Storage) *FileHandler {
-	fileService := services.NewFileService(storage)
+func NewFileHandler(fileService *services.FileService) *FileHandler {
 	return &FileHandler{fileService: *fileService}
 }
 
 func (h *FileHandler) Upload(c *gin.Context) {
 	file, header, err := c.Request.FormFile("file")
 	if err != nil {
-		c.JSON(400, gin.H{"error": "Failed to get file from request"})
+		response.HandlerError(c, app_error.ErrBadRequest)
 		return
 	}
 	defer file.Close()
@@ -27,7 +27,7 @@ func (h *FileHandler) Upload(c *gin.Context) {
 	bucketName := "uploads"
 	fileName, err := h.fileService.SaveFile(c, header, nil, &bucketName)
 
-	c.JSON(200, gin.H{
+	response.HandlerSuccess(c, gin.H{
 		"fileName": fileName,
 	})
 }

@@ -9,9 +9,10 @@ import (
 )
 
 // Logger 日志中间件
-func Logger() gin.HandlerFunc {
+func Logger(logger *utilities.Logger) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		startTime := time.Now()
+		c.Set("logger", logger)
 		c.Next()
 		endTime := time.Now()
 		latencyTime := endTime.Sub(startTime)

@@ -10,12 +10,14 @@ const (
 
 type Users struct {
 	BaseModelWithUUID
-	Email         string     `gorm:"uniqueIndex;size:100;not null" json:"email"`
+	StudentId    string `gorm:"uniqueIndex;size:11;not null" json:"student_id,omitempty"`
+	Email        string `gorm:"uniqueIndex;size:100;not null" json:"email"`
+	PasswordHash string `gorm:"size:255;not null" json:"-"`
+	Name         string `gorm:"size:50;not null" json:"name"`
+
 	Phone         *string    `gorm:"uniqueIndex;size:20" json:"phone,omitempty"`
-	PasswordHash  string     `gorm:"size:255;not null" json:"-"`
 	Salt          string     `gorm:"size:255" json:"-"`
-	Name          string     `gorm:"size:50;not null" json:"name"`
-	DisplayName   string     `gorm:"size:50" json:"display_name"`
+	DisplayName   *string    `gorm:"size:50" json:"display_name"`
 	AvatarID      *string    `gorm:"type:uuid" json:"avatar_id,omitempty"`
 	Status        UserStatus `gorm:"type:varchar(20);default:'ACTIVE'" json:"status"`
 	EmailVerified bool       `gorm:"default:false" json:"email_verified"`

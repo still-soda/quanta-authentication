@@ -1,4 +1,4 @@
-package utilities
+package services
 
 import (
 	"context"
@@ -13,21 +13,13 @@ import (
 	_ "gocloud.dev/blob/s3blob"
 )
 
-type Storage interface {
-	Upload(ctx context.Context, key string, data io.Reader) error
-	Download(ctx context.Context, key string) ([]byte, error)
-	Delete(ctx context.Context, key string) error
-	Exists(ctx context.Context, key string) (bool, error)
-	GetURL(ctx context.Context, key string) (string, error)
-}
-
-type LocalStorage struct {
+type StorageService struct {
 	bucket     *blob.Bucket
 	localDir   string
 	bucketName string
 }
 
-func NewLocalStorage(cfg *config.Config) (*LocalStorage, error) {
+func NewStorageService(cfg *config.Config) (*StorageService, error) {
 	ctx := context.Background()
 	var bucket *blob.Bucket
 
@@ -47,7 +39,7 @@ func NewLocalStorage(cfg *config.Config) (*LocalStorage, error) {
 		return nil, fmt.Errorf("failed to open local bucket: %w", err)
 	}
 
-	return &LocalStorage{
+	return &StorageService{
 		bucket:     bucket,
 		localDir:   absPath,
 		bucketName: "local",
@@ -55,7 +47,7 @@ func NewLocalStorage(cfg *config.Config) (*LocalStorage, error) {
 }
 
 // Upload 上传文件
-func (s *LocalStorage) Upload(ctx context.Context, key string, data io.Reader) error {
+func (s *StorageService) Upload(ctx context.Context, key string, data io.Reader) error {
 	w, err := s.bucket.NewWriter(ctx, key, nil)
 	if err != nil {
 		return fmt.Errorf("failed to create writer: %w", err)
@@ -74,7 +66,7 @@ func (s *LocalStorage) Upload(ctx context.Context, key string, data io.Reader) e
 }
 
 // Download 下载文件
-func (s *LocalStorage) Download(ctx context.Context, key string) ([]byte, error) {
+func (s *StorageService) Download(ctx context.Context, key string) ([]byte, error) {
 	r, err := s.bucket.NewReader(ctx, key, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create reader: %w", err)
@@ -90,7 +82,7 @@ func (s *LocalStorage) Download(ctx context.Context, key string) ([]byte, error)
 }
 
 // Delete 删除文件
-func (s *LocalStorage) Delete(ctx context.Context, key string) error {
+func (s *StorageService) Delete(ctx context.Context, key string) error {
 	if err := s.bucket.Delete(ctx, key); err != nil {
 		return fmt.Errorf("failed to delete object: %w", err)
 	}
@@ -98,17 +90,17 @@ func (s *LocalStorage) Delete(ctx context.Context, key string) error {
 }
 
 // Exists 检查文件是否存在
-func (s *LocalStorage) Exists(ctx context.Context, key string) (bool, error) {
+func (s *StorageService) Exists(ctx context.Context, key string) (bool, error) {
 	return s.bucket.Exists(ctx, key)
 }
 
 // GetURL 获取文件访问 URL
-func (s *LocalStorage) GetURL(ctx context.Context, key string) (string, error) {
+func (s *StorageService) GetURL(ctx context.Context, key string) (string, error) {
 	return filepath.Join("/uploads", key), nil
 }
 
 // Close 关闭存储桶
-func (s *LocalStorage) Close() error {
+func (s *StorageService) Close() error {
 	if s.bucket != nil {
 		return s.bucket.Close()
 	}

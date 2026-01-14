@@ -7,7 +7,6 @@ import (
 	"qauth-server/internal/utilities"
 	"time"
 
-	"github.com/gin-gonic/gin"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
@@ -45,16 +44,6 @@ func InitDB(cfg *config.Config) (*gorm.DB, error) {
 
 	utilities.GetLogger().Info("database connection established")
 	return db, nil
-}
-
-// GetDB 从 Gin 上下文中获取 GORM 数据库实例
-func GetDB(c *gin.Context) *gorm.DB {
-	if db, exists := c.Get("DB"); exists {
-		if gormDB, ok := db.(*gorm.DB); ok {
-			return gormDB
-		}
-	}
-	return nil
 }
 
 // Close 关闭数据库连接
