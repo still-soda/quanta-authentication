@@ -37,9 +37,13 @@ func main() {
 	}
 	logger.Info("successfully migrated database tables")
 
-	r := gin.New()
+	// 数据库种子数据
+	if err := database.SeedingDB(db); err != nil {
+		panic("failed to seed database: " + err.Error())
+	}
+	logger.Info("successfully seeded database")
 
-	// bind logger
+	r := gin.New()
 
 	// 使用中间件
 	r.Use(
@@ -60,17 +64,31 @@ func main() {
 
 	fileService := services.NewFileService(storageService, db)
 	userService := services.NewUserService(db)
+	roleService := services.NewRoleService(db)
+	oauthService := services.NewOAuthService(db, cfg)
+
+	// OIDC 服务
+	issuer := "http://localhost:" + cfg.Server.Port
+	oidcService, err := services.NewOIDCService(cfg, issuer)
+	if err != nil {
+		panic("failed to create oidc service: " + err.Error())
+	}
+	defer oidcService.Close()
 
 	// 创建处理器
 	healthHandler := handlers.NewHealthHandler()
 	fileHandler := handlers.NewFileHandler(fileService)
-	authHandler := handlers.NewAuthHandler(userService)
+	authHandler := handlers.NewAuthHandler(userService, roleService)
+	oauthHandler := handlers.NewOAuthHandler(oauthService)
+	oidcHandler := handlers.NewOIDCHandler(oidcService)
 
 	// 注册路由
 	routes.RegisterRoutes(r, &routes.RegisterRouterHandlers{
 		HealthHandler: healthHandler,
 		FileHandler:   fileHandler,
 		AuthHandler:   authHandler,
+		OAuthHandler:  oauthHandler,
+		OIDCHandler:   oidcHandler,
 	})
 
 	// 启动服务器

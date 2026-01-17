@@ -51,6 +51,9 @@ type Config struct {
 
 	// JWT 配置
 	JWT JWTConfig
+
+	// OIDC 配置
+	OIDC OIDCConfig
 }
 
 // ServerConfig 服务器配置
@@ -83,6 +86,13 @@ type JWTConfig struct {
 	RefreshTokenExp time.Duration
 }
 
+// OIDCConfig OIDC 配置
+type OIDCConfig struct {
+	Issuer              string        // 发行者 URL
+	KeyRotationInterval time.Duration // 密钥轮换间隔
+	KeySize             int           // RSA 密钥大小
+}
+
 func New() *Config {
 	LoadConfig()
 
@@ -97,6 +107,13 @@ func New() *Config {
 	refreshTokenExp, err := time.ParseDuration(refreshTokenExpStr + "s")
 	if err != nil {
 		refreshTokenExp = 7 * 24 * time.Hour
+	}
+
+	// OIDC 密钥轮换间隔
+	keyRotationIntervalStr := GetEnv("OIDC_KEY_ROTATION_INTERVAL", "86400")
+	keyRotationInterval, err := time.ParseDuration(keyRotationIntervalStr + "s")
+	if err != nil {
+		keyRotationInterval = 24 * time.Hour
 	}
 
 	return &Config{
@@ -119,6 +136,11 @@ func New() *Config {
 			Secret:          GetEnv("JWT_SECRET", "your-secret-key"),
 			AccessTokenExp:  accessTokenExp,
 			RefreshTokenExp: refreshTokenExp,
+		},
+		OIDC: OIDCConfig{
+			Issuer:              GetEnv("OIDC_ISSUER", "http://localhost:8080"),
+			KeyRotationInterval: keyRotationInterval,
+			KeySize:             GetEnvAsInt("OIDC_KEY_SIZE", 2048),
 		},
 	}
 }

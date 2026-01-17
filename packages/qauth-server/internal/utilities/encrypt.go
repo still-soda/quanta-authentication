@@ -4,7 +4,13 @@ import (
 	"crypto"
 	"crypto/rand"
 	"encoding/hex"
+	"strconv"
 )
+
+// ParseInt 解析字符串为整数
+func ParseInt(s string) (int, error) {
+	return strconv.Atoi(s)
+}
 
 // GenerateSalt 生成指定长度的随机盐值
 func GenerateSalt(length int) (string, error) {
