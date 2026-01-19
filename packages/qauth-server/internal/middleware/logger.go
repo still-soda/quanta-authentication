@@ -9,7 +9,7 @@ import (
 )
 
 // Logger 日志中间件
-func Logger(logger *utilities.Logger) gin.HandlerFunc {
+func Logger(logger utilities.Logger) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		startTime := time.Now()
 		c.Set("logger", logger)
@@ -21,7 +21,7 @@ func Logger(logger *utilities.Logger) gin.HandlerFunc {
 		statusCode := c.Writer.Status()
 		clientIP := c.ClientIP()
 
-		utilities.GetLogger().Info(
+		logger.Info(
 			fmt.Sprintf("| %3d | %13v | %15s | %s | %s |",
 				statusCode,
 				latencyTime,

@@ -15,9 +15,8 @@ func Auth() gin.HandlerFunc {
 			ctx.AbortWithStatusJSON(401, gin.H{"error": "authorization header is required"})
 			return
 		}
-		// parse token
+		// extract token
 		var accessToken string
-		// Bearer -> token
 		_, err := fmt.Sscanf(authorization, "Bearer %s", &accessToken)
 		if err != nil {
 			ctx.AbortWithStatusJSON(401, gin.H{"error": "invalid authorization header format"})

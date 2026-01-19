@@ -47,7 +47,7 @@ func main() {
 
 	// 使用中间件
 	r.Use(
-		middleware.Logger(&logger),
+		middleware.Logger(logger),
 		middleware.Recovery(),
 		middleware.CORS(),
 	)
