@@ -5,6 +5,7 @@ import (
 	"qauth-server/internal/permissions"
 	"qauth-server/internal/services"
 	"qauth-server/internal/utilities"
+	"qauth-server/pkg/jwt"
 	"qauth-server/pkg/response"
 
 	"github.com/gin-gonic/gin"
@@ -14,11 +15,12 @@ import (
 type OAuthHandler struct {
 	oauthService *services.OAuthService
 	roleService  *services.RoleService
+	userService  *services.UserService
 }
 
 // NewOAuthHandler 创建新的 OAuth2 处理器
-func NewOAuthHandler(oauthService *services.OAuthService, roleService *services.RoleService) *OAuthHandler {
-	return &OAuthHandler{oauthService: oauthService, roleService: roleService}
+func NewOAuthHandler(oauthService *services.OAuthService, roleService *services.RoleService, userService *services.UserService) *OAuthHandler {
+	return &OAuthHandler{oauthService: oauthService, roleService: roleService, userService: userService}
 }
 
 // Authorize 处理授权请求（授权码模式）
@@ -240,4 +242,70 @@ func (h *OAuthHandler) ListClients(c *gin.Context) {
 		"page":  page,
 		"size":  pageSize,
 	})
+}
+
+// UserInfo 获取用户信息
+func (h *OAuthHandler) UserInfo(c *gin.Context) {
+	token, err := jwt.ExtractTokenFromHeader(c)
+	if err != nil {
+		response.HandlerError(c, app_error.ErrInvalidAccessToken)
+		return
+	}
+
+	info, err := h.oauthService.GetTokenInfo(token)
+	if err != nil {
+		response.HandlerError(c, app_error.ErrInvalidAccessToken)
+		return
+	}
+
+	userID := info.GetUserID()
+	issueAt := info.GetAccessCreateAt().Unix()
+	expiry := info.GetAccessExpiresIn().Seconds() + float64(issueAt)
+	audience := info.GetClientID()
+	issuer := h.oauthService.Cfg.OIDC.Issuer
+
+	userInfo, err := h.userService.GetUserByID(userID)
+	if err != nil {
+		response.HandlerError(c, app_error.ErrUserNotFound)
+		return
+	}
+
+	response.HandlerSuccess(c, gin.H{
+		"sub":            userID,
+		"iss":            issuer,
+		"iat":            issueAt,
+		"exp":            expiry,
+		"aud":            audience,
+		"name":           userInfo.Name,
+		"email":          userInfo.Email,
+		"email_verified": userInfo.EmailVerified,
+		"student_id":     userInfo.StudentID,
+		"role":           userInfo.Roles,
+	})
+}
+
+// Logout 登出端点
+func (h *OAuthHandler) Logout(c *gin.Context) {
+	token, err := jwt.ExtractTokenFromHeader(c)
+	if err != nil {
+		response.HandlerError(c, app_error.ErrInvalidAccessToken)
+		return
+	}
+
+	info, err := h.oauthService.GetTokenInfo(token)
+	if err != nil {
+		response.HandlerError(c, app_error.ErrInvalidAccessToken)
+		return
+	}
+
+	refreshToken := info.GetRefresh()
+	h.oauthService.GetManager().RemoveAccessToken(c, token)
+	h.oauthService.GetManager().RemoveRefreshToken(c, refreshToken)
+
+	postLogoutRedirectURI := c.Query("post_logout_redirect_uri")
+	if postLogoutRedirectURI == "" {
+		postLogoutRedirectURI = "/"
+	}
+
+	c.Redirect(302, postLogoutRedirectURI)
 }

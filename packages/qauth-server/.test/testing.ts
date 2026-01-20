@@ -75,7 +75,7 @@ async function authorizeClient(clientId: string, token: string) {
    });
 
    const location = res.headers.get('Location');
-   console.log(`Redirect to ${location}`)
+   // console.log(`Redirect to ${location}`)
    const code = location ? new URL(location).searchParams.get('code') : null;
    console.log(code ? 'PASS' : 'FAILED');
 
@@ -98,6 +98,7 @@ async function tokenFromCode(clientId: string, code: string) {
       }
    });
 
+   // console.log(res)
    console.log('access_token' in res ? 'PASS' : 'FAILED');
 
    return {
@@ -128,7 +129,8 @@ async function verifyIdToken(token: string) {
    const encoder = new TextEncoder();
    const data = encoder.encode([headerB64, payload].join('.'));
    
-   const signatureArray = new Uint8Array(Buffer.from(signature, 'base64url'));   
+   const b64 = atob(signature.replace(/-/g, '+').replace(/_/g, '/'))
+   const signatureArray = Uint8Array.from(b64, c => c.charCodeAt(0));
    const isValid = await crypto.subtle.verify(
       'RSASSA-PKCS1-v1_5',
       cryptoKey,
@@ -139,6 +141,24 @@ async function verifyIdToken(token: string) {
    console.log(isValid ? 'PASS' : 'FAILED');
 }
 
+async function getUserInfo(token: string) {
+   const res = await r('/oauth/userinfo', {
+      method: 'GET',
+      headers: b(token),
+   });
+
+   console.log(res.code.toString().startsWith('2') ? 'PASS' : 'FAILED');
+}
+
+async function logout(token: string) {
+   const res = await r('/oauth/logout', {
+      method: 'POST',
+      headers: b(token),
+   });
+
+   console.log(res.code.toString().startsWith('2') ? 'PASS' : 'FAILED');
+}
+
 async function main() {
    // 创建阶段
    const cred = await loginToAdmin();
@@ -147,8 +167,13 @@ async function main() {
    // 授权阶段
    const code = await authorizeClient(clientId, cred.accessToken);
    const token = await tokenFromCode(clientId, code);
-   console.log(token)
    await verifyIdToken(token.idToken);
+
+   // 获取用户信息
+   await getUserInfo(token.accessToken);
+
+   // 清理阶段
+   await logout(cred.accessToken);
 
    await removeClient(cred.accessToken, clientId);
 }

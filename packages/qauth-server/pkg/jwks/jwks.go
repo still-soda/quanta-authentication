@@ -33,6 +33,16 @@ const (
 	KeyStatusExpired  KeyStatus = "expired"  // 已过期的密钥
 )
 
+// IDTokenClaims ID 令牌声明
+type IDTokenClaims struct {
+	Issuer   string `json:"iss,omitempty"`
+	Subject  string `json:"sub,omitempty"`
+	Audience string `json:"aud,omitempty"`
+	Expiry   int64  `json:"exp,omitempty"`
+	IssuedAt int64  `json:"iat,omitempty"`
+	AuthTime int64  `json:"auth_time,omitempty"`
+}
+
 // JWK JSON Web Key 结构
 type JWK struct {
 	Kty string `json:"kty"` // Key Type (RSA)
@@ -251,21 +261,28 @@ func publicKeyToJWK(kid string, publicKey *rsa.PublicKey) JWK {
 }
 
 // SignToken 使用当前活跃密钥签名 JWT
-func (m *JWKSManager) SignToken(claims jwt.Claims) (string, error) {
+func (m *JWKSManager) SignToken(idtc *IDTokenClaims) (string, error) {
 	keyInfo, err := m.GetActiveKey()
 	if err != nil {
 		return "", err
 	}
 
-	token := jwt.NewWithClaims(jwt.SigningMethodRS256, claims)
+	token := jwt.NewWithClaims(jwt.SigningMethodRS256, jwt.MapClaims{
+		"iss":       idtc.Issuer,
+		"sub":       idtc.Subject,
+		"aud":       idtc.Audience,
+		"exp":       idtc.Expiry,
+		"iat":       idtc.IssuedAt,
+		"auth_time": idtc.AuthTime,
+	})
 	token.Header["kid"] = keyInfo.ID
 
 	return token.SignedString(keyInfo.PrivateKey)
 }
 
 // VerifyToken 验证 JWT 签名
-func (m *JWKSManager) VerifyToken(tokenString string) (*jwt.Token, error) {
-	return jwt.Parse(tokenString, func(token *jwt.Token) (any, error) {
+func (m *JWKSManager) VerifyToken(tokenString string) (*IDTokenClaims, error) {
+	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (any, error) {
 		// 验证签名方法
 		if _, ok := token.Method.(*jwt.SigningMethodRSA); !ok {
 			return nil, errors.New("unexpected signing method")
@@ -285,6 +302,25 @@ func (m *JWKSManager) VerifyToken(tokenString string) (*jwt.Token, error) {
 
 		return keyInfo.PublicKey, nil
 	})
+	if err != nil {
+		return nil, err
+	}
+
+	var idtc *IDTokenClaims
+	if claims, ok := token.Claims.(jwt.MapClaims); ok && token.Valid {
+		idtc = &IDTokenClaims{
+			Issuer:   claims["iss"].(string),
+			Subject:  claims["sub"].(string),
+			Audience: claims["aud"].(string),
+			Expiry:   int64(claims["exp"].(float64)),
+			IssuedAt: int64(claims["iat"].(float64)),
+			AuthTime: int64(claims["auth_time"].(float64)),
+		}
+	} else {
+		return nil, errors.New("invalid token claims")
+	}
+
+	return idtc, nil
 }
 
 // ForceRotate 强制进行密钥轮换

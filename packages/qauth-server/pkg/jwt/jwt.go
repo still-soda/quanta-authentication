@@ -1,8 +1,10 @@
 package jwt
 
 import (
+	"fmt"
 	"time"
 
+	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
 )
 
@@ -124,4 +126,23 @@ func ParseRefreshToken(tokenString string) (*UserJWTClaims, error) {
 func VerifyJWTToken(tokenString string) bool {
 	_, err := ParseAccessToken(tokenString)
 	return err == nil
+}
+
+// ExtractTokenFromHeader 从 Gin 上下文中提取 JWT 令牌
+func ExtractTokenFromHeader(ctx *gin.Context) (string, error) {
+	// 获取 Authorization 头
+	authorization := ctx.GetHeader("Authorization")
+	if authorization == "" {
+		ctx.AbortWithStatusJSON(401, gin.H{"error": "authorization header is required"})
+		return "", fmt.Errorf("authorization header is required")
+	}
+	// 提取 token
+	var accessToken string
+	_, err := fmt.Sscanf(authorization, "Bearer %s", &accessToken)
+	if err != nil {
+		ctx.AbortWithStatusJSON(401, gin.H{"error": "invalid authorization header format"})
+		return "", fmt.Errorf("invalid authorization header format")
+	}
+
+	return accessToken, nil
 }

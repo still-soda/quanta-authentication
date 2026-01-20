@@ -2,7 +2,6 @@ package handlers
 
 import (
 	"qauth-server/internal/services"
-	"qauth-server/pkg/app_error"
 	"qauth-server/pkg/response"
 
 	"github.com/gin-gonic/gin"
@@ -11,11 +10,12 @@ import (
 // OIDCHandler OIDC 处理器
 type OIDCHandler struct {
 	oidcService *services.OIDCService
+	userService *services.UserService
 }
 
 // NewOIDCHandler 创建新的 OIDC 处理器
-func NewOIDCHandler(oidcService *services.OIDCService) *OIDCHandler {
-	return &OIDCHandler{oidcService: oidcService}
+func NewOIDCHandler(oidcService *services.OIDCService, userService *services.UserService) *OIDCHandler {
+	return &OIDCHandler{oidcService: oidcService, userService: userService}
 }
 
 // GetOpenIDConfiguration 获取 OpenID Connect 配置
@@ -72,30 +72,4 @@ func (h *OIDCHandler) GetKeyRotationInfo(c *gin.Context) {
 		"keys":          keyInfos,
 		"total":         len(keys),
 	})
-}
-
-// GetUserInfo 获取用户信息
-// GET /oauth/userinfo
-func (h *OIDCHandler) GetUserInfo(c *gin.Context) {
-	// TODO: 从 access token 中获取用户信息
-	// 这需要验证 Bearer token 并返回用户信息
-
-	// 暂时返回未实现
-	response.HandlerError(c, app_error.NewAppError(501, "userinfo endpoint is not implemented yet"))
-}
-
-// Logout 登出端点
-// GET/POST /oauth/logout
-func (h *OIDCHandler) Logout(c *gin.Context) {
-	// TODO: 实现登出逻辑
-	// 1. 撤销所有相关 token
-	// 2. 清除 session
-	// 3. 重定向到 post_logout_redirect_uri
-
-	postLogoutRedirectURI := c.Query("post_logout_redirect_uri")
-	if postLogoutRedirectURI == "" {
-		postLogoutRedirectURI = "/"
-	}
-
-	c.Redirect(302, postLogoutRedirectURI)
 }

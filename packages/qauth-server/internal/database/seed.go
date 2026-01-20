@@ -54,7 +54,7 @@ func SeedingDB(db *gorm.DB) error {
 
 	salt, _ := utilities.GenerateSalt(16)
 	hash := utilities.HashPassword("123456", salt)
-	adminUser := &models.Users{Name: "超级管理员", StudentId: "20231003059", Email: "951040628@qq.com", Salt: salt, PasswordHash: hash}
+	adminUser := &models.Users{Name: "超级管理员", StudentID: "20231003059", Email: "951040628@qq.com", Salt: salt, PasswordHash: hash}
 	db.FirstOrCreate(&adminUser)
 
 	adminUserRole := &models.UsersRoles{UserID: adminUser.ID, RoleID: superAdmin.ID}

@@ -18,14 +18,13 @@ import (
 	"github.com/go-oauth2/oauth2/v4/server"
 	oredis "github.com/go-oauth2/redis/v4"
 	"github.com/go-redis/redis/v8"
-	"github.com/golang-jwt/jwt/v5"
 	"gorm.io/gorm"
 )
 
 // OAuthService OAuth2 服务
 type OAuthService struct {
 	db          *gorm.DB
-	cfg         *config.Config
+	Cfg         *config.Config
 	server      *server.Server
 	manager     *manage.Manager
 	clientStore *GormClientStore
@@ -124,7 +123,7 @@ func NewOAuthService(db *gorm.DB, cfg *config.Config, jwksManager *jwks.JWKSMana
 
 	service := &OAuthService{
 		db:          db,
-		cfg:         cfg,
+		Cfg:         cfg,
 		server:      srv,
 		manager:     manager,
 		clientStore: clientStore,
@@ -204,14 +203,15 @@ func (s *OAuthService) extensionFieldsHandler(ti oauth2.TokenInfo) (fieldsValue 
 		return nil
 	}
 
-	idToken, err := s.jwksManager.SignToken(jwt.MapClaims{
-		"iss":       s.cfg.OIDC.Issuer,
-		"sub":       ti.GetUserID(),
-		"aud":       ti.GetClientID(),
-		"exp":       ti.GetAccessCreateAt().Add(ti.GetAccessExpiresIn()).Unix(),
-		"iat":       ti.GetAccessCreateAt().Unix(),
-		"auth_time": ti.GetAccessCreateAt().Unix(),
-	})
+	idTokenClaims := &jwks.IDTokenClaims{
+		Issuer:   s.Cfg.OIDC.Issuer,
+		Subject:  ti.GetUserID(),
+		Audience: ti.GetClientID(),
+		Expiry:   ti.GetAccessCreateAt().Add(ti.GetAccessExpiresIn()).Unix(),
+		IssuedAt: ti.GetAccessCreateAt().Unix(),
+		AuthTime: ti.GetAccessCreateAt().Unix(),
+	}
+	idToken, err := s.jwksManager.SignToken(idTokenClaims)
 	if err != nil {
 		utilities.GetLogger().Error("failed to sign ID token", "error", err)
 		return nil

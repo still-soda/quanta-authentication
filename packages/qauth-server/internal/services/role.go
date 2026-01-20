@@ -82,7 +82,7 @@ func (s *RoleService) RevokePermissionFromRole(roleID string, permissionCodes []
 }
 
 // GrantPermissionToRoleByAction 根据操作类型分配权限到角色
-func (s *RoleService) GrantPermissionToRoleByAction(roleId string, action permissions.Action) error {
+func (s *RoleService) GrantPermissionToRoleByAction(roleID string, action permissions.Action) error {
 	var permissions []models.Permissions
 	if err := s.db.Where("action = ?", int8(action)).Find(&permissions).Error; err != nil {
 		return err
@@ -93,11 +93,11 @@ func (s *RoleService) GrantPermissionToRoleByAction(roleId string, action permis
 		permissionCodes = append(permissionCodes, perm.Code)
 	}
 
-	return s.GrantPermissionToRole(roleId, permissionCodes)
+	return s.GrantPermissionToRole(roleID, permissionCodes)
 }
 
 // RevokePermissionFromRoleByAction 根据操作类型从角色撤销权限
-func (s *RoleService) RevokePermissionFromRoleByAction(roleId string, action permissions.Action) error {
+func (s *RoleService) RevokePermissionFromRoleByAction(roleID string, action permissions.Action) error {
 	var permissions []models.Permissions
 	if err := s.db.Where("action = ?", int8(action)).Find(&permissions).Error; err != nil {
 		return err
@@ -108,7 +108,7 @@ func (s *RoleService) RevokePermissionFromRoleByAction(roleId string, action per
 		permissionCodes = append(permissionCodes, perm.Code)
 	}
 
-	return s.RevokePermissionFromRole(roleId, permissionCodes)
+	return s.RevokePermissionFromRole(roleID, permissionCodes)
 }
 
 // RoleHasPermissions 检查角色是否拥有指定权限代码

@@ -10,7 +10,7 @@ const (
 
 type Users struct {
 	BaseModelWithUUID
-	StudentId    string `gorm:"uniqueIndex;size:11;not null" json:"student_id,omitempty"`
+	StudentID    string `gorm:"uniqueIndex;size:11;not null" json:"student_id,omitempty"`
 	Email        string `gorm:"uniqueIndex;size:100;not null" json:"email"`
 	PasswordHash string `gorm:"size:255;not null" json:"-"`
 	Name         string `gorm:"size:50;not null" json:"name"`

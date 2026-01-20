@@ -76,7 +76,7 @@ func (h *AuthHandler) Login(c *gin.Context) {
 
 	info := &jwt.JWTInfo{
 		UserID:    user.ID,
-		StudentID: user.StudentId,
+		StudentID: user.StudentID,
 		Role:      role.Code,
 	}
 	accessToken, err := jwt.GenerateAccessToken(info)

@@ -90,8 +90,8 @@ func main() {
 	healthHandler := handlers.NewHealthHandler()
 	fileHandler := handlers.NewFileHandler(fileService)
 	authHandler := handlers.NewAuthHandler(userService, roleService)
-	oauthHandler := handlers.NewOAuthHandler(oauthService, roleService)
-	oidcHandler := handlers.NewOIDCHandler(oidcService)
+	oauthHandler := handlers.NewOAuthHandler(oauthService, roleService, userService)
+	oidcHandler := handlers.NewOIDCHandler(oidcService, userService)
 
 	// 注册路由
 	routes.RegisterRoutes(r, &routes.RegisterRouterHandlers{

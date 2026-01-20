@@ -107,3 +107,8 @@ func (s *OIDCService) GetKeyRotationInfo() []jwks.KeyInfo {
 func (s *OIDCService) GetActiveKeyID() string {
 	return s.jwksManager.GetActiveKeyID()
 }
+
+// ValidateIDToken 验证 ID 令牌
+func (s *OIDCService) ValidateIDToken(idToken string) (*jwks.IDTokenClaims, error) {
+	return s.jwksManager.VerifyToken(idToken)
+}

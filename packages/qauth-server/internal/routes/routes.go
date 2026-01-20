@@ -49,9 +49,9 @@ func RegisterRoutes(r *gin.Engine, handlers *RegisterRouterHandlers) {
 		oauthGroup.POST("/revoke", oauthHandler.RevokeToken)
 
 		// OIDC 端点
-		oauthGroup.GET("/userinfo", oidcHandler.GetUserInfo)
-		oauthGroup.GET("/logout", oidcHandler.Logout)
-		oauthGroup.POST("/logout", oidcHandler.Logout)
+		oauthGroup.GET("/userinfo", oauthHandler.UserInfo)
+		oauthGroup.GET("/logout", oauthHandler.Logout)
+		oauthGroup.POST("/logout", oauthHandler.Logout)
 
 		// OAuth2 客户端管理
 		clientGroup := oauthGroup.Group("/clients")

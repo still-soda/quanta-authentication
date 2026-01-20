@@ -17,8 +17,8 @@ func NewUserService(db *gorm.DB) *UserService {
 }
 
 // GetUserByID 根据用户ID获取用户信息
-func (s *UserService) GetUserByID(userID string) (*UserService, error) {
-	var user UserService
+func (s *UserService) GetUserByID(userID string) (*models.Users, error) {
+	var user models.Users
 	if err := s.db.First(&user, "id = ?", userID).Error; err != nil {
 		return nil, err
 	}
@@ -26,18 +26,18 @@ func (s *UserService) GetUserByID(userID string) (*UserService, error) {
 }
 
 // GetUserByStudentID 根据学生ID获取用户信息
-func (s *UserService) GetUserByStudentID(studentId string) (*models.Users, error) {
+func (s *UserService) GetUserByStudentID(studentID string) (*models.Users, error) {
 	var user models.Users
-	if err := s.db.First(&user, "student_id = ?", studentId).Error; err != nil {
+	if err := s.db.First(&user, "student_id = ?", studentID).Error; err != nil {
 		return nil, err
 	}
 	return &user, nil
 }
 
 // AuthenticateUser 验证用户凭据
-func (s *UserService) AuthenticateUser(studentId, password string) (*models.Users, error) {
+func (s *UserService) AuthenticateUser(studentID, password string) (*models.Users, error) {
 	var user models.Users
-	if err := s.db.First(&user, "student_id = ?", studentId).Error; err != nil {
+	if err := s.db.First(&user, "student_id = ?", studentID).Error; err != nil {
 		return nil, err
 	}
 
@@ -66,7 +66,7 @@ func (s *UserService) CreateUser(params *CreateUserParams) (*models.Users, error
 	hashedPassword := utilities.HashPassword(params.Password, salt)
 
 	if err := s.db.Create(&models.Users{
-		StudentId:    params.StudentID,
+		StudentID:    params.StudentID,
 		Email:        params.Email,
 		Name:         params.Name,
 		Salt:         salt,
