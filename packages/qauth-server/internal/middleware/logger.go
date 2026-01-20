@@ -12,8 +12,11 @@ import (
 func Logger(logger utilities.Logger) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		startTime := time.Now()
+		// 将 logger 存储在上下文中
 		c.Set("logger", logger)
+
 		c.Next()
+
 		endTime := time.Now()
 		latencyTime := endTime.Sub(startTime)
 		reqMethod := c.Request.Method

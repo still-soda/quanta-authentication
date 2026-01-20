@@ -61,6 +61,9 @@ func main() {
 	if err != nil {
 		panic("failed to create jwks manager: " + err.Error())
 	}
+	// 启动密钥轮换
+	jwksManager.StartRotation()
+	defer jwksManager.StopRotation()
 
 	// 创建服务
 	storageService, err := services.NewStorageService(cfg)
@@ -77,7 +80,7 @@ func main() {
 
 	// OIDC 服务
 	issuer := "http://localhost:" + cfg.Server.Port
-	oidcService, err := services.NewOIDCService(cfg, issuer)
+	oidcService, err := services.NewOIDCService(cfg, issuer, jwksManager)
 	if err != nil {
 		panic("failed to create oidc service: " + err.Error())
 	}

@@ -35,22 +35,10 @@ type OIDCService struct {
 }
 
 // NewOIDCService 创建新的 OIDC 服务
-func NewOIDCService(cfg *config.Config, issuer string) (*OIDCService, error) {
+func NewOIDCService(cfg *config.Config, issuer string, jwksManager *jwks.JWKSManager) (*OIDCService, error) {
 	// 如果配置中有 issuer，优先使用配置
 	if cfg.OIDC.Issuer != "" {
 		issuer = cfg.OIDC.Issuer
-	}
-
-	// 创建 JWKS 管理器
-	jwksCfg := &jwks.JWKSConfig{
-		KeySize:          cfg.OIDC.KeySize,
-		RotationInterval: cfg.OIDC.KeyRotationInterval,
-		GracePeriod:      cfg.JWT.RefreshTokenExp, // 保留旧密钥直到 refresh token 过期
-	}
-
-	jwksManager, err := jwks.NewJWKSManager(jwksCfg)
-	if err != nil {
-		return nil, err
 	}
 
 	service := &OIDCService{
@@ -58,9 +46,6 @@ func NewOIDCService(cfg *config.Config, issuer string) (*OIDCService, error) {
 		jwksManager: jwksManager,
 		issuer:      issuer,
 	}
-
-	// 启动密钥轮换
-	jwksManager.StartRotation()
 
 	return service, nil
 }
@@ -105,9 +90,7 @@ func (s *OIDCService) GetJWKSJSON() ([]byte, error) {
 
 // Close 关闭服务
 func (s *OIDCService) Close() {
-	if s.jwksManager != nil {
-		s.jwksManager.StopRotation()
-	}
+	// jwksManager 由外部管理，不在这里停止
 }
 
 // ForceKeyRotation 强制密钥轮换

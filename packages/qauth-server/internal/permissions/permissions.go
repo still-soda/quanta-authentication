@@ -13,3 +13,11 @@ const (
 	// 列出 OAuth 客户端权限
 	OAuthClientList = "oauth_client_list"
 )
+
+// 系统管理相关权限
+const (
+	// 获取密钥轮换信息权限
+	SystemKeyRotationView = "system_key_rotation_view"
+	// 执行密钥轮换权限
+	SystemKeyRotationExecute = "system_key_rotation_execute"
+)

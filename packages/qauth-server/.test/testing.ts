@@ -75,17 +75,80 @@ async function authorizeClient(clientId: string, token: string) {
    });
 
    const location = res.headers.get('Location');
+   console.log(`Redirect to ${location}`)
    const code = location ? new URL(location).searchParams.get('code') : null;
    console.log(code ? 'PASS' : 'FAILED');
 
-   return code;
+   return code ?? '';
+}
+
+async function tokenFromCode(clientId: string, code: string) {
+   const params = new URLSearchParams({
+      grant_type: 'authorization_code',
+      code: code,
+      redirect_uri: 'http://localhost/callback',
+      client_id: clientId,
+      client_secret: secret,
+   });
+   const res = await r('/oauth/token', {
+      method: 'POST',
+      body: params,
+      headers: {
+         'Content-Type': 'application/x-www-form-urlencoded',
+      }
+   });
+
+   console.log('access_token' in res ? 'PASS' : 'FAILED');
+
+   return {
+      accessToken: res.access_token,
+      idToken: res.id_token,
+      refreshToken: res.refresh_token,
+   };
+}
+
+async function verifyIdToken(token: string) {
+   const [headerB64, payload, signature] = token.split('.');
+   const decodedHeader = JSON.parse(atob(headerB64));
+
+   const res1 = await r('/.well-known/jwks.json', { method: 'GET' });
+   
+   // 找到匹配的 key
+   const jwk = res1.keys.find((k: any) => k.kid === decodedHeader.kid);
+   const { n, e } = jwk;
+
+   const cryptoKey = await crypto.subtle.importKey(
+      'jwk',
+      { kty: 'RSA', n: n, e: e, alg: 'RS256', ext: true },
+      { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' },
+      false,
+      ['verify']
+   );
+   
+   const encoder = new TextEncoder();
+   const data = encoder.encode([headerB64, payload].join('.'));
+   
+   const signatureArray = new Uint8Array(Buffer.from(signature, 'base64url'));   
+   const isValid = await crypto.subtle.verify(
+      'RSASSA-PKCS1-v1_5',
+      cryptoKey,
+      signatureArray,
+      data
+   );
+
+   console.log(isValid ? 'PASS' : 'FAILED');
 }
 
 async function main() {
+   // 创建阶段
    const cred = await loginToAdmin();
    const clientId = await createClient(cred.accessToken, cred.userId);
 
-   await authorizeClient(clientId, cred.accessToken);
+   // 授权阶段
+   const code = await authorizeClient(clientId, cred.accessToken);
+   const token = await tokenFromCode(clientId, code);
+   console.log(token)
+   await verifyIdToken(token.idToken);
 
    await removeClient(cred.accessToken, clientId);
 }

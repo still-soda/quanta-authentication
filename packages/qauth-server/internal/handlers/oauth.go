@@ -27,7 +27,7 @@ func (h *OAuthHandler) Authorize(c *gin.Context) {
 	err := h.oauthService.HandleAuthorizeRequest(c.Writer, c.Request)
 	if err != nil {
 		utilities.GetLogger().Error("OAuth authorize error", "error", err)
-		response.HandlerError(c, app_error.ErrBadRequest)
+		c.Error(app_error.ErrBadRequest)
 	}
 }
 
@@ -37,7 +37,7 @@ func (h *OAuthHandler) Token(c *gin.Context) {
 	err := h.oauthService.HandleTokenRequest(c.Writer, c.Request)
 	if err != nil {
 		utilities.GetLogger().Error("OAuth token error", "error", err)
-		response.HandlerError(c, app_error.ErrBadRequest)
+		c.Error(app_error.ErrBadRequest)
 	}
 }
 
@@ -46,7 +46,7 @@ func (h *OAuthHandler) Token(c *gin.Context) {
 func (h *OAuthHandler) ValidateToken(c *gin.Context) {
 	tokenInfo, err := h.oauthService.ValidateToken(c.Request)
 	if err != nil {
-		response.HandlerError(c, app_error.ErrUnauthorized)
+		c.Error(app_error.ErrUnauthorized)
 		return
 	}
 
@@ -68,7 +68,7 @@ func (h *OAuthHandler) RevokeToken(c *gin.Context) {
 	}
 
 	if err := c.ShouldBind(&req); err != nil {
-		response.HandlerError(c, app_error.ErrBadRequest)
+		c.Error(app_error.ErrBadRequest)
 		return
 	}
 
@@ -81,11 +81,11 @@ func (h *OAuthHandler) RevokeToken(c *gin.Context) {
 
 	if err != nil {
 		utilities.GetLogger().Error("OAuth revoke error", "error", err)
-		response.HandlerError(c, app_error.ErrBadRequest)
+		c.Error(app_error.ErrBadRequest)
 		return
 	}
 
-	response.HandlerSuccess(c, gin.H{"revoked": true})
+	c.Status(200)
 }
 
 // CreateClient 创建 OAuth2 客户端

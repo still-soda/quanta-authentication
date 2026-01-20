@@ -3,6 +3,7 @@ package services
 import (
 	"encoding/json"
 	"qauth-server/internal/config"
+	"qauth-server/pkg/jwks"
 	"testing"
 	"time"
 )
@@ -26,10 +27,16 @@ func getTestConfig() *config.Config {
 	}
 }
 
+func getTestJWKSManager() *jwks.JWKSManager {
+	manager, _ := jwks.NewJWKSManager(nil)
+	return manager
+}
+
 func TestNewOIDCService(t *testing.T) {
 	cfg := getTestConfig()
+	jwksManager := getTestJWKSManager()
 
-	service, err := NewOIDCService(cfg, "https://test.example.com")
+	service, err := NewOIDCService(cfg, "https://test.example.com", jwksManager)
 	if err != nil {
 		t.Fatalf("NewOIDCService() error = %v", err)
 	}
@@ -52,8 +59,9 @@ func TestNewOIDCService(t *testing.T) {
 func TestNewOIDCService_WithEmptyIssuer(t *testing.T) {
 	cfg := getTestConfig()
 	cfg.OIDC.Issuer = ""
+	jwksManager := getTestJWKSManager()
 
-	service, err := NewOIDCService(cfg, "https://fallback.example.com")
+	service, err := NewOIDCService(cfg, "https://fallback.example.com", jwksManager)
 	if err != nil {
 		t.Fatalf("NewOIDCService() error = %v", err)
 	}
@@ -64,13 +72,14 @@ func TestNewOIDCService_WithEmptyIssuer(t *testing.T) {
 		t.Errorf("Issuer = %v, want https://fallback.example.com", oidcCfg.Issuer)
 	}
 }
-
 func TestOIDCService_GetOpenIDConfiguration(t *testing.T) {
 	cfg := getTestConfig()
-	service, err := NewOIDCService(cfg, "")
+	jwksManager := getTestJWKSManager()
+	service, err := NewOIDCService(cfg, "", jwksManager)
 	if err != nil {
 		t.Fatalf("NewOIDCService() error = %v", err)
 	}
+	defer service.Close()
 	defer service.Close()
 
 	oidcCfg := service.GetOpenIDConfiguration()
@@ -126,7 +135,8 @@ func TestOIDCService_GetOpenIDConfiguration(t *testing.T) {
 
 func TestOIDCService_GetOpenIDConfiguration_JSON(t *testing.T) {
 	cfg := getTestConfig()
-	service, err := NewOIDCService(cfg, "")
+	jwksManager := getTestJWKSManager()
+	service, err := NewOIDCService(cfg, "", jwksManager)
 	if err != nil {
 		t.Fatalf("NewOIDCService() error = %v", err)
 	}
@@ -165,7 +175,8 @@ func TestOIDCService_GetOpenIDConfiguration_JSON(t *testing.T) {
 
 func TestOIDCService_GetJWKS(t *testing.T) {
 	cfg := getTestConfig()
-	service, err := NewOIDCService(cfg, "")
+	jwksManager := getTestJWKSManager()
+	service, err := NewOIDCService(cfg, "", jwksManager)
 	if err != nil {
 		t.Fatalf("NewOIDCService() error = %v", err)
 	}
@@ -192,7 +203,8 @@ func TestOIDCService_GetJWKS(t *testing.T) {
 
 func TestOIDCService_GetJWKSJSON(t *testing.T) {
 	cfg := getTestConfig()
-	service, err := NewOIDCService(cfg, "")
+	jwksManager := getTestJWKSManager()
+	service, err := NewOIDCService(cfg, "", jwksManager)
 	if err != nil {
 		t.Fatalf("NewOIDCService() error = %v", err)
 	}
@@ -215,7 +227,8 @@ func TestOIDCService_GetJWKSJSON(t *testing.T) {
 
 func TestOIDCService_ForceKeyRotation(t *testing.T) {
 	cfg := getTestConfig()
-	service, err := NewOIDCService(cfg, "")
+	jwksManager := getTestJWKSManager()
+	service, err := NewOIDCService(cfg, "", jwksManager)
 	if err != nil {
 		t.Fatalf("NewOIDCService() error = %v", err)
 	}
@@ -241,7 +254,8 @@ func TestOIDCService_ForceKeyRotation(t *testing.T) {
 
 func TestOIDCService_GetKeyRotationInfo(t *testing.T) {
 	cfg := getTestConfig()
-	service, err := NewOIDCService(cfg, "")
+	jwksManager := getTestJWKSManager()
+	service, err := NewOIDCService(cfg, "", jwksManager)
 	if err != nil {
 		t.Fatalf("NewOIDCService() error = %v", err)
 	}
@@ -268,7 +282,8 @@ func TestOIDCService_GetKeyRotationInfo(t *testing.T) {
 
 func TestOIDCService_GetActiveKeyID(t *testing.T) {
 	cfg := getTestConfig()
-	service, err := NewOIDCService(cfg, "")
+	jwksManager := getTestJWKSManager()
+	service, err := NewOIDCService(cfg, "", jwksManager)
 	if err != nil {
 		t.Fatalf("NewOIDCService() error = %v", err)
 	}
@@ -284,8 +299,9 @@ func TestOIDCService_GetActiveKeyID(t *testing.T) {
 func TestOIDCService_EndpointURLs(t *testing.T) {
 	cfg := getTestConfig()
 	cfg.OIDC.Issuer = "https://auth.example.com"
+	jwksManager := getTestJWKSManager()
 
-	service, err := NewOIDCService(cfg, "")
+	service, err := NewOIDCService(cfg, "", jwksManager)
 	if err != nil {
 		t.Fatalf("NewOIDCService() error = %v", err)
 	}

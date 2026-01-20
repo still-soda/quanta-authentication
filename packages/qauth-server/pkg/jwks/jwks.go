@@ -265,7 +265,7 @@ func (m *JWKSManager) SignToken(claims jwt.Claims) (string, error) {
 
 // VerifyToken 验证 JWT 签名
 func (m *JWKSManager) VerifyToken(tokenString string) (*jwt.Token, error) {
-	return jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+	return jwt.Parse(tokenString, func(token *jwt.Token) (any, error) {
 		// 验证签名方法
 		if _, ok := token.Method.(*jwt.SigningMethodRSA); !ok {
 			return nil, errors.New("unexpected signing method")
