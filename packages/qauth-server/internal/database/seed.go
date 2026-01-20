@@ -39,7 +39,7 @@ func SeedingDB(db *gorm.DB) error {
 		FirstOrCreate(&user)
 
 	// 分配权限到角色
-	roleService := services.NewRoleService(db, services.NewPermissionService(db))
+	roleService := services.NewRoleService(db, services.NewPermissionService(db), services.NewUserService(db))
 	roleService.GrantPermissionToRole(superAdmin.ID, []string{
 		permissions.OAuthClientCreate,
 		permissions.OAuthClientDelete,
@@ -52,13 +52,16 @@ func SeedingDB(db *gorm.DB) error {
 		permissions.OAuthClientList,
 	})
 
+	// 创建超级管理员用户
 	salt, _ := utilities.GenerateSalt(16)
 	hash := utilities.HashPassword("123456", salt)
 	adminUser := &models.Users{Name: "超级管理员", StudentID: "20231003059", Email: "951040628@qq.com", Salt: salt, PasswordHash: hash}
 	db.FirstOrCreate(&adminUser)
 
-	adminUserRole := &models.UsersRoles{UserID: adminUser.ID, RoleID: superAdmin.ID}
-	db.FirstOrCreate(&adminUserRole)
+	// 分配超级管理员角色给用户
+	roleService.AssignRolesToUserByCode(adminUser.ID, []string{
+		"system_super_admin",
+	})
 
 	return nil
 }

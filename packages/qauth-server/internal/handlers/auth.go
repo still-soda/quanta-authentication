@@ -14,7 +14,10 @@ type AuthHandler struct {
 	roleService *services.RoleService
 }
 
-func NewAuthHandler(userService *services.UserService, roleService *services.RoleService) *AuthHandler {
+func NewAuthHandler(
+	userService *services.UserService,
+	roleService *services.RoleService,
+) *AuthHandler {
 	return &AuthHandler{userService: userService, roleService: roleService}
 }
 

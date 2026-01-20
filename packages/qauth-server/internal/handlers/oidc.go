@@ -14,7 +14,10 @@ type OIDCHandler struct {
 }
 
 // NewOIDCHandler 创建新的 OIDC 处理器
-func NewOIDCHandler(oidcService *services.OIDCService, userService *services.UserService) *OIDCHandler {
+func NewOIDCHandler(
+	oidcService *services.OIDCService,
+	userService *services.UserService,
+) *OIDCHandler {
 	return &OIDCHandler{oidcService: oidcService, userService: userService}
 }
 

@@ -2,6 +2,7 @@ package models
 
 type Roles struct {
 	BaseModelWithUUID
+	Resource    string `gorm:"size:50;not null" json:"resource"`
 	Code        string `gorm:"uniqueIndex;size:50;not null" json:"code"`
 	Name        string `gorm:"size:50;not null" json:"name"`
 	Description string `gorm:"size:255" json:"description"`

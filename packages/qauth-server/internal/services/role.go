@@ -10,15 +10,20 @@ import (
 type RoleService struct {
 	db                *gorm.DB
 	permissionService *PermissionService
+	userService       *UserService
 }
 
-func NewRoleService(db *gorm.DB, permissionService *PermissionService) *RoleService {
-	return &RoleService{db: db, permissionService: permissionService}
+func NewRoleService(
+	db *gorm.DB,
+	permissionService *PermissionService,
+	userService *UserService,
+) *RoleService {
+	return &RoleService{db: db, permissionService: permissionService, userService: userService}
 }
 
 // GetRoleByID 根据角色 ID 获取角色信息
-func (s *RoleService) GetRoleByID(roleID string) (*RoleService, error) {
-	var role RoleService
+func (s *RoleService) GetRoleByID(roleID string) (*models.Roles, error) {
+	var role models.Roles
 	if err := s.db.First(&role, "id = ?", roleID).Error; err != nil {
 		return nil, err
 	}
@@ -28,7 +33,7 @@ func (s *RoleService) GetRoleByID(roleID string) (*RoleService, error) {
 // GetUserRole 获取用户的角色信息
 func (s *RoleService) GetUserRole(userID string) (*models.Roles, error) {
 	var userRole models.UsersRoles
-	if err := s.db.Preload("Role").First(&userRole, "user_id = ?", userID).Error; err != nil {
+	if err := s.db.Preload("Role").First(&userRole, "users_id = ?", userID).Error; err != nil {
 		return nil, err
 	}
 	return &userRole.Role, nil
@@ -130,4 +135,60 @@ func (s *RoleService) RoleHasPermissions(roleID string, permissionCodes []string
 	}
 
 	return true, nil
+}
+
+// AssignRoleToUserByID 分配角色到用户
+func (s *RoleService) AssignRoleToUserByID(userID, roleID string) error {
+	user, err := s.userService.GetUserByID(userID, false)
+	if err != nil {
+		return err
+	}
+
+	role, err := s.GetRoleByID(roleID)
+	if err != nil {
+		return err
+	}
+
+	userRole := &models.UsersRoles{
+		UsersID: user.ID,
+		RolesID: role.ID,
+	}
+
+	if err := s.db.Create(userRole).Error; err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// AssignRolesToUserByCode 分配多个角色到用户
+func (s *RoleService) AssignRolesToUserByCode(userID string, roleCodes []string) error {
+	user, err := s.userService.GetUserByID(userID, false)
+	if err != nil {
+		return err
+	}
+
+	var roles []models.Roles
+	if err := s.db.Where("code IN ?", roleCodes).Find(&roles).Error; err != nil {
+		return err
+	}
+
+	var userRoles []models.UsersRoles
+	for _, role := range roles {
+		userRoles = append(userRoles, models.UsersRoles{
+			UsersID: user.ID,
+			RolesID: role.ID,
+		})
+	}
+
+	if err := s.db.Create(&userRoles).Error; err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// RevokeRoleFromUser 从用户撤销角色
+func (s *RoleService) RevokeRoleFromUser(userID, roleID string) error {
+	return s.db.Delete(&models.UsersRoles{}, "users_id = ? AND roles_id = ?", userID, roleID).Error
 }

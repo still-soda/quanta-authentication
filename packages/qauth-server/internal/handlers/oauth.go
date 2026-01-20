@@ -2,6 +2,7 @@ package handlers
 
 import (
 	app_error "qauth-server/internal/errors"
+	"qauth-server/internal/models"
 	"qauth-server/internal/permissions"
 	"qauth-server/internal/services"
 	"qauth-server/internal/utilities"
@@ -19,7 +20,11 @@ type OAuthHandler struct {
 }
 
 // NewOAuthHandler 创建新的 OAuth2 处理器
-func NewOAuthHandler(oauthService *services.OAuthService, roleService *services.RoleService, userService *services.UserService) *OAuthHandler {
+func NewOAuthHandler(
+	oauthService *services.OAuthService,
+	roleService *services.RoleService,
+	userService *services.UserService,
+) *OAuthHandler {
 	return &OAuthHandler{oauthService: oauthService, roleService: roleService, userService: userService}
 }
 
@@ -264,10 +269,17 @@ func (h *OAuthHandler) UserInfo(c *gin.Context) {
 	audience := info.GetClientID()
 	issuer := h.oauthService.Cfg.OIDC.Issuer
 
-	userInfo, err := h.userService.GetUserByID(userID)
+	userInfo, err := h.userService.GetUserByID(userID, true)
 	if err != nil {
 		response.HandlerError(c, app_error.ErrUserNotFound)
 		return
+	}
+
+	roles := []models.Roles{}
+	for _, role := range userInfo.Roles {
+		if !role.IsSystem {
+			roles = append(roles, role)
+		}
 	}
 
 	response.HandlerSuccess(c, gin.H{
@@ -280,7 +292,7 @@ func (h *OAuthHandler) UserInfo(c *gin.Context) {
 		"email":          userInfo.Email,
 		"email_verified": userInfo.EmailVerified,
 		"student_id":     userInfo.StudentID,
-		"role":           userInfo.Roles,
+		"role":           roles,
 	})
 }
 

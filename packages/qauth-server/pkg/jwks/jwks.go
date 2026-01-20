@@ -35,6 +35,12 @@ const (
 
 // IDTokenClaims ID 令牌声明
 type IDTokenClaims struct {
+	UserID      string `json:"user_id,omitempty"`
+	StudentID   string `json:"student_id,omitempty"`
+	ClientID    string `json:"client_id,omitempty"`
+	DisplayName string `json:"name,omitempty"`
+	Avatar      string `json:"avatar,omitempty"`
+
 	Issuer   string `json:"iss,omitempty"`
 	Subject  string `json:"sub,omitempty"`
 	Audience string `json:"aud,omitempty"`

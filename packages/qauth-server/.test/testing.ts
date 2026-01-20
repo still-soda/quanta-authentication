@@ -98,7 +98,7 @@ async function tokenFromCode(clientId: string, code: string) {
       }
    });
 
-   // console.log(res)
+   console.log(res)
    console.log('access_token' in res ? 'PASS' : 'FAILED');
 
    return {
@@ -146,6 +146,8 @@ async function getUserInfo(token: string) {
       method: 'GET',
       headers: b(token),
    });
+
+   console.log(JSON.stringify(res, null, 2))
 
    console.log(res.code.toString().startsWith('2') ? 'PASS' : 'FAILED');
 }

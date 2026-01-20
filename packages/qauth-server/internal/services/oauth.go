@@ -29,6 +29,7 @@ type OAuthService struct {
 	manager     *manage.Manager
 	clientStore *GormClientStore
 	jwksManager *jwks.JWKSManager
+	userService *UserService
 }
 
 // GormClientStore 基于 GORM 的 OAuth2 客户端存储
@@ -61,7 +62,12 @@ func (s *GormClientStore) GetByID(ctx context.Context, id string) (oauth2.Client
 }
 
 // NewOAuthService 创建新的 OAuth2 服务
-func NewOAuthService(db *gorm.DB, cfg *config.Config, jwksManager *jwks.JWKSManager) *OAuthService {
+func NewOAuthService(
+	db *gorm.DB,
+	cfg *config.Config,
+	jwksManager *jwks.JWKSManager,
+	userService *UserService,
+) *OAuthService {
 	logger := utilities.GetLogger()
 
 	// 创建基于 GORM 的客户端存储
@@ -128,6 +134,7 @@ func NewOAuthService(db *gorm.DB, cfg *config.Config, jwksManager *jwks.JWKSMana
 		manager:     manager,
 		clientStore: clientStore,
 		jwksManager: jwksManager,
+		userService: userService,
 	}
 
 	// 设置用户授权处理器
@@ -203,9 +210,24 @@ func (s *OAuthService) extensionFieldsHandler(ti oauth2.TokenInfo) (fieldsValue 
 		return nil
 	}
 
+	user, err := s.userService.GetUserByID(ti.GetUserID(), false)
+	if err != nil {
+		return nil
+	}
+
+	if user.DisplayName == nil {
+		name := user.Name
+		user.DisplayName = &name
+	}
+
 	idTokenClaims := &jwks.IDTokenClaims{
+		UserID:      user.ID,
+		StudentID:   user.StudentID,
+		DisplayName: *user.DisplayName,
+		Avatar:      "", // TODO: 添加头像支持
+
 		Issuer:   s.Cfg.OIDC.Issuer,
-		Subject:  ti.GetUserID(),
+		Subject:  user.ID,
 		Audience: ti.GetClientID(),
 		Expiry:   ti.GetAccessCreateAt().Add(ti.GetAccessExpiresIn()).Unix(),
 		IssuedAt: ti.GetAccessCreateAt().Unix(),
@@ -217,9 +239,7 @@ func (s *OAuthService) extensionFieldsHandler(ti oauth2.TokenInfo) (fieldsValue 
 		return nil
 	}
 
-	return map[string]any{
-		"id_token": idToken,
-	}
+	return map[string]any{"id_token": idToken}
 }
 
 // recordLoginState 记录登录状态

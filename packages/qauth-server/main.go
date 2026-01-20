@@ -75,8 +75,8 @@ func main() {
 	permissionService := services.NewPermissionService(db)
 	fileService := services.NewFileService(storageService, db)
 	userService := services.NewUserService(db)
-	roleService := services.NewRoleService(db, permissionService)
-	oauthService := services.NewOAuthService(db, cfg, jwksManager)
+	roleService := services.NewRoleService(db, permissionService, userService)
+	oauthService := services.NewOAuthService(db, cfg, jwksManager, userService)
 
 	// OIDC 服务
 	issuer := "http://localhost:" + cfg.Server.Port

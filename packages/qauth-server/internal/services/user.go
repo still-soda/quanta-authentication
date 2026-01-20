@@ -17,9 +17,15 @@ func NewUserService(db *gorm.DB) *UserService {
 }
 
 // GetUserByID 根据用户ID获取用户信息
-func (s *UserService) GetUserByID(userID string) (*models.Users, error) {
+func (s *UserService) GetUserByID(userID string, withRole bool) (*models.Users, error) {
 	var user models.Users
-	if err := s.db.First(&user, "id = ?", userID).Error; err != nil {
+	db := s.db
+
+	if withRole {
+		db = db.Preload("Roles")
+	}
+
+	if err := db.First(&user, "id = ?", userID).Error; err != nil {
 		return nil, err
 	}
 	return &user, nil
