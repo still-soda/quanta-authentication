@@ -7,7 +7,9 @@ import (
 	"qauth-server/internal/config"
 	"qauth-server/internal/models"
 	"qauth-server/internal/utilities"
-	"qauth-server/pkg/jwt"
+	"qauth-server/pkg/jwks"
+	app_jwt "qauth-server/pkg/jwt"
+	"strings"
 
 	"github.com/go-oauth2/oauth2/v4"
 	oautherrors "github.com/go-oauth2/oauth2/v4/errors"
@@ -16,6 +18,7 @@ import (
 	"github.com/go-oauth2/oauth2/v4/server"
 	oredis "github.com/go-oauth2/redis/v4"
 	"github.com/go-redis/redis/v8"
+	"github.com/golang-jwt/jwt/v5"
 	"gorm.io/gorm"
 )
 
@@ -26,6 +29,7 @@ type OAuthService struct {
 	server      *server.Server
 	manager     *manage.Manager
 	clientStore *GormClientStore
+	jwksManager *jwks.JWKSManager
 }
 
 // GormClientStore 基于 GORM 的 OAuth2 客户端存储
@@ -58,7 +62,7 @@ func (s *GormClientStore) GetByID(ctx context.Context, id string) (oauth2.Client
 }
 
 // NewOAuthService 创建新的 OAuth2 服务
-func NewOAuthService(db *gorm.DB, cfg *config.Config) *OAuthService {
+func NewOAuthService(db *gorm.DB, cfg *config.Config, jwksManager *jwks.JWKSManager) *OAuthService {
 	logger := utilities.GetLogger()
 
 	// 创建基于 GORM 的客户端存储
@@ -124,6 +128,7 @@ func NewOAuthService(db *gorm.DB, cfg *config.Config) *OAuthService {
 		server:      srv,
 		manager:     manager,
 		clientStore: clientStore,
+		jwksManager: jwksManager,
 	}
 
 	// 设置用户授权处理器
@@ -131,6 +136,8 @@ func NewOAuthService(db *gorm.DB, cfg *config.Config) *OAuthService {
 
 	// 设置密码授权处理器
 	srv.SetPasswordAuthorizationHandler(service.passwordAuthorizationHandler)
+
+	srv.SetExtensionFieldsHandler(service.extensionFieldsHandler)
 
 	logger.Info("OAuth2 service initialized")
 	return service
@@ -145,7 +152,7 @@ func (s *OAuthService) userAuthorizationHandler(w http.ResponseWriter, r *http.R
 	}
 
 	// 解析 JWT Token
-	claims, err := jwt.ParseAccessToken(cookie.Value)
+	claims, err := app_jwt.ParseAccessToken(cookie.Value)
 	if err != nil {
 		return "", errors.New("invalid access token")
 	}
@@ -189,6 +196,30 @@ func (s *OAuthService) passwordAuthorizationHandler(ctx context.Context, clientI
 	s.recordLoginState(user.ID, &clientID, models.LoginTypeOAuth2, true, "")
 
 	return user.ID, nil
+}
+
+// extensionFieldsHandler 扩展字段处理器（用于生成 ID Token）
+func (s *OAuthService) extensionFieldsHandler(ti oauth2.TokenInfo) (fieldsValue map[string]any) {
+	if !strings.Contains(ti.GetScope(), "openid") {
+		return nil
+	}
+
+	idToken, err := s.jwksManager.SignToken(jwt.MapClaims{
+		"iss":       s.cfg.OIDC.Issuer,
+		"sub":       ti.GetUserID(),
+		"aud":       ti.GetClientID(),
+		"exp":       ti.GetAccessCreateAt().Add(ti.GetAccessExpiresIn()).Unix(),
+		"iat":       ti.GetAccessCreateAt().Unix(),
+		"auth_time": ti.GetAccessCreateAt().Unix(),
+	})
+	if err != nil {
+		utilities.GetLogger().Error("failed to sign ID token", "error", err)
+		return nil
+	}
+
+	return map[string]any{
+		"id_token": idToken,
+	}
 }
 
 // recordLoginState 记录登录状态

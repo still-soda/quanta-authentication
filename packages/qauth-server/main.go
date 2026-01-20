@@ -12,6 +12,7 @@ import (
 	"qauth-server/internal/routes"
 	"qauth-server/internal/services"
 	"qauth-server/internal/utilities"
+	"qauth-server/pkg/jwks"
 	"syscall"
 	"time"
 
@@ -55,6 +56,12 @@ func main() {
 	// 静态文件服务
 	r.Static("/uploads", cfg.Storage.LocalDir)
 
+	// 创建 jwks 管理器
+	jwksManager, err := jwks.NewJWKSManager(nil)
+	if err != nil {
+		panic("failed to create jwks manager: " + err.Error())
+	}
+
 	// 创建服务
 	storageService, err := services.NewStorageService(cfg)
 	if err != nil {
@@ -62,10 +69,11 @@ func main() {
 	}
 	defer storageService.Close()
 
+	permissionService := services.NewPermissionService(db)
 	fileService := services.NewFileService(storageService, db)
 	userService := services.NewUserService(db)
-	roleService := services.NewRoleService(db)
-	oauthService := services.NewOAuthService(db, cfg)
+	roleService := services.NewRoleService(db, permissionService)
+	oauthService := services.NewOAuthService(db, cfg, jwksManager)
 
 	// OIDC 服务
 	issuer := "http://localhost:" + cfg.Server.Port
@@ -79,7 +87,7 @@ func main() {
 	healthHandler := handlers.NewHealthHandler()
 	fileHandler := handlers.NewFileHandler(fileService)
 	authHandler := handlers.NewAuthHandler(userService, roleService)
-	oauthHandler := handlers.NewOAuthHandler(oauthService)
+	oauthHandler := handlers.NewOAuthHandler(oauthService, roleService)
 	oidcHandler := handlers.NewOIDCHandler(oidcService)
 
 	// 注册路由

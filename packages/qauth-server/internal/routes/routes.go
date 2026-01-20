@@ -2,6 +2,7 @@ package routes
 
 import (
 	_handlers "qauth-server/internal/handlers"
+	"qauth-server/internal/middleware"
 
 	"github.com/gin-gonic/gin"
 )
@@ -55,6 +56,8 @@ func RegisterRoutes(r *gin.Engine, handlers *RegisterRouterHandlers) {
 		// OAuth2 客户端管理
 		clientGroup := oauthGroup.Group("/clients")
 		{
+			clientGroup.Use(middleware.Auth())
+
 			clientGroup.GET("", oauthHandler.ListClients)
 			clientGroup.POST("", oauthHandler.CreateClient)
 			clientGroup.GET("/:id", oauthHandler.GetClient)

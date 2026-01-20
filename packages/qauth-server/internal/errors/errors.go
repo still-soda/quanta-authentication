@@ -28,4 +28,5 @@ var (
 	ErrFailedToGetUserRole   = app_error.NewAppError(500, "failed to get user role")
 	ErrFailedToGenerateToken = app_error.NewAppError(500, "failed to generate token")
 	ErrInvalidRefreshToken   = app_error.NewAppError(401, "invalid refresh token")
+	ErrNoPermission          = app_error.NewAppError(403, "no permission")
 )

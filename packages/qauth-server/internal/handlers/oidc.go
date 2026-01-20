@@ -22,7 +22,7 @@ func NewOIDCHandler(oidcService *services.OIDCService) *OIDCHandler {
 // GET /.well-known/openid-configuration
 func (h *OIDCHandler) GetOpenIDConfiguration(c *gin.Context) {
 	config := h.oidcService.GetOpenIDConfiguration()
-	response.HandlerSuccess(c, config)
+	c.JSON(200, config)
 }
 
 // GetJWKS 获取 JWKS
@@ -34,7 +34,7 @@ func (h *OIDCHandler) GetJWKS(c *gin.Context) {
 	c.Header("Cache-Control", "public, max-age=3600")
 	c.Header("Content-Type", "application/json")
 
-	response.HandlerSuccess(c, jwks)
+	c.JSON(200, jwks)
 }
 
 // ForceKeyRotation 强制密钥轮换（管理员端点）

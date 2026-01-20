@@ -2,6 +2,7 @@ package handlers
 
 import (
 	app_error "qauth-server/internal/errors"
+	"qauth-server/internal/permissions"
 	"qauth-server/internal/services"
 	"qauth-server/internal/utilities"
 	"qauth-server/pkg/response"
@@ -12,11 +13,12 @@ import (
 // OAuthHandler OAuth2 处理器
 type OAuthHandler struct {
 	oauthService *services.OAuthService
+	roleService  *services.RoleService
 }
 
 // NewOAuthHandler 创建新的 OAuth2 处理器
-func NewOAuthHandler(oauthService *services.OAuthService) *OAuthHandler {
-	return &OAuthHandler{oauthService: oauthService}
+func NewOAuthHandler(oauthService *services.OAuthService, roleService *services.RoleService) *OAuthHandler {
+	return &OAuthHandler{oauthService: oauthService, roleService: roleService}
 }
 
 // Authorize 处理授权请求（授权码模式）
@@ -89,6 +91,13 @@ func (h *OAuthHandler) RevokeToken(c *gin.Context) {
 // CreateClient 创建 OAuth2 客户端
 // POST /oauth/clients
 func (h *OAuthHandler) CreateClient(c *gin.Context) {
+	if err := services.ValidatePermissionCodes(c, h.roleService, []string{
+		permissions.OAuthClientCreate,
+	}); err != nil {
+		response.HandlerError(c, err)
+		return
+	}
+
 	var req struct {
 		Name     string `json:"name" binding:"required"`
 		Domain   string `json:"domain" binding:"required"`
@@ -119,6 +128,13 @@ func (h *OAuthHandler) CreateClient(c *gin.Context) {
 // GetClient 获取客户端信息
 // GET /oauth/clients/:id
 func (h *OAuthHandler) GetClient(c *gin.Context) {
+	if err := services.ValidatePermissionCodes(c, h.roleService, []string{
+		permissions.OAuthClientView,
+	}); err != nil {
+		response.HandlerError(c, err)
+		return
+	}
+
 	clientID := c.Param("id")
 
 	client, err := h.oauthService.GetClientByID(clientID)
@@ -138,6 +154,13 @@ func (h *OAuthHandler) GetClient(c *gin.Context) {
 // UpdateClient 更新客户端信息
 // PUT /oauth/clients/:id
 func (h *OAuthHandler) UpdateClient(c *gin.Context) {
+	if err := services.ValidatePermissionCodes(c, h.roleService, []string{
+		permissions.OAuthClientUpdate,
+	}); err != nil {
+		response.HandlerError(c, err)
+		return
+	}
+
 	clientID := c.Param("id")
 
 	var req struct {
@@ -162,6 +185,13 @@ func (h *OAuthHandler) UpdateClient(c *gin.Context) {
 // DeleteClient 删除客户端
 // DELETE /oauth/clients/:id
 func (h *OAuthHandler) DeleteClient(c *gin.Context) {
+	if err := services.ValidatePermissionCodes(c, h.roleService, []string{
+		permissions.OAuthClientDelete,
+	}); err != nil {
+		response.HandlerError(c, err)
+		return
+	}
+
 	clientID := c.Param("id")
 
 	if err := h.oauthService.DeleteClient(clientID); err != nil {
@@ -176,6 +206,13 @@ func (h *OAuthHandler) DeleteClient(c *gin.Context) {
 // ListClients 获取客户端列表
 // GET /oauth/clients
 func (h *OAuthHandler) ListClients(c *gin.Context) {
+	if err := services.ValidatePermissionCodes(c, h.roleService, []string{
+		permissions.OAuthClientList,
+	}); err != nil {
+		response.HandlerError(c, err)
+		return
+	}
+
 	page := 1
 	pageSize := 10
 

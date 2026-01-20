@@ -7,11 +7,11 @@ import (
 )
 
 type ClientData struct {
-	ID     string `json:"id"`
-	Domain string `json:"domain"`
+	ID     string `gorm:"primaryKey" json:"id"`
+	Domain string `gorm:"not null" json:"domain"`
 	Public bool   `json:"public"`
-	Secret string `json:"-"`
-	UserID string `json:"user_id"`
+	Secret string `gorm:"not null" json:"-"`
+	UserID string `gorm:"not null" json:"user_id"`
 }
 
 // Value implements the driver.Valuer interface for database serialization
