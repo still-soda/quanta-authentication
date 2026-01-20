@@ -61,7 +61,7 @@ async function removeClient(token: string, clientId: string) {
 async function authorizeClient(clientId: string, token: string) {
    const params = new URLSearchParams({
       client_id: clientId,
-      response_type: 'code',
+      response_type: 'id_token',
       redirect_uri: 'http://localhost/callback',
       scope: 'openid',
       state: 'xyz',
@@ -73,6 +73,7 @@ async function authorizeClient(clientId: string, token: string) {
          Cookie: `access_token=${token}`,
       },
    });
+   console.log(res)
 
    const location = res.headers.get('Location');
    // console.log(`Redirect to ${location}`)

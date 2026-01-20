@@ -143,6 +143,7 @@ func NewOAuthService(
 	// 设置密码授权处理器
 	srv.SetPasswordAuthorizationHandler(service.passwordAuthorizationHandler)
 
+	// 设置扩展字段处理器
 	srv.SetExtensionFieldsHandler(service.extensionFieldsHandler)
 
 	logger.Info("OAuth2 service initialized")
