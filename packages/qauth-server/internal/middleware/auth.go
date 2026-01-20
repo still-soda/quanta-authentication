@@ -23,7 +23,7 @@ func Auth() gin.HandlerFunc {
 			return
 		}
 
-		userInfo, err := jwt.ParseAccessToken(authorization)
+		userInfo, err := jwt.ParseAccessToken(accessToken)
 		if err != nil {
 			ctx.AbortWithStatusJSON(401, gin.H{"error": "invalid token: " + err.Error()})
 			return

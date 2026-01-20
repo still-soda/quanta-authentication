@@ -58,11 +58,36 @@ async function removeClient(token: string, clientId: string) {
    console.log(res.code.toString().startsWith('2') ? 'PASS' : 'FAILED');
 }
 
+async function authorizeClient(clientId: string, token: string) {
+   const params = new URLSearchParams({
+      client_id: clientId,
+      response_type: 'code',
+      redirect_uri: 'http://localhost/callback',
+      scope: 'openid',
+      state: 'xyz',
+   });
+   const res = await fetch(`${BASE_URL}/oauth/authorize?${params.toString()}`, {
+      credentials: 'include',
+      redirect: 'manual',
+      headers: {
+         Cookie: `access_token=${token}`,
+      },
+   });
+
+   const location = res.headers.get('Location');
+   const code = location ? new URL(location).searchParams.get('code') : null;
+   console.log(code ? 'PASS' : 'FAILED');
+
+   return code;
+}
+
 async function main() {
    const cred = await loginToAdmin();
    const clientId = await createClient(cred.accessToken, cred.userId);
+
+   await authorizeClient(clientId, cred.accessToken);
+
+   await removeClient(cred.accessToken, clientId);
 }
 
-main().finally(async () => {
-   await removeClient(cred.accessToken, clientId);
-});
+main();
