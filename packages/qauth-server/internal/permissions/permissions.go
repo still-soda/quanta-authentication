@@ -21,3 +21,19 @@ const (
 	// 执行密钥轮换权限
 	SystemKeyRotationExecute = "system_key_rotation_execute"
 )
+
+// 角色相关权限
+const (
+	// 创建角色权限
+	RoleCreate = "role_create"
+	// 删除角色权限
+	RoleDelete = "role_delete"
+	// 查看角色权限
+	RoleView = "role_view"
+	// 更新角色权限
+	RoleUpdate = "role_update"
+	// 角色授权权限
+	RoleAssignPermissions = "role_assign_permissions"
+	// 角色取消授权权限
+	RoleRevokePermissions = "role_revoke_permissions"
+)

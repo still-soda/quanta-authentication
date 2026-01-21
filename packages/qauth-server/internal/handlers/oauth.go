@@ -156,7 +156,7 @@ func (h *OAuthHandler) RevokeToken(c *gin.Context) {
 // CreateClient 创建 OAuth2 客户端
 // POST /oauth/clients
 func (h *OAuthHandler) CreateClient(c *gin.Context) {
-	if err := services.ValidatePermissionCodes(c, h.roleService, []string{
+	if err := services.VerifyPermissions(c, h.roleService, []string{
 		permissions.OAuthClientCreate,
 	}); err != nil {
 		response.HandlerError(c, err)
@@ -193,7 +193,7 @@ func (h *OAuthHandler) CreateClient(c *gin.Context) {
 // GetClient 获取客户端信息
 // GET /oauth/clients/:id
 func (h *OAuthHandler) GetClient(c *gin.Context) {
-	if err := services.ValidatePermissionCodes(c, h.roleService, []string{
+	if err := services.VerifyPermissions(c, h.roleService, []string{
 		permissions.OAuthClientView,
 	}); err != nil {
 		response.HandlerError(c, err)
@@ -219,7 +219,7 @@ func (h *OAuthHandler) GetClient(c *gin.Context) {
 // UpdateClient 更新客户端信息
 // PUT /oauth/clients/:id
 func (h *OAuthHandler) UpdateClient(c *gin.Context) {
-	if err := services.ValidatePermissionCodes(c, h.roleService, []string{
+	if err := services.VerifyPermissions(c, h.roleService, []string{
 		permissions.OAuthClientUpdate,
 	}); err != nil {
 		response.HandlerError(c, err)
@@ -250,7 +250,7 @@ func (h *OAuthHandler) UpdateClient(c *gin.Context) {
 // DeleteClient 删除客户端
 // DELETE /oauth/clients/:id
 func (h *OAuthHandler) DeleteClient(c *gin.Context) {
-	if err := services.ValidatePermissionCodes(c, h.roleService, []string{
+	if err := services.VerifyPermissions(c, h.roleService, []string{
 		permissions.OAuthClientDelete,
 	}); err != nil {
 		response.HandlerError(c, err)
@@ -271,7 +271,7 @@ func (h *OAuthHandler) DeleteClient(c *gin.Context) {
 // ListClients 获取客户端列表
 // GET /oauth/clients
 func (h *OAuthHandler) ListClients(c *gin.Context) {
-	if err := services.ValidatePermissionCodes(c, h.roleService, []string{
+	if err := services.VerifyPermissions(c, h.roleService, []string{
 		permissions.OAuthClientList,
 	}); err != nil {
 		response.HandlerError(c, err)

@@ -27,8 +27,17 @@ func (s *PermissionService) GetPermissionByCodes(code []string) ([]*models.Permi
 	return permissions, nil
 }
 
-// ValidatePermissionCodes 验证用户是否拥有指定权限代码
-func ValidatePermissionCodes(c *gin.Context, roleService *RoleService, codes []string) error {
+// CheckCodesExists 验证权限代码是否存在
+func (s *PermissionService) CheckCodesExists(codes []string) (bool, error) {
+	var count int64
+	if err := s.db.Model(&models.Permissions{}).Where("code IN ?", codes).Count(&count).Error; err != nil {
+		return false, err
+	}
+	return count == int64(len(codes)), nil
+}
+
+// VerifyPermissions 验证用户是否拥有指定权限代码
+func VerifyPermissions(c *gin.Context, roleService *RoleService, codes []string) error {
 	var userInfo *jwt.UserJWTClaims
 	if info, exists := c.Get("userInfo"); exists {
 		userInfo = info.(*jwt.UserJWTClaims)

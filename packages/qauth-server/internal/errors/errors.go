@@ -32,4 +32,7 @@ var (
 	ErrNoPermission          = app_error.NewAppError(403, "no permission")
 	ErrAPINotImplemented     = app_error.NewAppError(501, "api not implemented")
 	ErrInvalidResponseType   = app_error.NewAppError(400, "invalid response type")
+	ErrFailedToGetRoles      = app_error.NewAppError(500, "failed to get roles")
+	ErrPermissionNoExist     = app_error.NewAppError(400, "permission does not exist")
+	ErrRoleNoExist           = app_error.NewAppError(400, "role does not exist")
 )

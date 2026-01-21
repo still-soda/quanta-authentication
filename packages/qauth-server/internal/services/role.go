@@ -21,6 +21,57 @@ func NewRoleService(
 	return &RoleService{db: db, permissionService: permissionService, userService: userService}
 }
 
+// DeleteRole 删除角色
+func (s *RoleService) DeleteRole(roleID string) error {
+	return s.db.Delete(&models.Roles{}, "id = ?", roleID).Error
+}
+
+// UpdateRole 更新角色信息
+func (s *RoleService) UpdateRole(roleID, name string, code string) (*models.Roles, error) {
+	var role models.Roles
+	if err := s.db.First(&role, "id = ?", roleID).Error; err != nil {
+		return nil, err
+	}
+
+	role.Name = name
+	role.Code = code
+
+	if err := s.db.Save(&role).Error; err != nil {
+		return nil, err
+	}
+
+	return &role, nil
+}
+
+// CreateRole 创建新角色
+func (s *RoleService) CreateRole(name, code string, permissionCodes []string) (*models.Roles, error) {
+	role := &models.Roles{
+		Name: name,
+		Code: code,
+	}
+
+	if err := s.db.Create(role).Error; err != nil {
+		return nil, err
+	}
+
+	if len(permissionCodes) > 0 {
+		if err := s.GrantPermissionToRole(role.ID, permissionCodes); err != nil {
+			return nil, err
+		}
+	}
+
+	return role, nil
+}
+
+// GetAllRoles 获取所有角色列表
+func (s *RoleService) GetAllRoles() ([]models.Roles, error) {
+	var roles []models.Roles
+	if err := s.db.Find(&roles).Error; err != nil {
+		return nil, err
+	}
+	return roles, nil
+}
+
 // GetRoleByID 根据角色 ID 获取角色信息
 func (s *RoleService) GetRoleByID(roleID string) (*models.Roles, error) {
 	var role models.Roles
