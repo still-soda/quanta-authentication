@@ -8,7 +8,6 @@ import (
 	"qauth-server/internal/config"
 	"qauth-server/internal/database"
 	"qauth-server/internal/handlers"
-	"qauth-server/internal/middleware"
 	"qauth-server/internal/routes"
 	"qauth-server/internal/services"
 	"qauth-server/internal/utilities"
@@ -45,13 +44,6 @@ func main() {
 	logger.Info("successfully seeded database")
 
 	r := gin.New()
-
-	// 使用中间件
-	r.Use(
-		middleware.Logger(logger),
-		middleware.Recovery(),
-		middleware.CORS(),
-	)
 
 	// 静态文件服务
 	r.Static("/uploads", cfg.Storage.LocalDir)

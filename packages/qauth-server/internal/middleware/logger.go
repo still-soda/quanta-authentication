@@ -9,7 +9,9 @@ import (
 )
 
 // Logger 日志中间件
-func Logger(logger utilities.Logger) gin.HandlerFunc {
+func Logger() gin.HandlerFunc {
+	logger := utilities.GetLogger()
+
 	return func(c *gin.Context) {
 		startTime := time.Now()
 		// 将 logger 存储在上下文中

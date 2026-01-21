@@ -25,12 +25,23 @@ func RegisterRoutes(r *gin.Engine, handlers *RegisterRouterHandlers) {
 	oidcHandler := handlers.OIDCHandler
 	roleHandler := handlers.RoleHandler
 
-	// 健康检查端点
-	r.GET("/health", healthHandler.Check)
+	r.Use(
+		middleware.Logger(),
+		middleware.Recovery(),
+	)
 
-	// OIDC 发现端点
-	r.GET("/.well-known/openid-configuration", oidcHandler.GetOpenIDConfiguration)
-	r.GET("/.well-known/jwks.json", oidcHandler.GetJWKS)
+	// 公开路由（无需认证）
+	openGroup := r.Group("/")
+	{
+		openGroup.Use(middleware.CORS())
+
+		// 健康检查端点
+		openGroup.GET("/health", healthHandler.Check)
+
+		// OIDC 发现端点
+		openGroup.GET("/.well-known/openid-configuration", oidcHandler.GetOpenIDConfiguration)
+		openGroup.GET("/.well-known/jwks.json", oidcHandler.GetJWKS)
+	}
 
 	// OAuth2 路由（对外）
 	oauthGroup := r.Group("/v1/oauth")
@@ -49,9 +60,10 @@ func RegisterRoutes(r *gin.Engine, handlers *RegisterRouterHandlers) {
 	}
 
 	// system 路由（系统相关）
-	systemGroup := r.Group("/system/v1")
+	systemGroup := r.Group("/_/v1")
 	{
 		// 认证路由
+		// /system/v1/auth
 		authGroup := systemGroup.Group("/auth")
 		{
 			authGroup.POST("/register", authHandler.Register)
@@ -66,6 +78,7 @@ func RegisterRoutes(r *gin.Engine, handlers *RegisterRouterHandlers) {
 			authRequiredGroup.Use(middleware.Auth())
 
 			// OAuth2 客户端管理
+			// /system/v1/clients
 			clientGroup := authRequiredGroup.Group("/clients")
 			{
 				clientGroup.Use(middleware.Auth())
@@ -78,6 +91,7 @@ func RegisterRoutes(r *gin.Engine, handlers *RegisterRouterHandlers) {
 			}
 
 			// JWKS 密钥管理
+			// /system/v1/jwks
 			jwksGroup := authRequiredGroup.Group("/jwks")
 			{
 				jwksGroup.GET("/keys", oidcHandler.GetKeyRotationInfo)
@@ -85,6 +99,7 @@ func RegisterRoutes(r *gin.Engine, handlers *RegisterRouterHandlers) {
 			}
 
 			// 角色管理
+			// /system/v1/roles
 			roleGroup := authRequiredGroup.Group("/roles")
 			{
 				roleGroup.GET("", roleHandler.GetRoles)
@@ -94,6 +109,7 @@ func RegisterRoutes(r *gin.Engine, handlers *RegisterRouterHandlers) {
 			}
 
 			// 权限管理
+			// /system/v1/permissions
 			permissionGroup := authRequiredGroup.Group("/permissions")
 			{
 				permissionGroup.POST("/grant-to-role", roleHandler.GrantPermissionsToRole)
@@ -101,6 +117,7 @@ func RegisterRoutes(r *gin.Engine, handlers *RegisterRouterHandlers) {
 			}
 
 			// 资源管理路由
+			// /system/v1/resources
 			resourceGroup := authRequiredGroup.Group("/resources")
 			{
 				resourceGroup.POST("/upload", fileHandler.Upload)
