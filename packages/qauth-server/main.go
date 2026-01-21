@@ -90,7 +90,7 @@ func main() {
 	healthHandler := handlers.NewHealthHandler()
 	fileHandler := handlers.NewFileHandler(fileService)
 	authHandler := handlers.NewAuthHandler(userService, roleService)
-	oauthHandler := handlers.NewOAuthHandler(oauthService, roleService, userService)
+	oauthHandler := handlers.NewOAuthHandler(oauthService, roleService, userService, oidcService)
 	oidcHandler := handlers.NewOIDCHandler(oidcService, userService)
 
 	// 注册路由

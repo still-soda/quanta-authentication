@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"maps"
 	"math/big"
 	"sync"
 	"time"
@@ -33,14 +34,8 @@ const (
 	KeyStatusExpired  KeyStatus = "expired"  // 已过期的密钥
 )
 
-// IDTokenClaims ID 令牌声明
-type IDTokenClaims struct {
-	UserID      string `json:"user_id,omitempty"`
-	StudentID   string `json:"student_id,omitempty"`
-	ClientID    string `json:"client_id,omitempty"`
-	DisplayName string `json:"name,omitempty"`
-	Avatar      string `json:"avatar,omitempty"`
-
+// BasicClaims ID 令牌声明
+type BasicClaims struct {
 	Issuer   string `json:"iss,omitempty"`
 	Subject  string `json:"sub,omitempty"`
 	Audience string `json:"aud,omitempty"`
@@ -267,27 +262,29 @@ func publicKeyToJWK(kid string, publicKey *rsa.PublicKey) JWK {
 }
 
 // SignToken 使用当前活跃密钥签名 JWT
-func (m *JWKSManager) SignToken(idtc *IDTokenClaims) (string, error) {
+func (m *JWKSManager) SignToken(basic *BasicClaims, data map[string]any) (string, error) {
 	keyInfo, err := m.GetActiveKey()
 	if err != nil {
 		return "", err
 	}
 
-	token := jwt.NewWithClaims(jwt.SigningMethodRS256, jwt.MapClaims{
-		"iss":       idtc.Issuer,
-		"sub":       idtc.Subject,
-		"aud":       idtc.Audience,
-		"exp":       idtc.Expiry,
-		"iat":       idtc.IssuedAt,
-		"auth_time": idtc.AuthTime,
-	})
+	claim := jwt.MapClaims{
+		"iss":       basic.Issuer,
+		"sub":       basic.Subject,
+		"aud":       basic.Audience,
+		"exp":       basic.Expiry,
+		"iat":       basic.IssuedAt,
+		"auth_time": basic.AuthTime,
+	}
+	maps.Copy(claim, data)
+	token := jwt.NewWithClaims(jwt.SigningMethodRS256, claim)
 	token.Header["kid"] = keyInfo.ID
 
 	return token.SignedString(keyInfo.PrivateKey)
 }
 
 // VerifyToken 验证 JWT 签名
-func (m *JWKSManager) VerifyToken(tokenString string) (*IDTokenClaims, error) {
+func (m *JWKSManager) VerifyToken(tokenString string) (*BasicClaims, error) {
 	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (any, error) {
 		// 验证签名方法
 		if _, ok := token.Method.(*jwt.SigningMethodRSA); !ok {
@@ -312,9 +309,9 @@ func (m *JWKSManager) VerifyToken(tokenString string) (*IDTokenClaims, error) {
 		return nil, err
 	}
 
-	var idtc *IDTokenClaims
+	var idtc *BasicClaims
 	if claims, ok := token.Claims.(jwt.MapClaims); ok && token.Valid {
-		idtc = &IDTokenClaims{
+		idtc = &BasicClaims{
 			Issuer:   claims["iss"].(string),
 			Subject:  claims["sub"].(string),
 			Audience: claims["aud"].(string),

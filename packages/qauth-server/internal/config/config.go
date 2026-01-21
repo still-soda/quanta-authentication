@@ -54,6 +54,9 @@ type Config struct {
 
 	// OIDC 配置
 	OIDC OIDCConfig
+
+	// OAuth2 配置
+	OAuth OAuthConfig
 }
 
 // ServerConfig 服务器配置
@@ -91,6 +94,18 @@ type OIDCConfig struct {
 	Issuer              string        // 发行者 URL
 	KeyRotationInterval time.Duration // 密钥轮换间隔
 	KeySize             int           // RSA 密钥大小
+}
+
+type OAuthConfig struct {
+	AllowedResponseTypes              []ResponseType
+	ScopeSupported                    []Scope
+	ResponseModesSupported            []ResponseMode
+	GrantTypesSupported               []GrantType
+	SubjectTypesSupported             []SubjectType
+	IDTokenSigningAlgValuesSupported  []IDTokenSigningAlg
+	TokenEndpointAuthMethodsSupported []TokenEndpointAuthMethod
+	ClaimsSupported                   []Claim
+	CodeChallengeMethodsSupported     []CodeChallengeMethod
 }
 
 func New() *Config {
@@ -141,6 +156,22 @@ func New() *Config {
 			Issuer:              GetEnv("OIDC_ISSUER", "http://localhost:8080"),
 			KeyRotationInterval: keyRotationInterval,
 			KeySize:             GetEnvAsInt("OIDC_KEY_SIZE", 2048),
+		},
+		OAuth: OAuthConfig{
+			AllowedResponseTypes:              []ResponseType{ResponseTypeCode, ResponseTypeIDToken},
+			ScopeSupported:                    []Scope{ScopeOpenID, ScopeProfile, ScopeEmail},
+			ResponseModesSupported:            []ResponseMode{ResponseModeQuery, ResponseModeFragment, ResponseModeFormPost},
+			GrantTypesSupported:               []GrantType{GrantTypeAuthorizationCode, GrantTypeRefreshToken},
+			SubjectTypesSupported:             []SubjectType{SubjectTypePublic},
+			IDTokenSigningAlgValuesSupported:  []IDTokenSigningAlg{IDTokenSigningAlgRS256},
+			TokenEndpointAuthMethodsSupported: []TokenEndpointAuthMethod{TokenEndpointAuthMethodClientSecretBasic, TokenEndpointAuthMethodClientSecretPost},
+			ClaimsSupported: []Claim{
+				ClaimSub, ClaimIss, ClaimAud, ClaimExp, ClaimIat,
+				ClaimName, ClaimStudentID, ClaimDisplayName, ClaimPicture,
+				ClaimEmail, ClaimEmailVerified,
+				ClaimRoles,
+			},
+			CodeChallengeMethodsSupported: []CodeChallengeMethod{CodeChallengeMethodS256, CodeChallengeMethodPlain},
 		},
 	}
 }

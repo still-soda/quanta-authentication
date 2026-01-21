@@ -1,13 +1,15 @@
 package handlers
 
 import (
+	"qauth-server/internal/config"
 	app_error "qauth-server/internal/errors"
-	"qauth-server/internal/models"
 	"qauth-server/internal/permissions"
 	"qauth-server/internal/services"
 	"qauth-server/internal/utilities"
 	"qauth-server/pkg/jwt"
 	"qauth-server/pkg/response"
+	"slices"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 )
@@ -17,6 +19,7 @@ type OAuthHandler struct {
 	oauthService *services.OAuthService
 	roleService  *services.RoleService
 	userService  *services.UserService
+	oidcService  *services.OIDCService
 }
 
 // NewOAuthHandler 创建新的 OAuth2 处理器
@@ -24,18 +27,73 @@ func NewOAuthHandler(
 	oauthService *services.OAuthService,
 	roleService *services.RoleService,
 	userService *services.UserService,
+	oidcService *services.OIDCService,
 ) *OAuthHandler {
-	return &OAuthHandler{oauthService: oauthService, roleService: roleService, userService: userService}
+	return &OAuthHandler{
+		oauthService: oauthService,
+		roleService:  roleService,
+		userService:  userService,
+		oidcService:  oidcService,
+	}
+}
+
+// modifyResponseType 修改响应类型以支持隐式授权模式
+func (h *OAuthHandler) modifyResponseType(c *gin.Context, isValid bool, rt string) {
+	r := c.Request
+
+	setResponseType := func(t string) {
+		q := r.URL.Query()
+		q.Set("response_type", t)
+		r.URL.RawQuery = q.Encode()
+	}
+
+	// 这会让 go-auth2 授权服务器认为请求是不允许的请求
+	if !isValid {
+		setResponseType("__in_valid__")
+		return
+	}
+
+	if rt != "code" && rt != "token" {
+		setResponseType("token")
+	}
+}
+
+// modifyRedirectLocation 修改重定向位置以符合隐式授权模式
+func (h *OAuthHandler) modifyRedirectLocation(c *gin.Context, isValid bool, rt string) {
+	w := c.Writer
+
+	if !isValid || w.Status() != 302 {
+		return
+	}
+
+	location := w.Header().Get("Location")
+
+	switch rt {
+	case "id_token":
+		pl, err := utilities.PickHashParams(location, []string{"id_token", "state"})
+		if err != nil {
+			return
+		}
+		w.Header().Set("Location", pl)
+	}
 }
 
 // Authorize 处理授权请求（授权码模式）
 // GET/POST /oauth/authorize
 func (h *OAuthHandler) Authorize(c *gin.Context) {
+	rt := c.Request.URL.Query().Get("response_type")
+	arts := h.oauthService.GetConfig().AllowedResponseTypes
+	isValid := slices.Contains(arts, config.ResponseType(rt))
+
+	h.modifyResponseType(c, isValid, rt)
+
 	err := h.oauthService.HandleAuthorizeRequest(c.Writer, c.Request)
 	if err != nil {
 		utilities.GetLogger().Error("OAuth authorize error", "error", err)
 		c.Error(app_error.ErrBadRequest)
 	}
+
+	h.modifyRedirectLocation(c, isValid, rt)
 }
 
 // Token 处理令牌请求
@@ -267,33 +325,42 @@ func (h *OAuthHandler) UserInfo(c *gin.Context) {
 	issueAt := info.GetAccessCreateAt().Unix()
 	expiry := info.GetAccessExpiresIn().Seconds() + float64(issueAt)
 	audience := info.GetClientID()
-	issuer := h.oauthService.Cfg.OIDC.Issuer
+	issuer := h.oidcService.GetConfig().Issuer
 
-	userInfo, err := h.userService.GetUserByID(userID, true)
+	user, err := h.userService.GetUserByID(userID, true)
 	if err != nil {
 		response.HandlerError(c, app_error.ErrUserNotFound)
 		return
 	}
 
-	roles := []models.Roles{}
-	for _, role := range userInfo.Roles {
-		if !role.IsSystem {
-			roles = append(roles, role)
-		}
+	data := map[string]any{
+		string(config.ClaimSub): userID,
+		string(config.ClaimIss): issuer,
+		string(config.ClaimIat): issueAt,
+		string(config.ClaimExp): expiry,
+		string(config.ClaimAud): audience,
 	}
 
-	response.HandlerSuccess(c, gin.H{
-		"sub":            userID,
-		"iss":            issuer,
-		"iat":            issueAt,
-		"exp":            expiry,
-		"aud":            audience,
-		"name":           userInfo.Name,
-		"email":          userInfo.Email,
-		"email_verified": userInfo.EmailVerified,
-		"student_id":     userInfo.StudentID,
-		"role":           roles,
-	})
+	scopes := strings.Split(info.GetScope(), " ")
+
+	// 根据 scope 添加不同的声明
+	if slices.Contains(scopes, string(config.ScopeProfile)) {
+		data[string(config.ClaimName)] = user.Name
+		data[string(config.ClaimStudentID)] = user.StudentID
+		data[string(config.ClaimDisplayName)] = *user.DisplayName
+		data[string(config.ClaimPicture)] = "" // TODO: 添加头像支持
+	}
+
+	if slices.Contains(scopes, string(config.ScopeEmail)) {
+		data[string(config.ClaimEmail)] = user.Email
+		data[string(config.ClaimEmailVerified)] = user.EmailVerified
+	}
+
+	if slices.Contains(scopes, string(config.ScopeRoles)) {
+		data[string(config.ClaimRoles)] = user.Roles
+	}
+
+	response.HandlerSuccess(c, data)
 }
 
 // Logout 登出端点

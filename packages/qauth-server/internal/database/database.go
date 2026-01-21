@@ -72,5 +72,6 @@ func AutoMigrate(db *gorm.DB) error {
 		&models.Images{},
 		&models.Files{},
 		&models.OperationRecord{},
+		&models.ErrorRecord{},
 	)
 }

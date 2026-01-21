@@ -31,4 +31,5 @@ var (
 	ErrInvalidAccessToken    = app_error.NewAppError(401, "invalid access token")
 	ErrNoPermission          = app_error.NewAppError(403, "no permission")
 	ErrAPINotImplemented     = app_error.NewAppError(501, "api not implemented")
+	ErrInvalidResponseType   = app_error.NewAppError(400, "invalid response type")
 )

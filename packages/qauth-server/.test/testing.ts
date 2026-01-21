@@ -63,7 +63,7 @@ async function authorizeClient(clientId: string, token: string) {
       client_id: clientId,
       response_type: 'id_token',
       redirect_uri: 'http://localhost/callback',
-      scope: 'openid',
+      scope: 'openid email',
       state: 'xyz',
    });
    const res = await fetch(`${BASE_URL}/oauth/authorize?${params.toString()}`, {
@@ -73,7 +73,7 @@ async function authorizeClient(clientId: string, token: string) {
          Cookie: `access_token=${token}`,
       },
    });
-   console.log(res)
+   console.log(res);
 
    const location = res.headers.get('Location');
    // console.log(`Redirect to ${location}`)
@@ -96,10 +96,35 @@ async function tokenFromCode(clientId: string, code: string) {
       body: params,
       headers: {
          'Content-Type': 'application/x-www-form-urlencoded',
-      }
+      },
    });
 
-   console.log(res)
+   console.log(res);
+   console.log('access_token' in res ? 'PASS' : 'FAILED');
+
+   return {
+      accessToken: res.access_token,
+      idToken: res.id_token,
+      refreshToken: res.refresh_token,
+   };
+}
+
+async function refreshToken(clientId: string, refreshToken: string) {
+   const params = new URLSearchParams({
+      grant_type: 'refresh_token',
+      refresh_token: refreshToken,
+      client_id: clientId,
+      client_secret: secret,
+   });
+   const res = await r('/oauth/token', {
+      method: 'POST',
+      body: params,
+      headers: {
+         'Content-Type': 'application/x-www-form-urlencoded',
+      },
+   });
+
+   console.log(123, res);
    console.log('access_token' in res ? 'PASS' : 'FAILED');
 
    return {
@@ -114,7 +139,7 @@ async function verifyIdToken(token: string) {
    const decodedHeader = JSON.parse(atob(headerB64));
 
    const res1 = await r('/.well-known/jwks.json', { method: 'GET' });
-   
+
    // 找到匹配的 key
    const jwk = res1.keys.find((k: any) => k.kid === decodedHeader.kid);
    const { n, e } = jwk;
@@ -124,19 +149,19 @@ async function verifyIdToken(token: string) {
       { kty: 'RSA', n: n, e: e, alg: 'RS256', ext: true },
       { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' },
       false,
-      ['verify']
+      ['verify'],
    );
-   
+
    const encoder = new TextEncoder();
    const data = encoder.encode([headerB64, payload].join('.'));
-   
-   const b64 = atob(signature.replace(/-/g, '+').replace(/_/g, '/'))
-   const signatureArray = Uint8Array.from(b64, c => c.charCodeAt(0));
+
+   const b64 = atob(signature.replace(/-/g, '+').replace(/_/g, '/'));
+   const signatureArray = Uint8Array.from(b64, (c) => c.charCodeAt(0));
    const isValid = await crypto.subtle.verify(
       'RSASSA-PKCS1-v1_5',
       cryptoKey,
       signatureArray,
-      data
+      data,
    );
 
    console.log(isValid ? 'PASS' : 'FAILED');
@@ -147,8 +172,6 @@ async function getUserInfo(token: string) {
       method: 'GET',
       headers: b(token),
    });
-
-   console.log(JSON.stringify(res, null, 2))
 
    console.log(res.code.toString().startsWith('2') ? 'PASS' : 'FAILED');
 }
@@ -171,6 +194,9 @@ async function main() {
    const code = await authorizeClient(clientId, cred.accessToken);
    const token = await tokenFromCode(clientId, code);
    await verifyIdToken(token.idToken);
+
+   // 刷新阶段
+   await refreshToken(clientId, token.refreshToken);
 
    // 获取用户信息
    await getUserInfo(token.accessToken);

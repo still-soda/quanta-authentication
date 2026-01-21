@@ -7,24 +7,24 @@ import (
 
 // OIDCDiscoveryConfig OIDC 发现配置
 type OIDCDiscoveryConfig struct {
-	Issuer                            string   `json:"issuer"`
-	AuthorizationEndpoint             string   `json:"authorization_endpoint"`
-	TokenEndpoint                     string   `json:"token_endpoint"`
-	UserinfoEndpoint                  string   `json:"userinfo_endpoint"`
-	JwksURI                           string   `json:"jwks_uri"`
-	RegistrationEndpoint              string   `json:"registration_endpoint,omitempty"`
-	RevocationEndpoint                string   `json:"revocation_endpoint,omitempty"`
-	IntrospectionEndpoint             string   `json:"introspection_endpoint,omitempty"`
-	EndSessionEndpoint                string   `json:"end_session_endpoint,omitempty"`
-	ScopesSupported                   []string `json:"scopes_supported"`
-	ResponseTypesSupported            []string `json:"response_types_supported"`
-	ResponseModesSupported            []string `json:"response_modes_supported,omitempty"`
-	GrantTypesSupported               []string `json:"grant_types_supported"`
-	SubjectTypesSupported             []string `json:"subject_types_supported"`
-	IDTokenSigningAlgValuesSupported  []string `json:"id_token_signing_alg_values_supported"`
-	TokenEndpointAuthMethodsSupported []string `json:"token_endpoint_auth_methods_supported"`
-	ClaimsSupported                   []string `json:"claims_supported,omitempty"`
-	CodeChallengeMethodsSupported     []string `json:"code_challenge_methods_supported,omitempty"`
+	Issuer                            string                           `json:"issuer"`
+	AuthorizationEndpoint             string                           `json:"authorization_endpoint"`
+	TokenEndpoint                     string                           `json:"token_endpoint"`
+	UserinfoEndpoint                  string                           `json:"userinfo_endpoint"`
+	JwksURI                           string                           `json:"jwks_uri"`
+	RegistrationEndpoint              string                           `json:"registration_endpoint,omitempty"`
+	RevocationEndpoint                string                           `json:"revocation_endpoint,omitempty"`
+	IntrospectionEndpoint             string                           `json:"introspection_endpoint,omitempty"`
+	EndSessionEndpoint                string                           `json:"end_session_endpoint,omitempty"`
+	ScopesSupported                   []config.Scope                   `json:"scopes_supported"`
+	ResponseTypesSupported            []config.ResponseType            `json:"response_types_supported"`
+	ResponseModesSupported            []config.ResponseMode            `json:"response_modes_supported,omitempty"`
+	GrantTypesSupported               []config.GrantType               `json:"grant_types_supported"`
+	SubjectTypesSupported             []config.SubjectType             `json:"subject_types_supported"`
+	IDTokenSigningAlgValuesSupported  []config.IDTokenSigningAlg       `json:"id_token_signing_alg_values_supported"`
+	TokenEndpointAuthMethodsSupported []config.TokenEndpointAuthMethod `json:"token_endpoint_auth_methods_supported"`
+	ClaimsSupported                   []config.Claim                   `json:"claims_supported,omitempty"`
+	CodeChallengeMethodsSupported     []config.CodeChallengeMethod     `json:"code_challenge_methods_supported,omitempty"`
 }
 
 // OIDCService OIDC 服务
@@ -50,6 +50,10 @@ func NewOIDCService(cfg *config.Config, issuer string, jwksManager *jwks.JWKSMan
 	return service, nil
 }
 
+func (s *OIDCService) GetConfig() *config.OIDCConfig {
+	return &s.cfg.OIDC
+}
+
 // GetJWKSManager 获取 JWKS 管理器
 func (s *OIDCService) GetJWKSManager() *jwks.JWKSManager {
 	return s.jwksManager
@@ -66,15 +70,15 @@ func (s *OIDCService) GetOpenIDConfiguration() *OIDCDiscoveryConfig {
 		RevocationEndpoint:                s.issuer + "/oauth/revoke",
 		IntrospectionEndpoint:             s.issuer + "/oauth/validate",
 		EndSessionEndpoint:                s.issuer + "/oauth/logout",
-		ScopesSupported:                   []string{"openid", "profile", "email", "offline_access"},
-		ResponseTypesSupported:            []string{"code", "token", "id_token", "code token", "code id_token", "token id_token", "code token id_token"},
-		ResponseModesSupported:            []string{"query", "fragment", "form_post"},
-		GrantTypesSupported:               []string{"authorization_code", "implicit", "client_credentials", "password", "refresh_token"},
-		SubjectTypesSupported:             []string{"public"},
-		IDTokenSigningAlgValuesSupported:  []string{"RS256"},
-		TokenEndpointAuthMethodsSupported: []string{"client_secret_basic", "client_secret_post"},
-		ClaimsSupported:                   []string{"sub", "iss", "aud", "exp", "iat", "name", "email", "email_verified", "student_id", "role"},
-		CodeChallengeMethodsSupported:     []string{"S256", "plain"},
+		ScopesSupported:                   s.cfg.OAuth.ScopeSupported,
+		ResponseTypesSupported:            s.cfg.OAuth.AllowedResponseTypes,
+		ResponseModesSupported:            s.cfg.OAuth.ResponseModesSupported,
+		GrantTypesSupported:               s.cfg.OAuth.GrantTypesSupported,
+		SubjectTypesSupported:             s.cfg.OAuth.SubjectTypesSupported,
+		IDTokenSigningAlgValuesSupported:  s.cfg.OAuth.IDTokenSigningAlgValuesSupported,
+		TokenEndpointAuthMethodsSupported: s.cfg.OAuth.TokenEndpointAuthMethodsSupported,
+		ClaimsSupported:                   s.cfg.OAuth.ClaimsSupported,
+		CodeChallengeMethodsSupported:     s.cfg.OAuth.CodeChallengeMethodsSupported,
 	}
 }
 
@@ -109,6 +113,6 @@ func (s *OIDCService) GetActiveKeyID() string {
 }
 
 // ValidateIDToken 验证 ID 令牌
-func (s *OIDCService) ValidateIDToken(idToken string) (*jwks.IDTokenClaims, error) {
+func (s *OIDCService) ValidateIDToken(idToken string) (*jwks.BasicClaims, error) {
 	return s.jwksManager.VerifyToken(idToken)
 }

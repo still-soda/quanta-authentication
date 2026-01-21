@@ -9,7 +9,9 @@ import (
 	"qauth-server/internal/utilities"
 	"qauth-server/pkg/jwks"
 	app_jwt "qauth-server/pkg/jwt"
+	"slices"
 	"strings"
+	"time"
 
 	"github.com/go-oauth2/oauth2/v4"
 	oautherrors "github.com/go-oauth2/oauth2/v4/errors"
@@ -24,7 +26,7 @@ import (
 // OAuthService OAuth2 服务
 type OAuthService struct {
 	db          *gorm.DB
-	Cfg         *config.Config
+	cfg         *config.Config
 	server      *server.Server
 	manager     *manage.Manager
 	clientStore *GormClientStore
@@ -116,8 +118,19 @@ func NewOAuthService(
 	srv.SetAllowGetAccessRequest(true)
 	srv.SetClientInfoHandler(server.ClientFormHandler)
 
+	service := &OAuthService{
+		db:          db,
+		cfg:         cfg,
+		server:      srv,
+		manager:     manager,
+		clientStore: clientStore,
+		jwksManager: jwksManager,
+		userService: userService,
+	}
+
 	// 设置内部错误处理
 	srv.SetInternalErrorHandler(func(err error) (re *oautherrors.Response) {
+		service.recordError("", nil, err.Error())
 		logger.Error("OAuth2 internal error", "error", err)
 		return
 	})
@@ -127,15 +140,12 @@ func NewOAuthService(
 		logger.Error("OAuth2 response error", "error", re.Error, "description", re.Description)
 	})
 
-	service := &OAuthService{
-		db:          db,
-		Cfg:         cfg,
-		server:      srv,
-		manager:     manager,
-		clientStore: clientStore,
-		jwksManager: jwksManager,
-		userService: userService,
+	// 仅允许授权码模式
+	gt := []oauth2.GrantType{}
+	for _, grantType := range cfg.OAuth.GrantTypesSupported {
+		gt = append(gt, oauth2.GrantType(grantType))
 	}
+	srv.SetAllowedGrantType(gt...)
 
 	// 设置用户授权处理器
 	srv.SetUserAuthorizationHandler(service.userAuthorizationHandler)
@@ -150,31 +160,43 @@ func NewOAuthService(
 	return service
 }
 
+// GetConfig 获取 OAuth 配置
+func (s *OAuthService) GetConfig() *config.OAuthConfig {
+	return &s.cfg.OAuth
+}
+
 // userAuthorizationHandler 用户授权处理器（授权码模式）
 func (s *OAuthService) userAuthorizationHandler(w http.ResponseWriter, r *http.Request) (userID string, err error) {
+	clientID := r.FormValue("client_id")
+
 	// 从 Cookie 中获取 JWT Token
 	cookie, err := r.Cookie("access_token")
 	if err != nil {
+		s.recordLoginState("", &clientID, models.LoginTypeOAuth2, false, "user not logged in")
 		return "", errors.New("user not logged in")
 	}
 
 	// 解析 JWT Token
 	claims, err := app_jwt.ParseAccessToken(cookie.Value)
 	if err != nil {
+		s.recordLoginState("", &clientID, models.LoginTypeOAuth2, false, "invalid access token")
 		return "", errors.New("invalid access token")
 	}
 
 	// 验证用户是否存在
 	var user models.Users
 	if err := s.db.First(&user, "id = ?", claims.UserID).Error; err != nil {
+		s.recordLoginState("", &clientID, models.LoginTypeOAuth2, false, "user not found")
 		return "", errors.New("user not found")
 	}
 
 	// 检查用户状态
 	if user.Status != models.UserStatusActive {
+		s.recordLoginState(user.ID, &clientID, models.LoginTypeOAuth2, false, "user account is not active")
 		return "", errors.New("user account is not active")
 	}
 
+	s.recordLoginState(user.ID, &clientID, models.LoginTypeOAuth2, true, "")
 	return user.ID, nil
 }
 
@@ -184,30 +206,34 @@ func (s *OAuthService) passwordAuthorizationHandler(ctx context.Context, clientI
 	var user models.Users
 	if err := s.db.First(&user, "student_id = ?", username).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
+			s.recordLoginState("", &clientID, models.LoginTypeOAuth2, false, "user not found")
 			return "", errors.New("user not found")
 		}
+		s.recordLoginState("", &clientID, models.LoginTypeOAuth2, false, "database error: "+err.Error())
 		return "", err
 	}
 
 	// 验证密码
 	if !utilities.VerifyPassword(password, user.Salt, user.PasswordHash) {
+		s.recordLoginState(user.ID, &clientID, models.LoginTypeOAuth2, false, "invalid password")
 		return "", errors.New("invalid password")
 	}
 
 	// 检查用户状态
 	if user.Status != models.UserStatusActive {
+		s.recordLoginState(user.ID, &clientID, models.LoginTypeOAuth2, false, "user account is not active")
 		return "", errors.New("user account is not active")
 	}
 
 	// 记录登录状态
 	s.recordLoginState(user.ID, &clientID, models.LoginTypeOAuth2, true, "")
-
 	return user.ID, nil
 }
 
 // extensionFieldsHandler 扩展字段处理器（用于生成 ID Token）
 func (s *OAuthService) extensionFieldsHandler(ti oauth2.TokenInfo) (fieldsValue map[string]any) {
-	if !strings.Contains(ti.GetScope(), "openid") {
+	scopes := strings.Split(ti.GetScope(), " ")
+	if !slices.Contains(scopes, string(config.ScopeOpenID)) {
 		return nil
 	}
 
@@ -221,20 +247,35 @@ func (s *OAuthService) extensionFieldsHandler(ti oauth2.TokenInfo) (fieldsValue 
 		user.DisplayName = &name
 	}
 
-	idTokenClaims := &jwks.IDTokenClaims{
-		UserID:      user.ID,
-		StudentID:   user.StudentID,
-		DisplayName: *user.DisplayName,
-		Avatar:      "", // TODO: 添加头像支持
-
-		Issuer:   s.Cfg.OIDC.Issuer,
+	basic := &jwks.BasicClaims{
+		Issuer:   s.cfg.OIDC.Issuer,
 		Subject:  user.ID,
 		Audience: ti.GetClientID(),
 		Expiry:   ti.GetAccessCreateAt().Add(ti.GetAccessExpiresIn()).Unix(),
 		IssuedAt: ti.GetAccessCreateAt().Unix(),
 		AuthTime: ti.GetAccessCreateAt().Unix(),
 	}
-	idToken, err := s.jwksManager.SignToken(idTokenClaims)
+	data := map[string]any{}
+
+	// 根据 scope 添加不同的声明
+	if slices.Contains(scopes, string(config.ScopeProfile)) {
+		data[string(config.ClaimName)] = user.Name
+		data[string(config.ClaimStudentID)] = user.StudentID
+		data[string(config.ClaimDisplayName)] = *user.DisplayName
+		data[string(config.ClaimPicture)] = "" // TODO: 添加头像支持
+	}
+
+	if slices.Contains(scopes, string(config.ScopeEmail)) {
+		data[string(config.ClaimEmail)] = user.Email
+		data[string(config.ClaimEmailVerified)] = user.EmailVerified
+	}
+
+	if slices.Contains(scopes, string(config.ScopeRoles)) {
+		data[string(config.ClaimRoles)] = user.Roles
+	}
+
+	// 生成 ID Token
+	idToken, err := s.jwksManager.SignToken(basic, data)
 	if err != nil {
 		utilities.GetLogger().Error("failed to sign ID token", "error", err)
 		return nil
@@ -254,6 +295,20 @@ func (s *OAuthService) recordLoginState(userID string, clientID *string, loginTy
 	}
 	if err := s.db.Create(&loginState).Error; err != nil {
 		utilities.GetLogger().Error("failed to record login state", "error", err)
+	}
+}
+
+// recordError 记录错误信息
+func (s *OAuthService) recordError(userID string, clientID *string, errMsg string) {
+	errorRecord := &models.ErrorRecord{
+		UserID:    userID,
+		ClientID:  clientID,
+		ErrorType: "OAuthService",
+		Message:   errMsg,
+		Timestamp: time.Now().Unix(),
+	}
+	if err := s.db.Create(errorRecord).Error; err != nil {
+		utilities.GetLogger().Error("failed to record error", "error", err)
 	}
 }
 
