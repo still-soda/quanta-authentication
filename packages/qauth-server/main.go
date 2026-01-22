@@ -64,6 +64,9 @@ func main() {
 	}
 	defer storageService.Close()
 
+	cacheService := services.NewCacheService(cfg)
+	defer cacheService.Close()
+
 	permissionService := services.NewPermissionService(db)
 	fileService := services.NewFileService(storageService, db)
 	userService := services.NewUserService(db)
@@ -82,7 +85,7 @@ func main() {
 	healthHandler := handlers.NewHealthHandler()
 	fileHandler := handlers.NewFileHandler(fileService)
 	authHandler := handlers.NewAuthHandler(userService, roleService)
-	oauthHandler := handlers.NewOAuthHandler(oauthService, roleService, userService, oidcService)
+	oauthHandler := handlers.NewOAuthHandler(oauthService, roleService, userService, oidcService, cacheService)
 	oidcHandler := handlers.NewOIDCHandler(oidcService, userService)
 
 	// 注册路由

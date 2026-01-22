@@ -13,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gin-gonic/gin"
 	"github.com/go-oauth2/oauth2/v4"
 	oautherrors "github.com/go-oauth2/oauth2/v4/errors"
 	"github.com/go-oauth2/oauth2/v4/manage"
@@ -325,6 +326,17 @@ func (s *OAuthService) GetManager() *manage.Manager {
 // HandleAuthorizeRequest 处理授权请求
 func (s *OAuthService) HandleAuthorizeRequest(w http.ResponseWriter, r *http.Request) error {
 	return s.server.HandleAuthorizeRequest(w, r)
+}
+
+// HandlerAuthorizeDeny 处理授权拒绝
+func (s *OAuthService) HandlerAuthorizeDeny(c *gin.Context, redirectUri string) {
+	url := redirectUri + "?error=access_denied&error_description=The+user+denied+the+request"
+	c.Redirect(http.StatusFound, url)
+}
+
+// ValidateAuthorizeRequest 验证授权请求
+func (s *OAuthService) ValidateAuthorizeRequest(r *http.Request) (*server.AuthorizeRequest, error) {
+	return s.server.ValidationAuthorizeRequest(r)
 }
 
 // HandleTokenRequest 处理令牌请求

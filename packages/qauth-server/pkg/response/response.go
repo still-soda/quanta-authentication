@@ -8,6 +8,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+// HandlerError 处理错误响应
 func HandlerError(ctx *gin.Context, err error) {
 	var appErr *app_error.AppError
 	if errors.As(err, &appErr) {
@@ -28,6 +29,7 @@ func HandlerError(ctx *gin.Context, err error) {
 	})
 }
 
+// HandlerSuccess 处理成功响应
 func HandlerSuccess(ctx *gin.Context, data any) {
 	ctx.JSON(200, gin.H{
 		"code": 200,

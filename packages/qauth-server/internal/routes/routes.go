@@ -47,7 +47,8 @@ func RegisterRoutes(r *gin.Engine, handlers *RegisterRouterHandlers) {
 	oauthGroup := r.Group("/v1/oauth")
 	{
 		// OAuth2 授权端点
-		oauthGroup.GET("/authorize", oauthHandler.Authorize)
+		oauthGroup.GET("/authorize", oauthHandler.AuthorizePage)
+		oauthGroup.GET("/authorize/info", oauthHandler.AuthorizeInfo)
 		oauthGroup.POST("/authorize", oauthHandler.Authorize)
 		oauthGroup.POST("/token", oauthHandler.Token)
 		oauthGroup.POST("/validate", oauthHandler.ValidateToken)

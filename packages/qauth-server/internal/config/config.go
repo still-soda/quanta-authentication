@@ -97,6 +97,7 @@ type OIDCConfig struct {
 }
 
 type OAuthConfig struct {
+	AuthorizePageURL                  string
 	AllowedResponseTypes              []ResponseType
 	ScopeSupported                    []Scope
 	ResponseModesSupported            []ResponseMode
@@ -158,6 +159,7 @@ func New() *Config {
 			KeySize:             GetEnvAsInt("OIDC_KEY_SIZE", 2048),
 		},
 		OAuth: OAuthConfig{
+			AuthorizePageURL:                  GetEnv("OAUTH_AUTH_CONSENT_PAGE_URL", "https://example.com/consent"),
 			AllowedResponseTypes:              []ResponseType{ResponseTypeCode, ResponseTypeIDToken},
 			ScopeSupported:                    []Scope{ScopeOpenID, ScopeProfile, ScopeEmail},
 			ResponseModesSupported:            []ResponseMode{ResponseModeQuery, ResponseModeFragment, ResponseModeFormPost},

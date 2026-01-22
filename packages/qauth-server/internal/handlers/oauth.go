@@ -1,6 +1,8 @@
 package handlers
 
 import (
+	"encoding/json"
+	"net/http"
 	"qauth-server/internal/config"
 	app_error "qauth-server/internal/errors"
 	"qauth-server/internal/permissions"
@@ -20,6 +22,7 @@ type OAuthHandler struct {
 	roleService  *services.RoleService
 	userService  *services.UserService
 	oidcService  *services.OIDCService
+	cacheService *services.CacheService
 }
 
 // NewOAuthHandler 创建新的 OAuth2 处理器
@@ -28,12 +31,14 @@ func NewOAuthHandler(
 	roleService *services.RoleService,
 	userService *services.UserService,
 	oidcService *services.OIDCService,
+	cacheService *services.CacheService,
 ) *OAuthHandler {
 	return &OAuthHandler{
 		oauthService: oauthService,
 		roleService:  roleService,
 		userService:  userService,
 		oidcService:  oidcService,
+		cacheService: cacheService,
 	}
 }
 
@@ -78,21 +83,122 @@ func (h *OAuthHandler) modifyRedirectLocation(c *gin.Context, isValid bool, rt s
 	}
 }
 
+// requestQueryToJSON 将请求查询参数转换为 JSON 字符串
+func (h *OAuthHandler) requestQueryToJSON(r *http.Request) (string, error) {
+	q := r.URL.Query()
+	params := make(map[string]any)
+	for key, values := range q {
+		if len(values) > 0 {
+			params[key] = values[0]
+		}
+	}
+
+	// 添加原始授权请求 URI
+	params["origin_uri"] = r.RequestURI
+
+	jsonStr, err := json.Marshal(params)
+	if err != nil {
+		return "", err
+	}
+
+	return string(jsonStr), nil
+}
+
+// AuthorizePage 显示授权页面
+// GET /oauth/authorize
+func (h *OAuthHandler) AuthorizePage(c *gin.Context) {
+	// 验证授权请求
+	_, err := h.oauthService.ValidateAuthorizeRequest(c.Request)
+	if err != nil {
+		utilities.GetLogger().Error("Validate authorize request error", "error", err)
+		c.Error(app_error.ErrBadRequest)
+		return
+	}
+
+	// 将请求查询参数转换为 JSON 字符串
+	jsonStr, err := h.requestQueryToJSON(c.Request)
+	if err != nil {
+		utilities.GetLogger().Error("Convert request query to JSON error", "error", err)
+		c.Error(app_error.ErrInternalServerError)
+		return
+	}
+
+	// 生成 authorizeID
+	authorizeID, err := utilities.GenerateRandomString(32)
+	if err != nil {
+		utilities.GetLogger().Error("Generate authorize ID error", "error", err)
+		c.Error(app_error.ErrInternalServerError)
+		return
+	}
+
+	// 将 authorizeID 和请求参数存储在缓存中，有效期为 60 秒
+	h.cacheService.SetKeyValue("authorize-"+authorizeID, jsonStr, 120)
+
+	// 重定向到授权页面
+	authorizePageUrl := h.oauthService.GetConfig().AuthorizePageURL + "?aid=" + authorizeID
+	c.Redirect(302, authorizePageUrl)
+}
+
+// AuthorizeInfo 获取授权信息
+// GET /oauth/authorize/info
+func (h *OAuthHandler) AuthorizeInfo(c *gin.Context) {
+	r := c.Request
+
+	// TODO: 验证 referer 是否来自授权页面
+
+	// 从缓存中获取请求参数
+	authorizeID := r.URL.Query().Get("aid")
+	data, err := h.cacheService.GetKeyValue("authorize-" + authorizeID)
+	if err != nil || data == "" {
+		utilities.GetLogger().Error("Get authorize info from cache error", "error", err)
+		response.HandlerError(c, app_error.ErrBadRequest)
+		return
+	}
+
+	// 将 JSON 字符串解析为 map
+	var params map[string]any
+	if err := json.Unmarshal([]byte(data), &params); err != nil {
+		utilities.GetLogger().Error("Parse authorize info JSON error", "error", err)
+		response.HandlerError(c, app_error.ErrInternalServerError)
+		return
+	}
+
+	response.HandlerSuccess(c, params)
+}
+
 // Authorize 处理授权请求（授权码模式）
-// GET/POST /oauth/authorize
+// POST /oauth/authorize
 func (h *OAuthHandler) Authorize(c *gin.Context) {
+	// 验证授权结果
+	action := c.PostForm("action")
+	if action == "deny" {
+		redirectUri := c.Query("redirect_uri")
+		h.oauthService.HandlerAuthorizeDeny(c, redirectUri)
+		return
+	}
+
+	// 处理非法请求
+	if action != "approve" {
+		response.HandlerError(c, app_error.ErrBadRequest)
+		return
+	}
+
+	// 处理授权请求
 	rt := c.Request.URL.Query().Get("response_type")
 	arts := h.oauthService.GetConfig().AllowedResponseTypes
 	isValid := slices.Contains(arts, config.ResponseType(rt))
 
+	// 根据响应类型修改请求以支持隐式授权模式
 	h.modifyResponseType(c, isValid, rt)
 
+	// 处理授权请求
 	err := h.oauthService.HandleAuthorizeRequest(c.Writer, c.Request)
 	if err != nil {
 		utilities.GetLogger().Error("OAuth authorize error", "error", err)
 		c.Error(app_error.ErrBadRequest)
 	}
 
+	// 根据响应类型修改重定向位置以支持隐式授权模式
 	h.modifyRedirectLocation(c, isValid, rt)
 }
 
