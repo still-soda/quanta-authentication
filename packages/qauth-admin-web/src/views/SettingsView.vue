@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { ref, reactive } from 'vue';
+import { ref, reactive, watch } from 'vue';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/vue-query';
 import Button from 'primevue/button';
 import InputText from 'primevue/inputtext';
 import InputNumber from 'primevue/inputnumber';
@@ -14,17 +15,50 @@ import Tab from 'primevue/tab';
 import TabPanels from 'primevue/tabpanels';
 import TabPanel from 'primevue/tabpanel';
 import PageHeader from '@/components/shared/PageHeader.vue';
-import { SETTING_GROUPS, LANGUAGE_OPTIONS, TIMEZONE_OPTIONS, ENCRYPTION_OPTIONS, STORAGE_TYPE_OPTIONS, DEFAULT_SETTINGS } from '@/config';
+import { SETTING_GROUPS, LANGUAGE_OPTIONS, TIMEZONE_OPTIONS, ENCRYPTION_OPTIONS, STORAGE_TYPE_OPTIONS } from '@/config';
+import { getAllSettings, saveAllSettings, resetSettings, testEmailSend } from '@/apis/settings';
+
+const queryClient = useQueryClient();
+
+// 使用 TanStack Query 获取设置数据
+const { data: settingsData, isLoading } = useQuery({
+   queryKey: ['settings'],
+   queryFn: getAllSettings,
+});
+
+// 保存设置 mutation
+const saveMutation = useMutation({
+   mutationFn: saveAllSettings,
+   onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['settings'] });
+      saveSuccess.value = true;
+      setTimeout(() => {
+         saveSuccess.value = false;
+      }, 3000);
+   },
+});
+
+// 重置设置 mutation
+const resetMutation = useMutation({
+   mutationFn: resetSettings,
+   onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['settings'] });
+   },
+});
+
+// 测试邮件 mutation
+const testEmailMutation = useMutation({
+   mutationFn: testEmailSend,
+});
 
 const settingGroups = SETTING_GROUPS;
-
 const activeTab = ref('general');
 
-// 基本设置
+// 本地表单数据
 const generalSettings = reactive({
-   siteName: 'Quanta 认证中心',
-   siteDescription: '企业级统一身份认证平台',
-   adminEmail: 'admin@example.com',
+   siteName: '',
+   siteDescription: '',
+   adminEmail: '',
    defaultLanguage: 'zh-CN',
    timezone: 'Asia/Shanghai',
    maintenanceMode: false,
@@ -32,7 +66,6 @@ const generalSettings = reactive({
    requireEmailVerification: true,
 });
 
-// 安全设置
 const securitySettings = reactive({
    passwordMinLength: 8,
    passwordRequireUppercase: true,
@@ -48,7 +81,6 @@ const securitySettings = reactive({
    csrfProtection: true,
 });
 
-// OAuth 配置
 const oauthSettings = reactive({
    accessTokenLifetime: 3600,
    refreshTokenLifetime: 604800,
@@ -61,29 +93,38 @@ const oauthSettings = reactive({
    jwksRotationDays: 90,
 });
 
-// 邮件设置
 const emailSettings = reactive({
-   smtpHost: 'smtp.example.com',
+   smtpHost: '',
    smtpPort: 587,
-   smtpUser: 'noreply@example.com',
-   smtpPassword: '********',
+   smtpUser: '',
+   smtpPassword: '',
    smtpEncryption: 'tls',
-   fromAddress: 'noreply@example.com',
-   fromName: 'Quanta Auth',
+   fromAddress: '',
+   fromName: '',
    enableEmailNotifications: true,
 });
 
-// 存储设置
 const storageSettings = reactive({
    storageType: 'local',
-   localPath: '/var/data/uploads',
+   localPath: '',
    s3Bucket: '',
    s3Region: '',
    s3AccessKey: '',
    s3SecretKey: '',
    maxFileSize: 10,
-   allowedFileTypes: 'jpg,png,gif,pdf,doc,docx',
+   allowedFileTypes: '',
 });
+
+// 同步服务器数据到本地表单
+watch(settingsData, (data) => {
+   if (data) {
+      Object.assign(generalSettings, data.general);
+      Object.assign(securitySettings, data.security);
+      Object.assign(oauthSettings, data.oauth);
+      Object.assign(emailSettings, data.email);
+      Object.assign(storageSettings, data.storage);
+   }
+}, { immediate: true });
 
 const languageOptions = LANGUAGE_OPTIONS;
 const timezoneOptions = TIMEZONE_OPTIONS;
@@ -91,23 +132,24 @@ const encryptionOptions = ENCRYPTION_OPTIONS;
 const storageTypeOptions = STORAGE_TYPE_OPTIONS;
 
 // 保存状态
-const isSaving = ref(false);
 const saveSuccess = ref(false);
 
-const saveSettings = async () => {
-   isSaving.value = true;
-   // 模拟保存
-   await new Promise((resolve) => setTimeout(resolve, 1000));
-   isSaving.value = false;
-   saveSuccess.value = true;
-   setTimeout(() => {
-      saveSuccess.value = false;
-   }, 3000);
+const saveSettings = () => {
+   saveMutation.mutate({
+      general: { ...generalSettings },
+      security: { ...securitySettings },
+      oauth: { ...oauthSettings },
+      email: { ...emailSettings },
+      storage: { ...storageSettings },
+   });
 };
 
-const resetSettings = () => {
-   // Reset logic here
-   console.log('Reset settings');
+const handleResetSettings = () => {
+   resetMutation.mutate();
+};
+
+const handleTestEmail = () => {
+   testEmailMutation.mutate();
 };
 </script>
 
@@ -121,11 +163,12 @@ const resetSettings = () => {
                icon="pi pi-refresh"
                severity="secondary"
                outlined
-               @click="resetSettings" />
+               :loading="resetMutation.isPending.value"
+               @click="handleResetSettings" />
             <Button
                label="保存设置"
                icon="pi pi-check"
-               :loading="isSaving"
+               :loading="saveMutation.isPending.value"
                @click="saveSettings" />
          </template>
       </PageHeader>
@@ -137,8 +180,16 @@ const resetSettings = () => {
          </Message>
       </Transition>
 
+      <!-- Loading State -->
+      <div
+         v-if="isLoading"
+         class="flex items-center justify-center py-24">
+         <i class="pi pi-spin pi-spinner text-3xl text-surface-400"></i>
+      </div>
+
       <!-- Settings Tabs -->
       <div
+         v-else
          class="bg-surface-0 dark:bg-surface-900 border border-surface-200 dark:border-surface-800 rounded-xl overflow-hidden">
          <Tabs v-model:value="activeTab">
             <TabList
@@ -712,7 +763,9 @@ const resetSettings = () => {
                            icon="pi pi-send"
                            severity="secondary"
                            outlined
-                           class="w-fit" />
+                           :loading="testEmailMutation.isPending.value"
+                           class="w-fit"
+                           @click="handleTestEmail" />
                      </div>
                   </div>
                </TabPanel>

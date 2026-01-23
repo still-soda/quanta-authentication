@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/vue-query';
 import Button from 'primevue/button';
 import Tag from 'primevue/tag';
 import Checkbox from 'primevue/checkbox';
@@ -8,100 +9,70 @@ import PageHeader from '@/components/shared/PageHeader.vue';
 import SimpleStatCard from '@/components/shared/SimpleStatCard.vue';
 import type { Notification, NotificationType, SimpleStatData } from '@/types';
 import { NOTIFICATION_TYPE_CONFIG } from '@/config';
+import {
+   getNotifications,
+   markAsRead,
+   markMultipleAsRead,
+   markAllAsRead as markAllAsReadApi,
+   deleteNotification,
+   deleteMultipleNotifications,
+   deleteAllReadNotifications,
+} from '@/apis/notifications';
 
-// 通知数据
-const notifications = ref<Notification[]>([
-   {
-      id: '1',
-      type: 'security',
-      title: '新设备登录提醒',
-      message: '检测到您的账号在新设备上登录：Chrome / Windows，IP: 192.168.1.100，位置：北京',
-      time: '2026-01-23 14:30:00',
-      read: false,
-      actionUrl: '/audit',
-      actionLabel: '查看详情',
+const queryClient = useQueryClient();
+
+// 使用 TanStack Query 获取通知数据
+const { data: notificationsData, isLoading } = useQuery({
+   queryKey: ['notifications'],
+   queryFn: () => getNotifications(),
+});
+
+const notifications = computed(() => notificationsData.value || []);
+
+// Mutations
+const markAsReadMutation = useMutation({
+   mutationFn: markAsRead,
+   onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['notifications'] });
    },
-   {
-      id: '2',
-      type: 'system',
-      title: '系统维护通知',
-      message: '系统将于 2026年1月25日 02:00-06:00 进行例行维护，届时服务将暂停访问',
-      time: '2026-01-23 10:00:00',
-      read: false,
+});
+
+const markMultipleMutation = useMutation({
+   mutationFn: markMultipleAsRead,
+   onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['notifications'] });
+      selectedIds.value = [];
    },
-   {
-      id: '3',
-      type: 'oauth',
-      title: 'OAuth 应用审核通过',
-      message: '您提交的应用「内部管理系统」已通过审核，现在可以正常使用',
-      time: '2026-01-22 16:45:00',
-      read: false,
-      actionUrl: '/oauth',
-      actionLabel: '前往管理',
+});
+
+const markAllMutation = useMutation({
+   mutationFn: markAllAsReadApi,
+   onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['notifications'] });
    },
-   {
-      id: '4',
-      type: 'user',
-      title: '新用户注册通知',
-      message: '新用户 李四 (lisi@example.com) 已完成注册并通过邮箱验证',
-      time: '2026-01-22 14:20:00',
-      read: true,
-      actionUrl: '/users',
-      actionLabel: '查看用户',
+});
+
+const deleteMutation = useMutation({
+   mutationFn: deleteNotification,
+   onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['notifications'] });
    },
-   {
-      id: '5',
-      type: 'alert',
-      title: '异常登录警告',
-      message: '用户 赵阳 在短时间内多次登录失败，已触发账号锁定机制',
-      time: '2026-01-22 11:30:00',
-      read: true,
-      actionUrl: '/audit',
-      actionLabel: '查看日志',
+});
+
+const deleteMultipleMutation = useMutation({
+   mutationFn: deleteMultipleNotifications,
+   onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['notifications'] });
+      selectedIds.value = [];
    },
-   {
-      id: '6',
-      type: 'security',
-      title: '密码修改成功',
-      message: '您的账号密码已成功修改，如非本人操作请立即联系管理员',
-      time: '2026-01-21 18:00:00',
-      read: true,
+});
+
+const deleteAllReadMutation = useMutation({
+   mutationFn: deleteAllReadNotifications,
+   onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['notifications'] });
    },
-   {
-      id: '7',
-      type: 'system',
-      title: '系统更新完成',
-      message: '系统已升级至 v2.5.0 版本，新增组织架构管理等功能',
-      time: '2026-01-20 09:00:00',
-      read: true,
-   },
-   {
-      id: '8',
-      type: 'oauth',
-      title: 'OAuth 密钥即将过期',
-      message: '应用「客户端 App」的密钥将于 30 天后过期，请及时更新',
-      time: '2026-01-19 14:00:00',
-      read: true,
-      actionUrl: '/oauth',
-      actionLabel: '立即更新',
-   },
-   {
-      id: '9',
-      type: 'user',
-      title: '用户权限变更',
-      message: '管理员为您分配了新角色：审计员，您现在可以查看系统审计日志',
-      time: '2026-01-18 11:20:00',
-      read: true,
-   },
-   {
-      id: '10',
-      type: 'alert',
-      title: '存储空间预警',
-      message: '系统存储空间使用率已达 85%，建议清理无用文件或扩容',
-      time: '2026-01-17 16:30:00',
-      read: true,
-   },
-]);
+});
 
 // 筛选类型
 const filterType = ref<NotificationType | 'all'>('all');
@@ -182,36 +153,25 @@ const toggleSelectAll = () => {
 };
 
 // 标记已读
-const markAsRead = (notification: Notification) => {
-   notification.read = true;
+const handleMarkAsRead = (notification: Notification) => {
+   markAsReadMutation.mutate(notification.id);
 };
 
 const markSelectedAsRead = () => {
-   notifications.value.forEach((n) => {
-      if (selectedIds.value.includes(n.id)) {
-         n.read = true;
-      }
-   });
-   selectedIds.value = [];
+   markMultipleMutation.mutate(selectedIds.value);
 };
 
-const markAllAsRead = () => {
-   notifications.value.forEach((n) => {
-      n.read = true;
-   });
+const handleMarkAllAsRead = () => {
+   markAllMutation.mutate();
 };
 
 // 删除通知
-const deleteNotification = (id: string) => {
-   notifications.value = notifications.value.filter((n) => n.id !== id);
-   selectedIds.value = selectedIds.value.filter((i) => i !== id);
+const handleDeleteNotification = (id: string) => {
+   deleteMutation.mutate(id);
 };
 
 const deleteSelected = () => {
-   notifications.value = notifications.value.filter(
-      (n) => !selectedIds.value.includes(n.id),
-   );
-   selectedIds.value = [];
+   deleteMultipleMutation.mutate(selectedIds.value);
 };
 
 // 更多操作菜单
@@ -220,14 +180,12 @@ const moreMenuItems = ref([
    {
       label: '全部标记已读',
       icon: 'pi pi-check-circle',
-      command: markAllAsRead,
+      command: handleMarkAllAsRead,
    },
    {
       label: '删除所有已读',
       icon: 'pi pi-trash',
-      command: () => {
-         notifications.value = notifications.value.filter((n) => !n.read);
-      },
+      command: () => deleteAllReadMutation.mutate(),
    },
    { separator: true },
    {
@@ -295,7 +253,15 @@ const formatTime = (time: string) => {
 
       <!-- Stats Cards -->
       <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-         <SimpleStatCard v-for="stat in stats" :key="stat.title" :stat="stat" />
+         <template v-if="isLoading">
+            <div
+               v-for="i in 4"
+               :key="i"
+               class="h-20 bg-surface-100 dark:bg-surface-800 rounded-xl animate-pulse" />
+         </template>
+         <template v-else>
+            <SimpleStatCard v-for="stat in stats" :key="stat.title" :stat="stat" />
+         </template>
       </div>
 
       <!-- Filter Tabs -->
@@ -346,9 +312,16 @@ const formatTime = (time: string) => {
             </span>
          </div>
 
+         <!-- Loading State -->
+         <div
+            v-if="isLoading"
+            class="flex items-center justify-center py-24">
+            <i class="pi pi-spin pi-spinner text-3xl text-surface-400"></i>
+         </div>
+
          <!-- Notification Items -->
          <div
-            v-if="filteredNotifications.length > 0"
+            v-else-if="filteredNotifications.length > 0"
             class="divide-y divide-surface-100 dark:divide-surface-800">
             <div
                v-for="notification in filteredNotifications"
@@ -419,7 +392,7 @@ const formatTime = (time: string) => {
                            rounded
                            size="small"
                            v-tooltip.top="'标记已读'"
-                           @click="markAsRead(notification)" />
+                           @click="handleMarkAsRead(notification)" />
                         <Button
                            icon="pi pi-trash"
                            severity="danger"
@@ -427,7 +400,7 @@ const formatTime = (time: string) => {
                            rounded
                            size="small"
                            v-tooltip.top="'删除'"
-                           @click="deleteNotification(notification.id)" />
+                           @click="handleDeleteNotification(notification.id)" />
                      </div>
                   </div>
                </div>

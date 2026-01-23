@@ -1,11 +1,19 @@
 <script setup lang="ts">
 import { computed } from 'vue';
+import { useQuery } from '@tanstack/vue-query';
 import Card from 'primevue/card';
 import Button from 'primevue/button';
 import Chart from 'primevue/chart';
 import { useThemeStore } from '@/stores/theme';
+import { getAuthTrendData } from '@/apis/dashboard';
 
 const themeStore = useThemeStore();
+
+// 使用 TanStack Query 获取认证趋势数据
+const { data: trendData, isLoading } = useQuery({
+   queryKey: ['dashboard', 'authTrend'],
+   queryFn: getAuthTrendData,
+});
 
 const authTrendOptions = computed(() => ({
    maintainAspectRatio: false,
@@ -49,26 +57,29 @@ const authTrendOptions = computed(() => ({
    },
 }));
 
-const authTrendData = computed(() => ({
-   labels: ['周一', '周二', '周三', '周四', '周五', '周六', '周日'],
-   datasets: [
-      {
-         label: '认证请求',
-         data: [1200, 1900, 1500, 2100, 1800, 900, 1100],
-         fill: true,
-         borderColor: '#f97316',
-         backgroundColor: themeStore.isDark
-            ? 'rgba(249, 115, 22, 0.1)'
-            : 'rgba(249, 115, 22, 0.08)',
-         tension: 0.4,
-         pointRadius: 0,
-         pointHoverRadius: 6,
-         pointHoverBackgroundColor: '#f97316',
-         pointHoverBorderColor: '#ffffff',
-         pointHoverBorderWidth: 2,
-      },
-   ],
-}));
+const authTrendChartData = computed(() => {
+   if (!trendData.value) return null;
+   return {
+      labels: trendData.value.labels,
+      datasets: [
+         {
+            label: '认证请求',
+            data: trendData.value.data,
+            fill: true,
+            borderColor: '#f97316',
+            backgroundColor: themeStore.isDark
+               ? 'rgba(249, 115, 22, 0.1)'
+               : 'rgba(249, 115, 22, 0.08)',
+            tension: 0.4,
+            pointRadius: 0,
+            pointHoverRadius: 6,
+            pointHoverBackgroundColor: '#f97316',
+            pointHoverBorderColor: '#ffffff',
+            pointHoverBorderWidth: 2,
+         },
+      ],
+   };
+});
 </script>
 
 <template>
@@ -89,9 +100,15 @@ const authTrendData = computed(() => ({
       </template>
       <template #content>
          <div class="h-70">
+            <div
+               v-if="isLoading"
+               class="h-full flex items-center justify-center">
+               <i class="pi pi-spin pi-spinner text-2xl text-surface-400"></i>
+            </div>
             <Chart
+               v-else-if="authTrendChartData"
                type="line"
-               :data="authTrendData"
+               :data="authTrendChartData"
                :options="authTrendOptions"
                class="h-full" />
          </div>

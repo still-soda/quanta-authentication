@@ -1,16 +1,15 @@
 <script setup lang="ts">
-import { ref } from 'vue';
+import { useQuery } from '@tanstack/vue-query';
 import Card from 'primevue/card';
 import Button from 'primevue/button';
 import ProgressBar from 'primevue/progressbar';
-import type { TopApp } from '@/types';
+import { getTopApps } from '@/apis/dashboard';
 
-const topApps = ref<TopApp[]>([
-   { name: 'Web Dashboard', users: 4521, percentage: 85 },
-   { name: 'Mobile App', users: 3842, percentage: 72 },
-   { name: 'API Gateway', users: 2156, percentage: 54 },
-   { name: 'Admin Portal', users: 1234, percentage: 38 },
-]);
+// 使用 TanStack Query 获取热门应用数据
+const { data: topApps, isLoading } = useQuery({
+   queryKey: ['dashboard', 'topApps'],
+   queryFn: getTopApps,
+});
 </script>
 
 <template>
@@ -24,14 +23,19 @@ const topApps = ref<TopApp[]>([
          </div>
       </template>
       <template #content>
-         <div class="flex flex-col gap-5">
+         <div
+            v-if="isLoading"
+            class="flex items-center justify-center py-12">
+            <i class="pi pi-spin pi-spinner text-2xl text-surface-400"></i>
+         </div>
+         <div v-else class="flex flex-col gap-5">
             <div
                v-for="app in topApps"
                :key="app.name"
                class="flex flex-col gap-3">
                <div class="flex items-center gap-3">
                   <div
-                     class="w-10 h-10 flex items-center justify-center bg-primary-50 dark:bg-[rgba(251,146,60,0.15)] text-primary-600 dark:text-primary-400 rounded-[10px]">
+                     class="w-10 h-10 flex items-center justify-center bg-primary-50 dark:bg-[rgba(251,146,60,0.15)] text-primary-600 dark:text-primary-400 rounded-2xl">
                      <i class="pi pi-box"></i>
                   </div>
                   <div class="flex flex-col gap-0.5">

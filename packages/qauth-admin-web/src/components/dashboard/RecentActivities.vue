@@ -1,55 +1,18 @@
 <script setup lang="ts">
-import { ref } from 'vue';
+import { useQuery } from '@tanstack/vue-query';
 import Card from 'primevue/card';
 import Button from 'primevue/button';
 import DataTable from 'primevue/datatable';
 import Column from 'primevue/column';
 import Tag from 'primevue/tag';
 import Avatar from 'primevue/avatar';
-import type { Activity } from '@/types';
+import { getRecentActivities } from '@/apis/dashboard';
 
-const recentActivities = ref<Activity[]>([
-   {
-      user: 'zhang.wei@example.com',
-      avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=zhang',
-      action: '登录成功',
-      client: 'Web Dashboard',
-      time: '2分钟前',
-      status: 'success',
-   },
-   {
-      user: 'li.ming@example.com',
-      avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=li',
-      action: '密码重置',
-      client: 'Mobile App',
-      time: '5分钟前',
-      status: 'warning',
-   },
-   {
-      user: 'wang.fang@example.com',
-      avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=wang',
-      action: 'OAuth 授权',
-      client: 'Third Party App',
-      time: '12分钟前',
-      status: 'success',
-   },
-   {
-      user: 'chen.hong@example.com',
-      avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=chen',
-      action: '登录失败',
-      client: 'API Client',
-      time: '15分钟前',
-      status: 'danger',
-   },
-   {
-      user: 'zhao.yang@example.com',
-      avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=zhao',
-      action: '新用户注册',
-      client: 'Web Portal',
-      time: '23分钟前',
-      status: 'info',
-   },
-]);
+// 使用 TanStack Query 获取最近活动数据
+const { data: recentActivities, isLoading } = useQuery({
+   queryKey: ['dashboard', 'recentActivities'],
+   queryFn: getRecentActivities,
+});
 
 const getStatusSeverity = (status: string) => {
    const map: Record<string, 'success' | 'warn' | 'danger' | 'info'> = {
@@ -73,7 +36,13 @@ const getStatusSeverity = (status: string) => {
          </div>
       </template>
       <template #content>
+         <div
+            v-if="isLoading"
+            class="flex items-center justify-center py-12">
+            <i class="pi pi-spin pi-spinner text-2xl text-surface-400"></i>
+         </div>
          <DataTable
+            v-else
             :value="recentActivities"
             :rows="5"
             class="text-sm"

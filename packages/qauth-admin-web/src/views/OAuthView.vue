@@ -1,146 +1,104 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/vue-query';
 import Button from 'primevue/button';
 import PageHeader from '@/components/shared/PageHeader.vue';
-import SimpleStatCard, {
-   type SimpleStatData,
-} from '@/components/shared/SimpleStatCard.vue';
+import SimpleStatCard from '@/components/shared/SimpleStatCard.vue';
 import SearchBox from '@/components/shared/SearchBox.vue';
-import OAuthAppCard, {
-   type OAuthApp,
-} from '@/components/oauth/OAuthAppCard.vue';
-import OAuthAppDialog, {
-   type OAuthAppFormData,
-} from '@/components/oauth/OAuthAppDialog.vue';
+import OAuthAppCard from '@/components/oauth/OAuthAppCard.vue';
+import OAuthAppDialog from '@/components/oauth/OAuthAppDialog.vue';
 import SecretDialog from '@/components/oauth/SecretDialog.vue';
+import type { OAuthApp, OAuthAppFormData, SimpleStatData } from '@/types';
+import {
+   getOAuthApps,
+   createOAuthApp,
+   updateOAuthApp,
+   regenerateClientSecret,
+} from '@/apis/oauth';
 
-// OAuth 应用数据
-const apps = ref<OAuthApp[]>([
-   {
-      id: 1,
-      name: 'Web Dashboard',
-      clientId: 'web_dashboard_prod',
-      description: '主要的 Web 管理后台应用',
-      icon: 'pi pi-desktop',
-      iconBg: 'linear-gradient(135deg, #f97316 0%, #ea580c 100%)',
-      redirectUris: ['https://dashboard.example.com/callback'],
-      scopes: ['openid', 'profile', 'email', 'admin'],
-      grantTypes: ['authorization_code', 'refresh_token'],
-      status: 'active',
-      trusted: true,
-      createdAt: '2024-01-15',
-      lastUsed: '2026-01-23',
-      requestCount: 125840,
+const queryClient = useQueryClient();
+
+// 使用 TanStack Query 获取 OAuth 应用数据
+const { data: apps, isLoading } = useQuery({
+   queryKey: ['oauth-apps'],
+   queryFn: getOAuthApps,
+});
+
+// 创建应用 mutation
+const createAppMutation = useMutation({
+   mutationFn: createOAuthApp,
+   onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['oauth-apps'] });
+      appDialog.value = false;
    },
-   {
-      id: 2,
-      name: 'Mobile App',
-      clientId: 'mobile_app_v2',
-      description: 'iOS 和 Android 移动应用',
-      icon: 'pi pi-mobile',
-      iconBg: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
-      redirectUris: ['myapp://callback', 'https://mobile.example.com/callback'],
-      scopes: ['openid', 'profile', 'email', 'offline_access'],
-      grantTypes: ['authorization_code', 'refresh_token'],
-      status: 'active',
-      trusted: true,
-      createdAt: '2024-03-20',
-      lastUsed: '2026-01-23',
-      requestCount: 89562,
+});
+
+// 更新应用 mutation
+const updateAppMutation = useMutation({
+   mutationFn: ({ id, data }: { id: number; data: Partial<OAuthAppFormData> }) =>
+      updateOAuthApp(id, data),
+   onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['oauth-apps'] });
+      appDialog.value = false;
    },
-   {
-      id: 3,
-      name: 'Partner API',
-      clientId: 'partner_api_client',
-      description: '第三方合作伙伴 API 访问',
-      icon: 'pi pi-link',
-      iconBg: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
-      redirectUris: ['https://partner.example.com/oauth/callback'],
-      scopes: ['openid', 'profile', 'read:users'],
-      grantTypes: ['client_credentials'],
-      status: 'active',
-      trusted: false,
-      createdAt: '2024-06-10',
-      lastUsed: '2026-01-22',
-      requestCount: 34521,
+});
+
+// 重新生成密钥 mutation
+const regenerateSecretMutation = useMutation({
+   mutationFn: regenerateClientSecret,
+   onSuccess: (data) => {
+      newSecret.value = data.secret;
+      secretDialog.value = true;
    },
-   {
-      id: 4,
-      name: 'Internal Tools',
-      clientId: 'internal_tools_dev',
-      description: '内部开发工具和脚本',
-      icon: 'pi pi-wrench',
-      iconBg: 'linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)',
-      redirectUris: ['http://localhost:3000/callback'],
-      scopes: ['openid', 'profile', 'admin'],
-      grantTypes: ['authorization_code', 'client_credentials'],
-      status: 'development',
-      trusted: true,
-      createdAt: '2024-09-05',
-      lastUsed: '2026-01-20',
-      requestCount: 8421,
-   },
-   {
-      id: 5,
-      name: 'Legacy System',
-      clientId: 'legacy_system_v1',
-      description: '旧版系统兼容接口',
-      icon: 'pi pi-history',
-      iconBg: 'linear-gradient(135deg, #6b7280 0%, #4b5563 100%)',
-      redirectUris: ['https://legacy.example.com/auth'],
-      scopes: ['openid', 'profile'],
-      grantTypes: ['authorization_code'],
-      status: 'deprecated',
-      trusted: true,
-      createdAt: '2023-05-01',
-      lastUsed: '2026-01-15',
-      requestCount: 2150,
-   },
-]);
+});
 
 const selectedApp = ref<OAuthApp | null>(null);
 const appDialog = ref(false);
 const secretDialog = ref(false);
 const isEditing = ref(false);
 const searchQuery = ref('');
-const newSecret = ref('sk_live_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx');
+const newSecret = ref('');
 
 const filteredApps = computed(() => {
-   if (!searchQuery.value) return apps.value;
+   const appList = apps.value || [];
+   if (!searchQuery.value) return appList;
    const query = searchQuery.value.toLowerCase();
-   return apps.value.filter(
+   return appList.filter(
       (app) =>
          app.name.toLowerCase().includes(query) ||
          app.clientId.toLowerCase().includes(query),
    );
 });
 
-const stats = computed<SimpleStatData[]>(() => [
-   {
-      title: '总应用',
-      value: apps.value.length,
-      icon: 'pi pi-th-large',
-      color: 'blue',
-   },
-   {
-      title: '生产环境',
-      value: apps.value.filter((a) => a.status === 'active').length,
-      icon: 'pi pi-check-circle',
-      color: 'green',
-   },
-   {
-      title: '开发中',
-      value: apps.value.filter((a) => a.status === 'development').length,
-      icon: 'pi pi-code',
-      color: 'orange',
-   },
-   {
-      title: '已弃用',
-      value: apps.value.filter((a) => a.status === 'deprecated').length,
-      icon: 'pi pi-history',
-      color: 'gray',
-   },
-]);
+const stats = computed<SimpleStatData[]>(() => {
+   const appList = apps.value || [];
+   return [
+      {
+         title: '总应用',
+         value: appList.length,
+         icon: 'pi pi-th-large',
+         color: 'blue',
+      },
+      {
+         title: '生产环境',
+         value: appList.filter((a) => a.status === 'active').length,
+         icon: 'pi pi-check-circle',
+         color: 'green',
+      },
+      {
+         title: '开发中',
+         value: appList.filter((a) => a.status === 'development').length,
+         icon: 'pi pi-code',
+         color: 'orange',
+      },
+      {
+         title: '已弃用',
+         value: appList.filter((a) => a.status === 'deprecated').length,
+         icon: 'pi pi-history',
+         color: 'gray',
+      },
+   ];
+});
 
 const openNewAppDialog = () => {
    isEditing.value = false;
@@ -160,13 +118,15 @@ const viewApp = (app: OAuthApp) => {
 
 const regenerateSecret = (app: OAuthApp) => {
    selectedApp.value = app;
-   newSecret.value = 'sk_live_' + Math.random().toString(36).substring(2, 34);
-   secretDialog.value = true;
+   regenerateSecretMutation.mutate(app.id);
 };
 
 const saveApp = (data: OAuthAppFormData) => {
-   console.log('Saving app:', data);
-   appDialog.value = false;
+   if (isEditing.value && selectedApp.value) {
+      updateAppMutation.mutate({ id: selectedApp.value.id, data });
+   } else {
+      createAppMutation.mutate(data);
+   }
 };
 </script>
 
@@ -184,7 +144,15 @@ const saveApp = (data: OAuthAppFormData) => {
 
       <!-- Stats Cards -->
       <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-         <SimpleStatCard v-for="stat in stats" :key="stat.title" :stat="stat" />
+         <template v-if="isLoading">
+            <div
+               v-for="i in 4"
+               :key="i"
+               class="h-20 bg-surface-100 dark:bg-surface-800 rounded-xl animate-pulse" />
+         </template>
+         <template v-else>
+            <SimpleStatCard v-for="stat in stats" :key="stat.title" :stat="stat" />
+         </template>
       </div>
 
       <!-- Search -->
@@ -192,6 +160,15 @@ const saveApp = (data: OAuthAppFormData) => {
 
       <!-- Apps Grid -->
       <div
+         v-if="isLoading"
+         class="grid grid-cols-1 md:grid-cols-[repeat(auto-fill,minmax(340px,1fr))] gap-5">
+         <div
+            v-for="i in 5"
+            :key="i"
+            class="h-64 bg-surface-100 dark:bg-surface-800 rounded-xl animate-pulse" />
+      </div>
+      <div
+         v-else
          class="grid grid-cols-1 md:grid-cols-[repeat(auto-fill,minmax(340px,1fr))] gap-5">
          <OAuthAppCard
             v-for="app in filteredApps"

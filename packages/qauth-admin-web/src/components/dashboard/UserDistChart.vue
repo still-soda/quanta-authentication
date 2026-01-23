@@ -1,11 +1,19 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue';
+import { computed } from 'vue';
+import { useQuery } from '@tanstack/vue-query';
 import Card from 'primevue/card';
 import Button from 'primevue/button';
 import Chart from 'primevue/chart';
 import { useThemeStore } from '@/stores/theme';
+import { getUserDistData } from '@/apis/dashboard';
 
 const themeStore = useThemeStore();
+
+// 使用 TanStack Query 获取用户分布数据
+const { data: distData, isLoading } = useQuery({
+   queryKey: ['dashboard', 'userDist'],
+   queryFn: getUserDistData,
+});
 
 const userDistOptions = computed(() => ({
    maintainAspectRatio: false,
@@ -21,15 +29,18 @@ const userDistOptions = computed(() => ({
    },
 }));
 
-const userDistData = ref({
-   labels: ['管理员', '普通用户', '开发者', '访客'],
-   datasets: [
-      {
-         data: [12, 847, 234, 156],
-         backgroundColor: ['#f97316', '#3b82f6', '#10b981', '#8b5cf6'],
-         borderWidth: 0,
-      },
-   ],
+const userDistChartData = computed(() => {
+   if (!distData.value) return null;
+   return {
+      labels: distData.value.labels,
+      datasets: [
+         {
+            data: distData.value.data,
+            backgroundColor: distData.value.colors,
+            borderWidth: 0,
+         },
+      ],
+   };
 });
 </script>
 
@@ -51,9 +62,15 @@ const userDistData = ref({
       </template>
       <template #content>
          <div class="h-70">
+            <div
+               v-if="isLoading"
+               class="h-full flex items-center justify-center">
+               <i class="pi pi-spin pi-spinner text-2xl text-surface-400"></i>
+            </div>
             <Chart
+               v-else-if="userDistChartData"
                type="doughnut"
-               :data="userDistData"
+               :data="userDistChartData"
                :options="userDistOptions"
                class="h-full" />
          </div>

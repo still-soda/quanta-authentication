@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/vue-query';
 import Button from 'primevue/button';
 import OrganizationChart from 'primevue/organizationchart';
 import Dialog from 'primevue/dialog';
@@ -9,227 +10,41 @@ import PageHeader from '@/components/shared/PageHeader.vue';
 import SimpleStatCard from '@/components/shared/SimpleStatCard.vue';
 import type { OrgNode, SimpleStatData } from '@/types';
 import { ORG_CLASS_OPTIONS, ORG_CLASS_COLORS } from '@/config';
+import {
+   getOrganizationTree,
+   addOrgMember,
+   updateOrgMember,
+} from '@/apis/organizations';
 
-// 模拟组织架构数据
-const orgData = ref<OrgNode>({
-   key: '0',
-   type: 'person',
-   data: {
-      id: '1',
-      name: '张伟',
-      displayName: '张伟',
-      avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=zhang',
-      orgRole: 'CEO',
-      class: '高管层',
-      email: 'zhang.wei@company.com',
-      depth: 0,
+const queryClient = useQueryClient();
+
+// 使用 TanStack Query 获取组织架构数据
+const { data: orgData, isLoading } = useQuery({
+   queryKey: ['organization'],
+   queryFn: getOrganizationTree,
+});
+
+// 添加成员 mutation
+const addMemberMutation = useMutation({
+   mutationFn: addOrgMember,
+   onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['organization'] });
+      memberDialog.value = false;
    },
-   expanded: true,
-   children: [
-      {
-         key: '0-0',
-         type: 'person',
-         data: {
-            id: '2',
-            name: '李明',
-            displayName: '李明',
-            avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=li',
-            orgRole: 'CTO',
-            class: '高管层',
-            email: 'li.ming@company.com',
-            depth: 1,
-         },
-         expanded: true,
-         children: [
-            {
-               key: '0-0-0',
-               type: 'person',
-               data: {
-                  id: '5',
-                  name: '王强',
-                  displayName: '王强',
-                  avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=wangq',
-                  orgRole: '技术总监',
-                  class: '管理层',
-                  email: 'wang.qiang@company.com',
-                  depth: 2,
-               },
-               children: [
-                  {
-                     key: '0-0-0-0',
-                     type: 'person',
-                     data: {
-                        id: '9',
-                        name: '刘洋',
-                        displayName: '刘洋',
-                        avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=liu',
-                        orgRole: '前端工程师',
-                        class: '员工',
-                        email: 'liu.yang@company.com',
-                        depth: 3,
-                     },
-                  },
-                  {
-                     key: '0-0-0-1',
-                     type: 'person',
-                     data: {
-                        id: '10',
-                        name: '陈浩',
-                        displayName: '陈浩',
-                        avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=chenh',
-                        orgRole: '后端工程师',
-                        class: '员工',
-                        email: 'chen.hao@company.com',
-                        depth: 3,
-                     },
-                  },
-               ],
-            },
-            {
-               key: '0-0-1',
-               type: 'person',
-               data: {
-                  id: '6',
-                  name: '赵娜',
-                  displayName: '赵娜',
-                  avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=zhao',
-                  orgRole: '产品总监',
-                  class: '管理层',
-                  email: 'zhao.na@company.com',
-                  depth: 2,
-               },
-               children: [
-                  {
-                     key: '0-0-1-0',
-                     type: 'person',
-                     data: {
-                        id: '11',
-                        name: '孙静',
-                        displayName: '孙静',
-                        avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=sun',
-                        orgRole: '产品经理',
-                        class: '员工',
-                        email: 'sun.jing@company.com',
-                        depth: 3,
-                     },
-                  },
-               ],
-            },
-         ],
-      },
-      {
-         key: '0-1',
-         type: 'person',
-         data: {
-            id: '3',
-            name: '王芳',
-            displayName: '王芳',
-            avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=wang',
-            orgRole: 'CFO',
-            class: '高管层',
-            email: 'wang.fang@company.com',
-            depth: 1,
-         },
-         expanded: true,
-         children: [
-            {
-               key: '0-1-0',
-               type: 'person',
-               data: {
-                  id: '7',
-                  name: '周杰',
-                  displayName: '周杰',
-                  avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=zhou',
-                  orgRole: '财务经理',
-                  class: '管理层',
-                  email: 'zhou.jie@company.com',
-                  depth: 2,
-               },
-               children: [
-                  {
-                     key: '0-1-0-0',
-                     type: 'person',
-                     data: {
-                        id: '12',
-                        name: '吴敏',
-                        displayName: '吴敏',
-                        avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=wu',
-                        orgRole: '会计',
-                        class: '员工',
-                        email: 'wu.min@company.com',
-                        depth: 3,
-                     },
-                  },
-               ],
-            },
-         ],
-      },
-      {
-         key: '0-2',
-         type: 'person',
-         data: {
-            id: '4',
-            name: '陈红',
-            displayName: '陈红',
-            avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=chen',
-            orgRole: 'COO',
-            class: '高管层',
-            email: 'chen.hong@company.com',
-            depth: 1,
-         },
-         expanded: true,
-         children: [
-            {
-               key: '0-2-0',
-               type: 'person',
-               data: {
-                  id: '8',
-                  name: '郑磊',
-                  displayName: '郑磊',
-                  avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=zheng',
-                  orgRole: '运营总监',
-                  class: '管理层',
-                  email: 'zheng.lei@company.com',
-                  depth: 2,
-               },
-               children: [
-                  {
-                     key: '0-2-0-0',
-                     type: 'person',
-                     data: {
-                        id: '13',
-                        name: '林涛',
-                        displayName: '林涛',
-                        avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=lin',
-                        orgRole: '运营专员',
-                        class: '员工',
-                        email: 'lin.tao@company.com',
-                        depth: 3,
-                     },
-                  },
-                  {
-                     key: '0-2-0-1',
-                     type: 'person',
-                     data: {
-                        id: '14',
-                        name: '黄梅',
-                        displayName: '黄梅',
-                        avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=huang',
-                        orgRole: '客服专员',
-                        class: '员工',
-                        email: 'huang.mei@company.com',
-                        depth: 3,
-                     },
-                  },
-               ],
-            },
-         ],
-      },
-   ],
+});
+
+// 更新成员 mutation
+const updateMemberMutation = useMutation({
+   mutationFn: ({ id, data }: { id: string; data: any }) => updateOrgMember(id, data),
+   onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['organization'] });
+      memberDialog.value = false;
+   },
 });
 
 // 统计人数的辅助函数
-const countNodes = (node: OrgNode): number => {
+const countNodes = (node: OrgNode | undefined): number => {
+   if (!node) return 0;
    let count = 1;
    if (node.children) {
       node.children.forEach((child) => {
@@ -240,7 +55,8 @@ const countNodes = (node: OrgNode): number => {
 };
 
 // 统计特定级别的人数
-const countByClass = (node: OrgNode, targetClass: string): number => {
+const countByClass = (node: OrgNode | undefined, targetClass: string): number => {
+   if (!node) return 0;
    let count = node.data.class === targetClass ? 1 : 0;
    if (node.children) {
       node.children.forEach((child) => {
@@ -325,8 +141,14 @@ const editSelectedMember = () => {
 
 // 保存成员
 const saveMember = () => {
-   console.log('Saving member:', memberForm.value);
-   memberDialog.value = false;
+   if (isEditing.value && selectedNode.value) {
+      updateMemberMutation.mutate({
+         id: selectedNode.value.data.id,
+         data: memberForm.value,
+      });
+   } else {
+      addMemberMutation.mutate(memberForm.value);
+   }
 };
 
 const getClassColor = (classType?: string) => ORG_CLASS_COLORS[classType || ''] || 'bg-surface-100 text-surface-700 dark:bg-surface-800 dark:text-surface-400';
@@ -353,7 +175,15 @@ const getClassColor = (classType?: string) => ORG_CLASS_COLORS[classType || ''] 
 
       <!-- Stats Cards -->
       <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-         <SimpleStatCard v-for="stat in stats" :key="stat.title" :stat="stat" />
+         <template v-if="isLoading">
+            <div
+               v-for="i in 4"
+               :key="i"
+               class="h-20 bg-surface-100 dark:bg-surface-800 rounded-xl animate-pulse" />
+         </template>
+         <template v-else>
+            <SimpleStatCard v-for="stat in stats" :key="stat.title" :stat="stat" />
+         </template>
       </div>
 
       <!-- Selected Member Info -->
@@ -399,7 +229,13 @@ const getClassColor = (classType?: string) => ORG_CLASS_COLORS[classType || ''] 
       <!-- Organization Chart -->
       <div
          class="bg-surface-0 dark:bg-surface-900 border border-surface-200 dark:border-surface-800 rounded-xl p-6 overflow-auto">
+         <div
+            v-if="isLoading"
+            class="flex items-center justify-center py-24">
+            <i class="pi pi-spin pi-spinner text-3xl text-surface-400"></i>
+         </div>
          <OrganizationChart
+            v-else-if="orgData"
             :value="orgData"
             selectionMode="single"
             v-model:selectionKeys="selectedNode!"

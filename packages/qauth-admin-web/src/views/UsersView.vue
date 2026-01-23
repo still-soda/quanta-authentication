@@ -1,97 +1,68 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/vue-query';
 import Button from 'primevue/button';
 import PageHeader from '@/components/shared/PageHeader.vue';
-import SimpleStatCard, {
-   type SimpleStatData,
-} from '@/components/shared/SimpleStatCard.vue';
+import SimpleStatCard from '@/components/shared/SimpleStatCard.vue';
 import UsersTable from '@/components/users/UsersTable.vue';
 import UserDialog from '@/components/users/UserDialog.vue';
 import type { User } from '@/components/users/UserCell.vue';
+import type { SimpleStatData } from '@/types';
+import {
+   getUsers,
+   createUser,
+   updateUser,
+   deleteUser,
+   resetUserPassword,
+   disableUser,
+} from '@/apis/users';
 
-// 用户数据
-const users = ref<User[]>([
-   {
-      id: 1,
-      name: '张伟',
-      email: 'zhang.wei@example.com',
-      avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=zhang',
-      role: '管理员',
-      status: 'active',
-      lastLogin: '2026-01-23 10:30',
-      createdAt: '2024-06-15',
+const queryClient = useQueryClient();
+
+// 使用 TanStack Query 获取用户数据
+const { data: users, isLoading } = useQuery({
+   queryKey: ['users'],
+   queryFn: getUsers,
+});
+
+// 创建用户 mutation
+const createUserMutation = useMutation({
+   mutationFn: createUser,
+   onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['users'] });
+      userDialog.value = false;
    },
-   {
-      id: 2,
-      name: '李明',
-      email: 'li.ming@example.com',
-      avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=li',
-      role: '开发者',
-      status: 'active',
-      lastLogin: '2026-01-22 18:45',
-      createdAt: '2024-08-22',
+});
+
+// 更新用户 mutation
+const updateUserMutation = useMutation({
+   mutationFn: ({ id, data }: { id: number; data: any }) => updateUser(id, data),
+   onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['users'] });
+      userDialog.value = false;
    },
-   {
-      id: 3,
-      name: '王芳',
-      email: 'wang.fang@example.com',
-      avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=wang',
-      role: '普通用户',
-      status: 'inactive',
-      lastLogin: '2026-01-10 09:15',
-      createdAt: '2024-09-03',
+});
+
+// 删除用户 mutation
+const deleteUserMutation = useMutation({
+   mutationFn: deleteUser,
+   onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['users'] });
    },
-   {
-      id: 4,
-      name: '陈红',
-      email: 'chen.hong@example.com',
-      avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=chen',
-      role: '普通用户',
-      status: 'active',
-      lastLogin: '2026-01-23 08:20',
-      createdAt: '2024-11-18',
+});
+
+// 重置密码 mutation
+const resetPasswordMutation = useMutation({
+   mutationFn: resetUserPassword,
+});
+
+// 禁用用户 mutation
+const disableUserMutation = useMutation({
+   mutationFn: disableUser,
+   onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['users'] });
    },
-   {
-      id: 5,
-      name: '赵阳',
-      email: 'zhao.yang@example.com',
-      avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=zhao',
-      role: '开发者',
-      status: 'locked',
-      lastLogin: '2026-01-05 14:30',
-      createdAt: '2025-01-02',
-   },
-   {
-      id: 6,
-      name: '刘洋',
-      email: 'liu.yang@example.com',
-      avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=liu',
-      role: '普通用户',
-      status: 'active',
-      lastLogin: '2026-01-21 16:45',
-      createdAt: '2025-03-10',
-   },
-   {
-      id: 7,
-      name: '孙静',
-      email: 'sun.jing@example.com',
-      avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=sun',
-      role: '管理员',
-      status: 'active',
-      lastLogin: '2026-01-23 11:00',
-      createdAt: '2024-05-20',
-   },
-   {
-      id: 8,
-      name: '周杰',
-      email: 'zhou.jie@example.com',
-      avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=zhou',
-      role: '开发者',
-      status: 'pending',
-      lastLogin: '-',
-      createdAt: '2026-01-20',
-   },
-]);
+});
 
 const selectedUsers = ref<User[]>([]);
 const userDialog = ref(false);
@@ -99,32 +70,35 @@ const isEditing = ref(false);
 const currentUser = ref<User | null>(null);
 
 // 统计数据
-const stats = computed<SimpleStatData[]>(() => [
-   {
-      title: '总用户',
-      value: users.value.length,
-      icon: 'pi pi-users',
-      color: 'blue',
-   },
-   {
-      title: '活跃用户',
-      value: users.value.filter((u) => u.status === 'active').length,
-      icon: 'pi pi-check-circle',
-      color: 'green',
-   },
-   {
-      title: '未激活',
-      value: users.value.filter((u) => u.status === 'inactive').length,
-      icon: 'pi pi-clock',
-      color: 'gray',
-   },
-   {
-      title: '已锁定',
-      value: users.value.filter((u) => u.status === 'locked').length,
-      icon: 'pi pi-lock',
-      color: 'red',
-   },
-]);
+const stats = computed<SimpleStatData[]>(() => {
+   const userList = users.value || [];
+   return [
+      {
+         title: '总用户',
+         value: userList.length,
+         icon: 'pi pi-users',
+         color: 'blue',
+      },
+      {
+         title: '活跃用户',
+         value: userList.filter((u) => u.status === 'active').length,
+         icon: 'pi pi-check-circle',
+         color: 'green',
+      },
+      {
+         title: '未激活',
+         value: userList.filter((u) => u.status === 'inactive').length,
+         icon: 'pi pi-clock',
+         color: 'gray',
+      },
+      {
+         title: '已锁定',
+         value: userList.filter((u) => u.status === 'locked').length,
+         icon: 'pi pi-lock',
+         color: 'red',
+      },
+   ];
+});
 
 const openNewUserDialog = () => {
    isEditing.value = false;
@@ -139,20 +113,23 @@ const editUser = (user: User) => {
 };
 
 const saveUser = (data: any) => {
-   console.log('Saving user:', data);
-   userDialog.value = false;
+   if (isEditing.value && currentUser.value) {
+      updateUserMutation.mutate({ id: currentUser.value.id, data });
+   } else {
+      createUserMutation.mutate(data);
+   }
 };
 
 const handleDelete = (user: User) => {
-   console.log('Delete user:', user);
+   deleteUserMutation.mutate(user.id);
 };
 
 const handleResetPassword = (user: User) => {
-   console.log('Reset password for:', user);
+   resetPasswordMutation.mutate(user.id);
 };
 
 const handleDisable = (user: User) => {
-   console.log('Disable user:', user);
+   disableUserMutation.mutate(user.id);
 };
 </script>
 
@@ -175,12 +152,24 @@ const handleDisable = (user: User) => {
 
       <!-- Stats Cards -->
       <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-         <SimpleStatCard v-for="stat in stats" :key="stat.title" :stat="stat" />
+         <template v-if="isLoading">
+            <div
+               v-for="i in 4"
+               :key="i"
+               class="h-20 bg-surface-100 dark:bg-surface-800 rounded-xl animate-pulse" />
+         </template>
+         <template v-else>
+            <SimpleStatCard v-for="stat in stats" :key="stat.title" :stat="stat" />
+         </template>
       </div>
 
       <!-- Users Table -->
+      <div
+         v-if="isLoading"
+         class="h-96 bg-surface-100 dark:bg-surface-800 rounded-xl animate-pulse" />
       <UsersTable
-         :users="users"
+         v-else
+         :users="users || []"
          v-model:selectedUsers="selectedUsers"
          @edit="editUser"
          @delete="handleDelete"

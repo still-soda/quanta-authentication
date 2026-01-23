@@ -1,54 +1,23 @@
 <script setup lang="ts">
-import { ref } from 'vue';
+import { useQuery } from '@tanstack/vue-query';
 import Button from 'primevue/button';
 import PageHeader from '@/components/shared/PageHeader.vue';
-import StatsCard, {
-   type StatCardData,
-} from '@/components/dashboard/StatsCard.vue';
+import StatsCard from '@/components/dashboard/StatsCard.vue';
 import AuthTrendChart from '@/components/dashboard/AuthTrendChart.vue';
 import UserDistChart from '@/components/dashboard/UserDistChart.vue';
 import RecentActivities from '@/components/dashboard/RecentActivities.vue';
 import TopApps from '@/components/dashboard/TopApps.vue';
+import { getDashboardStats } from '@/apis/dashboard';
 
-// 统计卡片数据
-const statsCards = ref<StatCardData[]>([
-   {
-      title: '总用户数',
-      value: '12,847',
-      change: '+12.5%',
-      changeType: 'increase',
-      icon: 'pi pi-users',
-      color: 'blue',
-      trendData: [30, 42, 38, 52, 45, 58, 50, 65, 55, 72],
-   },
-   {
-      title: 'OAuth 应用',
-      value: '86',
-      change: '+3',
-      changeType: 'increase',
-      icon: 'pi pi-key',
-      color: 'orange',
-      trendData: [40, 45, 42, 50, 48, 55, 52, 60, 58, 65],
-   },
-   {
-      title: '今日认证',
-      value: '2,451',
-      change: '+8.2%',
-      changeType: 'increase',
-      icon: 'pi pi-shield',
-      color: 'green',
-      trendData: [35, 48, 40, 55, 45, 62, 52, 68, 58, 75],
-   },
-   {
-      title: '活跃会话',
-      value: '847',
-      change: '-2.1%',
-      changeType: 'decrease',
-      icon: 'pi pi-bolt',
-      color: 'purple',
-      trendData: [70, 62, 68, 55, 60, 50, 58, 45, 52, 40],
-   },
-]);
+// 使用 TanStack Query 获取统计卡片数据
+const { data: statsData, isLoading, refetch } = useQuery({
+   queryKey: ['dashboard', 'stats'],
+   queryFn: getDashboardStats,
+});
+
+const handleRefresh = () => {
+   refetch();
+};
 </script>
 
 <template>
@@ -61,14 +30,28 @@ const statsCards = ref<StatCardData[]>([
                icon="pi pi-download"
                severity="secondary"
                outlined />
-            <Button label="刷新数据" icon="pi pi-refresh" />
+            <Button
+               label="刷新数据"
+               icon="pi pi-refresh"
+               :loading="isLoading"
+               @click="handleRefresh" />
          </template>
       </PageHeader>
 
       <!-- Stats Cards -->
-      <div
-         class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5">
-         <StatsCard v-for="stat in statsCards" :key="stat.title" :stat="stat" />
+      <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5">
+         <template v-if="isLoading">
+            <div
+               v-for="i in 4"
+               :key="i"
+               class="h-32 bg-surface-100 dark:bg-surface-800 rounded-2xl animate-pulse" />
+         </template>
+         <template v-else-if="statsData">
+            <StatsCard
+               v-for="stat in statsData.cards"
+               :key="stat.title"
+               :stat="stat" />
+         </template>
       </div>
 
       <!-- Charts Row -->

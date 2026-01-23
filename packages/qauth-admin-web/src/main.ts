@@ -1,5 +1,6 @@
 import { createApp } from 'vue';
 import { createPinia } from 'pinia';
+import { VueQueryPlugin, QueryClient } from '@tanstack/vue-query';
 import './style.css';
 import 'primeicons/primeicons.css';
 import App from './App.vue';
@@ -12,6 +13,16 @@ import ConfirmationService from 'primevue/confirmationservice';
 import Tooltip from 'primevue/tooltip';
 import Ripple from 'primevue/ripple';
 import { DARK_MODE_SELECTOR } from './config';
+
+// 创建 QueryClient 实例
+const queryClient = new QueryClient({
+   defaultOptions: {
+      queries: {
+         staleTime: 1000 * 60 * 5, // 5 分钟
+         refetchOnWindowFocus: false,
+      },
+   },
+});
 
 const AppPreset = definePreset(Aura, {
    primitive: {
@@ -104,6 +115,7 @@ const pinia = createPinia();
 
 app.use(pinia);
 app.use(router);
+app.use(VueQueryPlugin, { queryClient });
 app.use(PrimeVue, {
    ripple: true,
    theme: {

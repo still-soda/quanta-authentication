@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, reactive, computed } from 'vue';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/vue-query';
 import Button from 'primevue/button';
 import InputText from 'primevue/inputtext';
 import Textarea from 'primevue/textarea';
@@ -12,78 +13,84 @@ import Password from 'primevue/password';
 import Message from 'primevue/message';
 import ToggleSwitch from 'primevue/toggleswitch';
 import PageHeader from '@/components/shared/PageHeader.vue';
+import {
+   getProfile,
+   updateProfile,
+   getUserRoles,
+   getLoginHistory,
+   getSecuritySettings,
+   updateSecuritySettings,
+   changePassword,
+   uploadAvatar,
+} from '@/apis/profile';
 
-// 用户资料数据
-const profile = reactive({
-   id: 'u1',
-   studentId: '20210001',
-   name: '张伟',
-   displayName: '管理员',
-   email: 'zhang.wei@example.com',
-   phone: '138****8888',
-   avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=zhang',
-   status: 'ACTIVE' as 'ACTIVE' | 'LOCKED' | 'BANNED',
-   emailVerified: true,
-   createdAt: '2024-06-15 10:30:00',
-   lastLogin: '2026-01-23 14:30:00',
-   bio: '系统管理员，负责平台日常运维和用户管理工作。',
+const queryClient = useQueryClient();
+
+// 使用 TanStack Query 获取数据
+const { data: profile, isLoading: isLoadingProfile } = useQuery({
+   queryKey: ['profile'],
+   queryFn: getProfile,
 });
 
-// 用户角色
-const userRoles = ref([
-   { name: '超级管理员', code: 'super_admin', isSystem: true },
-   { name: '管理员', code: 'admin', isSystem: true },
-]);
+const { data: userRoles, isLoading: isLoadingRoles } = useQuery({
+   queryKey: ['profile', 'roles'],
+   queryFn: getUserRoles,
+});
 
-// 登录历史
-const loginHistory = ref([
-   {
-      id: 1,
-      time: '2026-01-23 14:30:00',
-      ip: '192.168.1.100',
-      location: '北京',
-      device: 'Chrome / Windows',
-      status: 'success',
-   },
-   {
-      id: 2,
-      time: '2026-01-22 09:15:00',
-      ip: '192.168.1.100',
-      location: '北京',
-      device: 'Chrome / Windows',
-      status: 'success',
-   },
-   {
-      id: 3,
-      time: '2026-01-21 18:45:00',
-      ip: '10.0.0.55',
-      location: '上海',
-      device: 'Safari / macOS',
-      status: 'success',
-   },
-   {
-      id: 4,
-      time: '2026-01-20 11:20:00',
-      ip: '203.0.113.45',
-      location: '未知',
-      device: 'Firefox / Linux',
-      status: 'failed',
-   },
-]);
+const { data: loginHistory, isLoading: isLoadingHistory } = useQuery({
+   queryKey: ['profile', 'loginHistory'],
+   queryFn: getLoginHistory,
+});
 
-// 安全设置
-const securitySettings = reactive({
-   mfaEnabled: false,
-   emailNotifications: true,
-   loginAlerts: true,
+const { data: securitySettingsData, isLoading: isLoadingSettings } = useQuery({
+   queryKey: ['profile', 'security'],
+   queryFn: getSecuritySettings,
+});
+
+// 更新资料 mutation
+const updateProfileMutation = useMutation({
+   mutationFn: updateProfile,
+   onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['profile'] });
+      isEditing.value = false;
+      saveSuccess.value = true;
+      setTimeout(() => {
+         saveSuccess.value = false;
+      }, 3000);
+   },
+});
+
+// 更新安全设置 mutation
+const updateSecurityMutation = useMutation({
+   mutationFn: updateSecuritySettings,
+   onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['profile', 'security'] });
+   },
+});
+
+// 修改密码 mutation
+const changePasswordMutation = useMutation({
+   mutationFn: changePassword,
+   onSuccess: () => {
+      passwordDialog.value = false;
+      passwordForm.currentPassword = '';
+      passwordForm.newPassword = '';
+      passwordForm.confirmPassword = '';
+   },
+});
+
+// 安全设置响应式绑定
+const securitySettings = computed({
+   get: () => securitySettingsData.value || { mfaEnabled: false, emailNotifications: true, loginAlerts: true },
+   set: (val) => updateSecurityMutation.mutate(val),
 });
 
 // 编辑状态
 const isEditing = ref(false);
 const editForm = reactive({
-   displayName: profile.displayName,
-   phone: profile.phone,
-   bio: profile.bio,
+   displayName: '',
+   phone: '',
+   bio: '',
 });
 
 // 密码修改对话框
@@ -98,14 +105,15 @@ const passwordForm = reactive({
 const avatarDialog = ref(false);
 
 // 保存状态
-const isSaving = ref(false);
 const saveSuccess = ref(false);
 
 // 开始编辑
 const startEditing = () => {
-   editForm.displayName = profile.displayName;
-   editForm.phone = profile.phone;
-   editForm.bio = profile.bio;
+   if (profile.value) {
+      editForm.displayName = profile.value.displayName;
+      editForm.phone = profile.value.phone;
+      editForm.bio = profile.value.bio;
+   }
    isEditing.value = true;
 };
 
@@ -115,30 +123,19 @@ const cancelEditing = () => {
 };
 
 // 保存资料
-const saveProfile = async () => {
-   isSaving.value = true;
-   await new Promise((resolve) => setTimeout(resolve, 1000));
-   profile.displayName = editForm.displayName;
-   profile.phone = editForm.phone;
-   profile.bio = editForm.bio;
-   isSaving.value = false;
-   isEditing.value = false;
-   saveSuccess.value = true;
-   setTimeout(() => {
-      saveSuccess.value = false;
-   }, 3000);
+const saveProfile = () => {
+   updateProfileMutation.mutate(editForm);
 };
 
 // 修改密码
-const changePassword = async () => {
+const handleChangePassword = () => {
    if (passwordForm.newPassword !== passwordForm.confirmPassword) {
       return;
    }
-   console.log('Changing password...');
-   passwordDialog.value = false;
-   passwordForm.currentPassword = '';
-   passwordForm.newPassword = '';
-   passwordForm.confirmPassword = '';
+   changePasswordMutation.mutate({
+      currentPassword: passwordForm.currentPassword,
+      newPassword: passwordForm.newPassword,
+   });
 };
 
 // 头像上传
@@ -202,6 +199,19 @@ const passwordStrengthColor = computed(() => {
    ];
    return colors[Math.min(passwordStrength.value, 4)] || '';
 });
+
+// 切换安全设置
+const toggleMfa = (value: boolean) => {
+   updateSecurityMutation.mutate({ mfaEnabled: value });
+};
+
+const toggleEmailNotifications = (value: boolean) => {
+   updateSecurityMutation.mutate({ emailNotifications: value });
+};
+
+const toggleLoginAlerts = (value: boolean) => {
+   updateSecurityMutation.mutate({ loginAlerts: value });
+};
 </script>
 
 <template>
@@ -218,7 +228,7 @@ const passwordStrengthColor = computed(() => {
                <Button
                   label="保存"
                   icon="pi pi-check"
-                  :loading="isSaving"
+                  :loading="updateProfileMutation.isPending.value"
                   @click="saveProfile" />
             </template>
             <template v-else>
@@ -237,7 +247,14 @@ const passwordStrengthColor = computed(() => {
          </Message>
       </Transition>
 
-      <div class="grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-6">
+      <!-- Loading State -->
+      <div
+         v-if="isLoadingProfile"
+         class="flex items-center justify-center py-24">
+         <i class="pi pi-spin pi-spinner text-3xl text-surface-400"></i>
+      </div>
+
+      <div v-else-if="profile" class="grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-6">
          <!-- Main Profile Section -->
          <div class="flex flex-col gap-6">
             <!-- Profile Card -->
@@ -371,7 +388,12 @@ const passwordStrengthColor = computed(() => {
                   <i class="pi pi-history text-primary-500"></i>
                   登录历史
                </h3>
-               <div class="flex flex-col gap-3">
+               <div
+                  v-if="isLoadingHistory"
+                  class="flex items-center justify-center py-8">
+                  <i class="pi pi-spin pi-spinner text-xl text-surface-400"></i>
+               </div>
+               <div v-else class="flex flex-col gap-3">
                   <div
                      v-for="record in loginHistory"
                      :key="record.id"
@@ -452,7 +474,12 @@ const passwordStrengthColor = computed(() => {
                   <i class="pi pi-shield text-primary-500"></i>
                   角色权限
                </h3>
-               <div class="flex flex-wrap gap-2">
+               <div
+                  v-if="isLoadingRoles"
+                  class="flex items-center justify-center py-4">
+                  <i class="pi pi-spin pi-spinner text-xl text-surface-400"></i>
+               </div>
+               <div v-else class="flex flex-wrap gap-2">
                   <Tag
                      v-for="role in userRoles"
                      :key="role.code"
@@ -482,46 +509,59 @@ const passwordStrengthColor = computed(() => {
                   <Divider class="my-2" />
 
                   <div
-                     class="flex items-center justify-between p-3 bg-surface-50 dark:bg-surface-800 rounded-lg">
-                     <div>
-                        <div
-                           class="text-sm font-medium text-surface-900 dark:text-surface-100">
-                           双因素认证
-                        </div>
-                        <div class="text-xs text-surface-500">
-                           {{ securitySettings.mfaEnabled ? '已启用' : '未启用' }}
-                        </div>
-                     </div>
-                     <ToggleSwitch v-model="securitySettings.mfaEnabled" />
+                     v-if="isLoadingSettings"
+                     class="flex items-center justify-center py-4">
+                     <i class="pi pi-spin pi-spinner text-xl text-surface-400"></i>
                   </div>
+                  <template v-else-if="securitySettings">
+                     <div
+                        class="flex items-center justify-between p-3 bg-surface-50 dark:bg-surface-800 rounded-lg">
+                        <div>
+                           <div
+                              class="text-sm font-medium text-surface-900 dark:text-surface-100">
+                              双因素认证
+                           </div>
+                           <div class="text-xs text-surface-500">
+                              {{ securitySettings.mfaEnabled ? '已启用' : '未启用' }}
+                           </div>
+                        </div>
+                        <ToggleSwitch
+                           :modelValue="securitySettings.mfaEnabled"
+                           @update:modelValue="toggleMfa" />
+                     </div>
 
-                  <div
-                     class="flex items-center justify-between p-3 bg-surface-50 dark:bg-surface-800 rounded-lg">
-                     <div>
-                        <div
-                           class="text-sm font-medium text-surface-900 dark:text-surface-100">
-                           邮件通知
+                     <div
+                        class="flex items-center justify-between p-3 bg-surface-50 dark:bg-surface-800 rounded-lg">
+                        <div>
+                           <div
+                              class="text-sm font-medium text-surface-900 dark:text-surface-100">
+                              邮件通知
+                           </div>
+                           <div class="text-xs text-surface-500">
+                              接收重要通知邮件
+                           </div>
                         </div>
-                        <div class="text-xs text-surface-500">
-                           接收重要通知邮件
-                        </div>
+                        <ToggleSwitch
+                           :modelValue="securitySettings.emailNotifications"
+                           @update:modelValue="toggleEmailNotifications" />
                      </div>
-                     <ToggleSwitch v-model="securitySettings.emailNotifications" />
-                  </div>
 
-                  <div
-                     class="flex items-center justify-between p-3 bg-surface-50 dark:bg-surface-800 rounded-lg">
-                     <div>
-                        <div
-                           class="text-sm font-medium text-surface-900 dark:text-surface-100">
-                           登录提醒
+                     <div
+                        class="flex items-center justify-between p-3 bg-surface-50 dark:bg-surface-800 rounded-lg">
+                        <div>
+                           <div
+                              class="text-sm font-medium text-surface-900 dark:text-surface-100">
+                              登录提醒
+                           </div>
+                           <div class="text-xs text-surface-500">
+                              新设备登录时发送提醒
+                           </div>
                         </div>
-                        <div class="text-xs text-surface-500">
-                           新设备登录时发送提醒
-                        </div>
+                        <ToggleSwitch
+                           :modelValue="securitySettings.loginAlerts"
+                           @update:modelValue="toggleLoginAlerts" />
                      </div>
-                     <ToggleSwitch v-model="securitySettings.loginAlerts" />
-                  </div>
+                  </template>
                </div>
             </div>
          </div>
@@ -614,7 +654,8 @@ const passwordStrengthColor = computed(() => {
                      !passwordForm.newPassword ||
                      passwordForm.newPassword !== passwordForm.confirmPassword
                   "
-                  @click="changePassword" />
+                  :loading="changePasswordMutation.isPending.value"
+                  @click="handleChangePassword" />
             </div>
          </template>
       </Dialog>
@@ -636,6 +677,7 @@ const passwordStrengthColor = computed(() => {
             <div
                class="w-32 h-32 rounded-2xl overflow-hidden bg-surface-100 dark:bg-surface-700">
                <img
+                  v-if="profile"
                   :src="profile.avatar"
                   :alt="profile.name"
                   class="w-full h-full object-cover" />
