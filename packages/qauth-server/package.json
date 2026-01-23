@@ -1,7 +1,8 @@
 {
    "name": "@qauth/server",
    "scripts": {
-      "dev": "go run cmd/server/main.go",
-      "build": "go build -o dist/server cmd/server/main.go"
+      "install": "go mod tidy",
+      "dev": "go run ./main.go",
+      "build": "go build -o dist/qauth-server ./main.go"
    }
 }

@@ -1,74 +1,90 @@
-name: quanta-authentication
+name: qauth
 
 services:
-  qauth-server:
-    container_name: quanta-auth-server
+  server:
+    container_name: qauth-server
     build:
-      context: ../packages/
-      dockerfile: ../docker/Dockerfile.Server
+      context: ../packages/qauth-server/
+      dockerfile: ../../docker/Dockerfile.Server
       args:
         - PORT=8080
     networks:
-      - quanta-auth-network
+      - qauth-network
     environment:
-      - DATABASE_URL=postgresql://user:password@postgres:5432/authentication_db
+      - DATABASE_URL=postgresql://user:password@database:5432/qauth?sslmode=disable
       - SECRET_KEY=your_secret_key_here
-      - FLASK_ENV=production
     depends_on:
-      - postgres
-      - redis
+      database:
+        condition: service_healthy
+      cache:
+        condition: service_started
 
-  qauth-admin-web:
-    container_name: quanta-auth-admin-web
+  admin-web:
+    container_name: qauth-admin-web
     build:
-      context: ../packages/
-      dockerfile: ../docker/Dockerfile.AdminWeb
+      context: ../packages/qauth-admin-web/
+      dockerfile: ../../docker/Dockerfile.AdminWeb
     restart: unless-stopped
     environment:
-      - API_URL=http://qauth-server:8080
-
-  postgres:
-    image: postgres:16
-    container_name: quanta-auth-db
+      - API_URL=http://server:8080
     networks:
-      - quanta-auth-network
+      - qauth-network
+
+  database:
+    image: postgres:16
+    container_name: qauth-db
+    networks:
+      - qauth-network
     restart: unless-stopped
     environment:
       - POSTGRES_USER=user
       - POSTGRES_PASSWORD=password
-      - POSTGRES_DB=authentication_db
+      - POSTGRES_DB=qauth
     ports:
       - "15432:5432"
     volumes:
       - db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U user -d qauth" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
 
-  redis:
+  cache:
     image: redis:6
-    container_name: quanta-auth-redis
+    container_name: qauth-redis
     networks:
-      - quanta-auth-network
+      - qauth-network
     restart: unless-stopped
     ports:
       - "16379:6379"
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
 
   # Nginx 网关
   gateway:
     image: nginx:latest
-    container_name: quanta-auth-nginx
+    container_name: qauth-nginx
+    restart: unless-stopped
     ports:
       - "80:80"
       - "443:443"
     volumes:
-      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
-      - ./nginx/certs:/etc/nginx/certs:ro
+      - ../nginx/nginx.conf:/etc/nginx/conf.d/default.conf
+      - ../nginx/certs:/etc/nginx/certs:ro
     depends_on:
-      - qauth-server
-      - qauth-admin-web
+      - server
+      - admin-web
     networks:
-      - quanta-auth-network
+      - qauth-network
 
 networks:
-  quanta-auth-network:
+  qauth-network:
     driver: bridge
 
 volumes:
