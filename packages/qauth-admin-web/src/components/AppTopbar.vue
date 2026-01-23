@@ -1,21 +1,27 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
-import { useRouter } from 'vue-router';
+import { useRouter, useRoute } from 'vue-router';
 import { useSidebarStore } from '@/stores/sidebar';
 import { useThemeStore } from '@/stores/theme';
 import Button from 'primevue/button';
-import InputText from 'primevue/inputtext';
 import Avatar from 'primevue/avatar';
 import Menu from 'primevue/menu';
 import Badge from 'primevue/badge';
+import GlobalSearchDialog from '@/components/shared/GlobalSearchDialog.vue';
 
 const router = useRouter();
+const route = useRoute();
 const sidebarStore = useSidebarStore();
 const themeStore = useThemeStore();
 
-const searchQuery = ref('');
+const searchDialogVisible = ref(false);
 const userMenu = ref();
 const notificationMenu = ref();
+
+// 当前页面标题
+const currentPageTitle = computed(() => {
+   return (route.meta?.title as string) || '仪表盘';
+});
 
 const userMenuItems = ref([
    {
@@ -116,24 +122,21 @@ const sidebarWidth = computed(() =>
             <span class="text-surface-300">/</span>
             <span
                class="text-surface-900 dark:text-surface-100 font-medium">
-               仪表盘
+               {{ currentPageTitle }}
             </span>
          </nav>
       </div>
 
       <div class="flex-1 max-w-lg mx-6 max-lg:hidden!">
-         <!-- 搜索框 -->
-         <div class="relative flex items-center">
-            <span
-               class="absolute left-4 text-surface-400 text-sm pointer-events-none">
-               <i class="pi pi-search"></i>
+         <!-- 搜索触发按钮 -->
+         <button
+            class="w-full flex items-center gap-3 px-4 h-10 rounded-xl bg-surface-50 dark:bg-surface-800 border border-surface-200 dark:border-surface-700 text-sm cursor-pointer transition-all duration-200 ease group hover:bg-surface-100 dark:hover:bg-surface-700 hover:border-surface-300 dark:hover:border-surface-600"
+            @click="searchDialogVisible = true">
+            <i class="pi pi-search text-surface-400 group-hover:text-surface-500"></i>
+            <span class="flex-1 text-left text-surface-400 group-hover:text-surface-500">
+               搜索用户、应用、设置...
             </span>
-            <InputText
-               v-model="searchQuery"
-               placeholder="搜索用户、应用、设置..."
-               class="w-full pl-11 pr-18 h-10 rounded-xl bg-surface-50 dark:bg-surface-800 border border-surface-200 dark:border-surface-700 text-sm transition-all duration-200 ease focus:bg-surface-0! dark:focus:bg-surface-900! focus:border-primary-300! dark:focus:border-primary-500! focus:shadow-[0_0_0_3px_rgba(249,115,22,0.1)]! dark:focus:shadow-[0_0_0_3px_rgba(251,146,60,0.15)]!" />
-            <span
-               class="absolute right-3 flex gap-1 pointer-events-none">
+            <span class="flex gap-1">
                <kbd
                   class="py-0.5 px-1.5 rounded bg-surface-100 dark:bg-surface-700 border border-surface-200 dark:border-surface-600 text-xs font-inherit text-surface-500 dark:text-surface-400">
                   ⌘
@@ -143,8 +146,18 @@ const sidebarWidth = computed(() =>
                   K
                </kbd>
             </span>
-         </div>
+         </button>
       </div>
+
+      <!-- 移动端搜索按钮 -->
+      <Button
+         icon="pi pi-search"
+         severity="secondary"
+         text
+         rounded
+         class="text-surface-600! dark:text-surface-400! hidden! max-lg:flex!"
+         @click="searchDialogVisible = true"
+         v-tooltip.bottom="'搜索'" />
 
       <div class="flex items-center gap-3">
          <!-- 主题切换 -->
@@ -238,10 +251,17 @@ const sidebarWidth = computed(() =>
                </div>
                <div
                   class="p-3 border-t border-surface-100 dark:border-surface-700">
-                  <Button label="查看全部通知" text class="w-full!" />
+                  <Button
+                     label="查看全部通知"
+                     text
+                     class="w-full!"
+                     @click="router.push('/notifications')" />
                </div>
             </template>
          </Menu>
       </div>
    </header>
+
+   <!-- 全局搜索弹窗 -->
+   <GlobalSearchDialog v-model:visible="searchDialogVisible" />
 </template>

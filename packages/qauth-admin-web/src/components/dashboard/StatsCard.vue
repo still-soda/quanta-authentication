@@ -200,7 +200,7 @@ const trendPath = computed(() => {
 
 <template>
    <div
-      class="stats-card group relative flex flex-col py-5 px-6 rounded-[20px] overflow-hidden transition-all duration-300 ease-out min-h-40"
+      class="stats-card group relative flex flex-col py-5 px-6 rounded-xl overflow-hidden transition-all duration-300 ease-out min-h-40"
       :style="{
          background: colors.bg,
          boxShadow: colors.glow,
@@ -208,7 +208,7 @@ const trendPath = computed(() => {
       <!-- 暗色模式下的发光边框效果 -->
       <div
          v-if="themeStore.isDark"
-         class="absolute inset-0 rounded-[20px] pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-500"
+         class="absolute inset-0 rounded-xl pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-500"
          :style="{
             boxShadow: `0 0 30px -5px ${colors.accent}40, inset 0 0 20px -10px ${colors.accent}20`,
          }"></div>
