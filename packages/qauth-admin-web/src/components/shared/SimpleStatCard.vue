@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import { useAnimatedNumber } from '@/composables/useAnimatedNumber';
+import { useAnimatedNumber } from '@/composables/use-animated-number';
 import type { SimpleStatData } from '@/types';
 import { SIMPLE_STAT_COLORS } from '@/config';
 

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { useThemeStore } from '@/stores/theme';
-import { useAnimatedNumber } from '@/composables/useAnimatedNumber';
+import { useAnimatedNumber } from '@/composables/use-animated-number';
 import type { StatCardData } from '@/types';
 import { THEME_COLORS } from '@/config';
 
