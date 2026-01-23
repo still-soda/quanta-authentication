@@ -1,0 +1,84 @@
+{
+   "root": true,
+   "env": {
+      "browser": true,
+      "es2022": true,
+      "node": true
+   },
+   "parser": "vue-eslint-parser",
+   "parserOptions": {
+      "parser": "@typescript-eslint/parser",
+      "ecmaVersion": "latest",
+      "sourceType": "module",
+      "extraFileExtensions": [".vue"]
+   },
+   "extends": [
+      "eslint:recommended",
+      "plugin:@typescript-eslint/recommended",
+      "plugin:vue/vue3-recommended",
+      "plugin:prettier/recommended"
+   ],
+   "plugins": ["@typescript-eslint", "vue"],
+   "rules": {
+      "no-console": "warn",
+      "no-debugger": "warn",
+      "no-unused-vars": "off",
+      "@typescript-eslint/no-unused-vars": [
+         "warn",
+         {
+            "argsIgnorePattern": "^_",
+            "varsIgnorePattern": "^_"
+         }
+      ],
+      "@typescript-eslint/no-explicit-any": "warn",
+      "@typescript-eslint/explicit-function-return-type": "off",
+      "@typescript-eslint/explicit-module-boundary-types": "off",
+      "@typescript-eslint/no-empty-function": "off",
+      "@typescript-eslint/no-non-null-assertion": "off",
+      "vue/multi-word-component-names": "off",
+      "vue/no-v-html": "off",
+      "vue/require-default-prop": "off",
+      "vue/no-setup-props-destructure": "off",
+      "vue/component-tags-order": [
+         "error",
+         {
+            "order": ["script", "template", "style"]
+         }
+      ],
+      "vue/html-indent": ["error", 3],
+      "vue/script-indent": [
+         "error",
+         3,
+         {
+            "baseIndent": 0,
+            "switchCase": 1
+         }
+      ],
+      "vue/max-attributes-per-line": "off",
+      "vue/singleline-html-element-content-newline": "off",
+      "vue/html-self-closing": [
+         "error",
+         {
+            "html": {
+               "void": "always",
+               "normal": "never",
+               "component": "always"
+            },
+            "svg": "always",
+            "math": "always"
+         }
+      ],
+      "prettier/prettier": [
+         "error",
+         {
+            "semi": false,
+            "singleQuote": true,
+            "tabWidth": 3,
+            "useTabs": false,
+            "trailingComma": "es5",
+            "printWidth": 100
+         }
+      ]
+   },
+   "ignorePatterns": ["dist", "node_modules", "*.d.ts"]
+}
