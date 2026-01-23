@@ -93,9 +93,6 @@ func (h *OAuthHandler) requestQueryToJSON(r *http.Request) (string, error) {
 		}
 	}
 
-	// 添加原始授权请求 URI
-	params["origin_uri"] = r.RequestURI
-
 	jsonStr, err := json.Marshal(params)
 	if err != nil {
 		return "", err
@@ -166,13 +163,47 @@ func (h *OAuthHandler) AuthorizeInfo(c *gin.Context) {
 	response.HandlerSuccess(c, params)
 }
 
+// verifyAuthorizeID 验证 authorizeID 是否有效且请求 URI 一致
+func (h *OAuthHandler) restoreRequestQuery(c *gin.Context, aid string) error {
+	// 从缓存中获取请求参数
+	data, err := h.cacheService.GetKeyValue("authorize-" + aid)
+	if err != nil || data == "" {
+		utilities.GetLogger().Error("Get authorize info from cache error", "error", err)
+		return app_error.ErrBadRequest
+	}
+
+	// 将 JSON 字符串解析为 map
+	var params map[string]any
+	if err := json.Unmarshal([]byte(data), &params); err != nil {
+		utilities.GetLogger().Error("Parse authorize info JSON error", "error", err)
+		return app_error.ErrInternalServerError
+	}
+
+	// 修改请求的 URL 查询参数
+	q := c.Request.URL.Query()
+	for key, value := range params {
+		q.Set(key, value.(string))
+	}
+
+	c.Request.URL.RawQuery = q.Encode()
+
+	return nil
+}
+
 // Authorize 处理授权请求（授权码模式）
 // POST /oauth/authorize
 func (h *OAuthHandler) Authorize(c *gin.Context) {
+	// 验证 authorizeID
+	authorizeID := c.Query("aid")
+	if err := h.restoreRequestQuery(c, authorizeID); err != nil {
+		response.HandlerError(c, err)
+		return
+	}
+
 	// 验证授权结果
+	redirectUri := c.Query("redirect_uri")
 	action := c.PostForm("action")
 	if action == "deny" {
-		redirectUri := c.Query("redirect_uri")
 		h.oauthService.HandlerAuthorizeDeny(c, redirectUri)
 		return
 	}
@@ -182,6 +213,11 @@ func (h *OAuthHandler) Authorize(c *gin.Context) {
 		response.HandlerError(c, app_error.ErrBadRequest)
 		return
 	}
+
+	c.Request.RequestURI = ""
+
+	// 删除缓存中的授权请求
+	h.cacheService.DeleteKey("authorize-" + authorizeID)
 
 	// 处理授权请求
 	rt := c.Request.URL.Query().Get("response_type")
@@ -417,10 +453,11 @@ func (h *OAuthHandler) ListClients(c *gin.Context) {
 func (h *OAuthHandler) UserInfo(c *gin.Context) {
 	token, err := jwt.ExtractTokenFromHeader(c)
 	if err != nil {
-		response.HandlerError(c, app_error.ErrInvalidAccessToken)
+		response.HandlerError(c, app_error.ErrBadRequest)
 		return
 	}
 
+	utilities.GetLogger().Info("[" + token + "]")
 	info, err := h.oauthService.GetTokenInfo(token)
 	if err != nil {
 		response.HandlerError(c, app_error.ErrInvalidAccessToken)
@@ -469,26 +506,35 @@ func (h *OAuthHandler) UserInfo(c *gin.Context) {
 	response.HandlerSuccess(c, data)
 }
 
+// isURL 检查字符串是否为有效的 URL
+func (h *OAuthHandler) isURL(str string) bool {
+	return strings.HasPrefix(str, "http://") || strings.HasPrefix(str, "https://")
+}
+
 // Logout 登出端点
 func (h *OAuthHandler) Logout(c *gin.Context) {
+	// 提取访问令牌
 	token, err := jwt.ExtractTokenFromHeader(c)
 	if err != nil {
 		response.HandlerError(c, app_error.ErrInvalidAccessToken)
 		return
 	}
 
+	// 获取令牌信息
 	info, err := h.oauthService.GetTokenInfo(token)
 	if err != nil {
 		response.HandlerError(c, app_error.ErrInvalidAccessToken)
 		return
 	}
 
+	// 撤销访问令牌和刷新令牌
 	refreshToken := info.GetRefresh()
 	h.oauthService.GetManager().RemoveAccessToken(c, token)
 	h.oauthService.GetManager().RemoveRefreshToken(c, refreshToken)
 
+	// 处理登出重定向，只允许重定向到相对路径或空路径
 	postLogoutRedirectURI := c.Query("post_logout_redirect_uri")
-	if postLogoutRedirectURI == "" {
+	if postLogoutRedirectURI == "" || h.isURL(postLogoutRedirectURI) {
 		postLogoutRedirectURI = "/"
 	}
 

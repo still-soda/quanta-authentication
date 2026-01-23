@@ -14,7 +14,7 @@ const b = (token: string) => ({
 const secret = 'supersecret';
 
 async function loginToAdmin() {
-   const res = await r('/auth/login', {
+   const res = await r('/_/v1/auth/login', {
       method: 'POST',
       body: JSON.stringify({
          student_id: '20231003059',
@@ -32,7 +32,7 @@ async function loginToAdmin() {
 }
 
 async function createClient(token: string, id: string) {
-   const res = await r('/oauth/clients', {
+   const res = await r('/_/v1/clients', {
       method: 'POST',
       headers: b(token),
       body: JSON.stringify({
@@ -50,7 +50,7 @@ async function createClient(token: string, id: string) {
 }
 
 async function removeClient(token: string, clientId: string) {
-   const res = await r(`/oauth/clients/${clientId}`, {
+   const res = await r(`/_/v1/clients/${clientId}`, {
       method: 'DELETE',
       headers: b(token),
    });
@@ -61,23 +61,40 @@ async function removeClient(token: string, clientId: string) {
 async function authorizeClient(clientId: string, token: string) {
    const params = new URLSearchParams({
       client_id: clientId,
-      response_type: 'id_token',
+      response_type: 'code',
       redirect_uri: 'http://localhost/callback',
       scope: 'openid email',
       state: 'xyz',
    });
-   const res = await fetch(`${BASE_URL}/oauth/authorize?${params.toString()}`, {
+   const res = await fetch(
+      `${BASE_URL}/v1/oauth/authorize?${params.toString()}`,
+      {
+         credentials: 'include',
+         redirect: 'manual',
+      },
+   );
+
+   const location = res.headers.get('Location');
+   const aid = location ? new URL(location).searchParams.get('aid') : null;
+
+   const res3 = await fetch(`${BASE_URL}/v1/oauth/authorize?aid=${aid}`, {
+      method: 'POST',
       credentials: 'include',
       redirect: 'manual',
       headers: {
          Cookie: `access_token=${token}`,
+         'Content-Type': 'application/x-www-form-urlencoded',
       },
+      body: new URLSearchParams({
+         action: 'approve',
+      }),
    });
-   console.log(res);
+   console.log(res3);
+   const finalLocation = res3.headers.get('Location');
+   const code = finalLocation
+      ? new URL(finalLocation).searchParams.get('code')
+      : null;
 
-   const location = res.headers.get('Location');
-   // console.log(`Redirect to ${location}`)
-   const code = location ? new URL(location).searchParams.get('code') : null;
    console.log(code ? 'PASS' : 'FAILED');
 
    return code ?? '';
@@ -91,7 +108,7 @@ async function tokenFromCode(clientId: string, code: string) {
       client_id: clientId,
       client_secret: secret,
    });
-   const res = await r('/oauth/token', {
+   const res = await r('/v1/oauth/token', {
       method: 'POST',
       body: params,
       headers: {
@@ -116,7 +133,7 @@ async function refreshToken(clientId: string, refreshToken: string) {
       client_id: clientId,
       client_secret: secret,
    });
-   const res = await r('/oauth/token', {
+   const res = await r('/v1/oauth/token', {
       method: 'POST',
       body: params,
       headers: {
@@ -168,21 +185,28 @@ async function verifyIdToken(token: string) {
 }
 
 async function getUserInfo(token: string) {
-   const res = await r('/oauth/userinfo', {
+   const res = await r('/v1/oauth/userinfo', {
       method: 'GET',
       headers: b(token),
    });
 
+   console.log(22, res);
    console.log(res.code.toString().startsWith('2') ? 'PASS' : 'FAILED');
 }
 
 async function logout(token: string) {
-   const res = await r('/oauth/logout', {
+   const res = await fetch(`${BASE_URL}/v1/oauth/logout`, {
       method: 'POST',
-      headers: b(token),
+      redirect: 'manual',
+      headers: {
+         Authorization: `Bearer ${token}`,
+      },
    });
 
-   console.log(res.code.toString().startsWith('2') ? 'PASS' : 'FAILED');
+   console.log(res);
+
+   const location = res.headers.get('Location');
+   console.log(location ? 'PASS' : 'FAILED');
 }
 
 async function main() {
@@ -196,14 +220,15 @@ async function main() {
    await verifyIdToken(token.idToken);
 
    // 刷新阶段
-   await refreshToken(clientId, token.refreshToken);
+   const ntoken = await refreshToken(clientId, token.refreshToken);
 
    // 获取用户信息
-   await getUserInfo(token.accessToken);
+   await getUserInfo(ntoken.accessToken);
 
    // 清理阶段
-   await logout(cred.accessToken);
+   await logout(ntoken.accessToken);
 
+   // 删除客户端
    await removeClient(cred.accessToken, clientId);
 }
 
