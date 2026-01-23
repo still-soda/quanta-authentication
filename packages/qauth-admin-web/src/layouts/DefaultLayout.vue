@@ -41,7 +41,7 @@ const mainStyle = computed(() => ({
 </template>
 
 <style scoped>
-/* Page transition - must remain as CSS for Vue transitions */
+/* Page transition */
 .page-enter-active,
 .page-leave-active {
    transition: all 0.2s ease;

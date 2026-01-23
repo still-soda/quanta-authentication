@@ -5,7 +5,7 @@ services:
     container_name: quanta-auth-server
     build:
       context: ../packages/
-      dockerfile: qauth-server/Dockerfile
+      dockerfile: ../docker/Dockerfile.Server
       args:
         - PORT=8080
     networks:
@@ -22,7 +22,7 @@ services:
     container_name: quanta-auth-admin-web
     build:
       context: ../packages/
-      dockerfile: qauth-admin-web/Dockerfile
+      dockerfile: ../docker/Dockerfile.AdminWeb
     restart: unless-stopped
     environment:
       - API_URL=http://qauth-server:8080
