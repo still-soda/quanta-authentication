@@ -2,9 +2,9 @@
 import { ref, computed } from 'vue';
 import Button from 'primevue/button';
 import PageHeader from '@/components/shared/PageHeader.vue';
-import MiniStats, {
-   type MiniStatItem,
-} from '@/components/shared/MiniStats.vue';
+import SimpleStatCard, {
+   type SimpleStatData,
+} from '@/components/shared/SimpleStatCard.vue';
 import UsersTable from '@/components/users/UsersTable.vue';
 import UserDialog from '@/components/users/UserDialog.vue';
 import type { User } from '@/components/users/UserCell.vue';
@@ -99,22 +99,30 @@ const isEditing = ref(false);
 const currentUser = ref<User | null>(null);
 
 // 统计数据
-const stats = computed<MiniStatItem[]>(() => [
-   { label: '总用户', value: users.value.length },
+const stats = computed<SimpleStatData[]>(() => [
    {
-      label: '活跃',
+      title: '总用户',
+      value: users.value.length,
+      icon: 'pi pi-users',
+      color: 'blue',
+   },
+   {
+      title: '活跃用户',
       value: users.value.filter((u) => u.status === 'active').length,
-      colorClass: 'text-green-500',
+      icon: 'pi pi-check-circle',
+      color: 'green',
    },
    {
-      label: '未激活',
+      title: '未激活',
       value: users.value.filter((u) => u.status === 'inactive').length,
-      colorClass: 'text-gray-400',
+      icon: 'pi pi-clock',
+      color: 'gray',
    },
    {
-      label: '已锁定',
+      title: '已锁定',
       value: users.value.filter((u) => u.status === 'locked').length,
-      colorClass: 'text-red-500',
+      icon: 'pi pi-lock',
+      color: 'red',
    },
 ]);
 
@@ -165,8 +173,10 @@ const handleDisable = (user: User) => {
          </template>
       </PageHeader>
 
-      <!-- Stats -->
-      <MiniStats :items="stats" />
+      <!-- Stats Cards -->
+      <div class="stats-grid">
+         <SimpleStatCard v-for="stat in stats" :key="stat.title" :stat="stat" />
+      </div>
 
       <!-- Users Table -->
       <UsersTable
@@ -200,5 +210,23 @@ const handleDisable = (user: User) => {
    display: flex;
    flex-direction: column;
    gap: 1.5rem;
+}
+
+.stats-grid {
+   display: grid;
+   grid-template-columns: repeat(4, 1fr);
+   gap: 1rem;
+}
+
+@media (max-width: 1280px) {
+   .stats-grid {
+      grid-template-columns: repeat(2, 1fr);
+   }
+}
+
+@media (max-width: 640px) {
+   .stats-grid {
+      grid-template-columns: 1fr;
+   }
 }
 </style>

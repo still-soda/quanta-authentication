@@ -18,7 +18,8 @@ const statsCards = ref<StatCardData[]>([
       change: '+12.5%',
       changeType: 'increase',
       icon: 'pi pi-users',
-      iconBg: 'linear-gradient(135deg, #f97316 0%, #ea580c 100%)',
+      color: 'blue',
+      trendData: [30, 42, 38, 52, 45, 58, 50, 65, 55, 72],
    },
    {
       title: 'OAuth 应用',
@@ -26,7 +27,8 @@ const statsCards = ref<StatCardData[]>([
       change: '+3',
       changeType: 'increase',
       icon: 'pi pi-key',
-      iconBg: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
+      color: 'orange',
+      trendData: [40, 45, 42, 50, 48, 55, 52, 60, 58, 65],
    },
    {
       title: '今日认证',
@@ -34,7 +36,8 @@ const statsCards = ref<StatCardData[]>([
       change: '+8.2%',
       changeType: 'increase',
       icon: 'pi pi-shield',
-      iconBg: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+      color: 'green',
+      trendData: [35, 48, 40, 55, 45, 62, 52, 68, 58, 75],
    },
    {
       title: '活跃会话',
@@ -42,7 +45,8 @@ const statsCards = ref<StatCardData[]>([
       change: '-2.1%',
       changeType: 'decrease',
       icon: 'pi pi-bolt',
-      iconBg: 'linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)',
+      color: 'purple',
+      trendData: [70, 62, 68, 55, 60, 50, 58, 45, 52, 40],
    },
 ]);
 </script>
