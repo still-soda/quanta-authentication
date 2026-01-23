@@ -1,13 +1,12 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/vue-query';
-import Button from 'primevue/button';
-import PageHeader from '@/components/shared/PageHeader.vue';
-import SimpleStatCard from '@/components/shared/SimpleStatCard.vue';
-import UsersTable from '@/components/users/UsersTable.vue';
-import UserDialog from '@/components/users/UserDialog.vue';
-import type { User } from '@/components/users/UserCell.vue';
-import type { SimpleStatData } from '@/types';
+import { ref, computed } from 'vue'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/vue-query'
+import Button from 'primevue/button'
+import PageHeader from '@/components/shared/PageHeader.vue'
+import SimpleStatCard from '@/components/shared/SimpleStatCard.vue'
+import UsersTable from '@/components/users/UsersTable.vue'
+import UserDialog from '@/components/users/UserDialog.vue'
+import type { SimpleStatData, User } from '@/types'
 import {
    getUsers,
    createUser,
@@ -15,63 +14,63 @@ import {
    deleteUser,
    resetUserPassword,
    disableUser,
-} from '@/apis/users';
+} from '@/apis/users'
 
-const queryClient = useQueryClient();
+const queryClient = useQueryClient()
 
 // 获取用户数据
 const { data: users, isLoading } = useQuery({
    queryKey: ['users'],
    queryFn: getUsers,
-});
+})
 
 // 创建用户 mutation
 const createUserMutation = useMutation({
    mutationFn: createUser,
    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['users'] });
-      userDialog.value = false;
+      queryClient.invalidateQueries({ queryKey: ['users'] })
+      userDialog.value = false
    },
-});
+})
 
 // 更新用户 mutation
 const updateUserMutation = useMutation({
    mutationFn: ({ id, data }: { id: number; data: any }) => updateUser(id, data),
    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['users'] });
-      userDialog.value = false;
+      queryClient.invalidateQueries({ queryKey: ['users'] })
+      userDialog.value = false
    },
-});
+})
 
 // 删除用户 mutation
 const deleteUserMutation = useMutation({
    mutationFn: deleteUser,
    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['users'] });
+      queryClient.invalidateQueries({ queryKey: ['users'] })
    },
-});
+})
 
 // 重置密码 mutation
 const resetPasswordMutation = useMutation({
    mutationFn: resetUserPassword,
-});
+})
 
 // 禁用用户 mutation
 const disableUserMutation = useMutation({
    mutationFn: disableUser,
    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['users'] });
+      queryClient.invalidateQueries({ queryKey: ['users'] })
    },
-});
+})
 
-const selectedUsers = ref<User[]>([]);
-const userDialog = ref(false);
-const isEditing = ref(false);
-const currentUser = ref<User | null>(null);
+const selectedUsers = ref<User[]>([])
+const userDialog = ref(false)
+const isEditing = ref(false)
+const currentUser = ref<User | null>(null)
 
 // 统计数据
 const stats = computed<SimpleStatData[]>(() => {
-   const userList = users.value || [];
+   const userList = users.value || []
    return [
       {
          title: '总用户',
@@ -81,56 +80,56 @@ const stats = computed<SimpleStatData[]>(() => {
       },
       {
          title: '活跃用户',
-         value: userList.filter((u) => u.status === 'active').length,
+         value: userList.filter(u => u.status === 'active').length,
          icon: 'pi pi-check-circle',
          color: 'green',
       },
       {
          title: '未激活',
-         value: userList.filter((u) => u.status === 'inactive').length,
+         value: userList.filter(u => u.status === 'inactive').length,
          icon: 'pi pi-clock',
          color: 'gray',
       },
       {
          title: '已锁定',
-         value: userList.filter((u) => u.status === 'locked').length,
+         value: userList.filter(u => u.status === 'locked').length,
          icon: 'pi pi-lock',
          color: 'red',
       },
-   ];
-});
+   ]
+})
 
 const openNewUserDialog = () => {
-   isEditing.value = false;
-   currentUser.value = null;
-   userDialog.value = true;
-};
+   isEditing.value = false
+   currentUser.value = null
+   userDialog.value = true
+}
 
 const editUser = (user: User) => {
-   isEditing.value = true;
-   currentUser.value = user;
-   userDialog.value = true;
-};
+   isEditing.value = true
+   currentUser.value = user
+   userDialog.value = true
+}
 
 const saveUser = (data: any) => {
    if (isEditing.value && currentUser.value) {
-      updateUserMutation.mutate({ id: currentUser.value.id, data });
+      updateUserMutation.mutate({ id: currentUser.value.id, data })
    } else {
-      createUserMutation.mutate(data);
+      createUserMutation.mutate(data)
    }
-};
+}
 
 const handleDelete = (user: User) => {
-   deleteUserMutation.mutate(user.id);
-};
+   deleteUserMutation.mutate(user.id)
+}
 
 const handleResetPassword = (user: User) => {
-   resetPasswordMutation.mutate(user.id);
-};
+   resetPasswordMutation.mutate(user.id)
+}
 
 const handleDisable = (user: User) => {
-   disableUserMutation.mutate(user.id);
-};
+   disableUserMutation.mutate(user.id)
+}
 </script>
 
 <template>
@@ -138,15 +137,8 @@ const handleDisable = (user: User) => {
       <!-- Page Header -->
       <PageHeader title="用户管理" subtitle="管理系统用户账号和权限">
          <template #actions>
-            <Button
-               label="导入用户"
-               icon="pi pi-upload"
-               severity="secondary"
-               outlined />
-            <Button
-               label="新建用户"
-               icon="pi pi-plus"
-               @click="openNewUserDialog" />
+            <Button label="导入用户" icon="pi pi-upload" severity="secondary" outlined />
+            <Button label="新建用户" icon="pi pi-plus" @click="openNewUserDialog" />
          </template>
       </PageHeader>
 
@@ -156,7 +148,8 @@ const handleDisable = (user: User) => {
             <div
                v-for="i in 4"
                :key="i"
-               class="h-20 bg-surface-100 dark:bg-surface-800 rounded-xl animate-pulse" />
+               class="h-20 bg-surface-100 dark:bg-surface-800 rounded-xl animate-pulse"
+            />
          </template>
          <template v-else>
             <SimpleStatCard v-for="stat in stats" :key="stat.title" :stat="stat" />
@@ -166,7 +159,8 @@ const handleDisable = (user: User) => {
       <!-- Users Table -->
       <div
          v-if="isLoading"
-         class="h-96 bg-surface-100 dark:bg-surface-800 rounded-xl animate-pulse" />
+         class="h-96 bg-surface-100 dark:bg-surface-800 rounded-xl animate-pulse"
+      />
       <UsersTable
          v-else
          :users="users || []"
@@ -174,7 +168,8 @@ const handleDisable = (user: User) => {
          @edit="editUser"
          @delete="handleDelete"
          @resetPassword="handleResetPassword"
-         @disable="handleDisable" />
+         @disable="handleDisable"
+      />
 
       <!-- User Dialog -->
       <UserDialog
@@ -190,6 +185,7 @@ const handleDisable = (user: User) => {
                  }
                : undefined
          "
-         @save="saveUser" />
+         @save="saveUser"
+      />
    </div>
 </template>
