@@ -20,6 +20,20 @@
 
 **Quanta Authentication (QAuth)** 是一套面向组织的统一身份认证服务系统，完整实现了 OAuth 2.0 和 OpenID Connect 协议，提供用户身份管理、单点登录（SSO）以及基于角色的访问控制（RBAC）能力。
 
+## 界面预览
+
+<p align="center">
+  <img src="./images/dashboard-page.png" alt="Dashboard" width="80%" />
+  <br />
+  <em>仪表盘 - 系统概览与数据统计</em>
+</p>
+
+<p align="center">
+  <img src="./images/oauth-page.png" alt="OAuth Apps" width="80%" />
+  <br />
+  <em>OAuth 应用管理</em>
+</p>
+
 ## 技术栈
 
 | 服务 | 技术 |
