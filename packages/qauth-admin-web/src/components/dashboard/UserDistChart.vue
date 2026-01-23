@@ -9,7 +9,7 @@ import { getUserDistData } from '@/apis/dashboard';
 
 const themeStore = useThemeStore();
 
-// 使用 TanStack Query 获取用户分布数据
+// 获取用户分布数据
 const { data: distData, isLoading } = useQuery({
    queryKey: ['dashboard', 'userDist'],
    queryFn: getUserDistData,

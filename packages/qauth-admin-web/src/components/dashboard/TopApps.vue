@@ -5,7 +5,7 @@ import Button from 'primevue/button';
 import ProgressBar from 'primevue/progressbar';
 import { getTopApps } from '@/apis/dashboard';
 
-// 使用 TanStack Query 获取热门应用数据
+// 获取热门应用数据
 const { data: topApps, isLoading } = useQuery({
    queryKey: ['dashboard', 'topApps'],
    queryFn: getTopApps,

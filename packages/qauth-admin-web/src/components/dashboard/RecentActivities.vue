@@ -8,7 +8,7 @@ import Tag from 'primevue/tag';
 import Avatar from 'primevue/avatar';
 import { getRecentActivities } from '@/apis/dashboard';
 
-// 使用 TanStack Query 获取最近活动数据
+// 获取最近活动数据
 const { data: recentActivities, isLoading } = useQuery({
    queryKey: ['dashboard', 'recentActivities'],
    queryFn: getRecentActivities,

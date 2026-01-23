@@ -9,7 +9,7 @@ import { getAuthTrendData } from '@/apis/dashboard';
 
 const themeStore = useThemeStore();
 
-// 使用 TanStack Query 获取认证趋势数据
+// 获取认证趋势数据
 const { data: trendData, isLoading } = useQuery({
    queryKey: ['dashboard', 'authTrend'],
    queryFn: getAuthTrendData,

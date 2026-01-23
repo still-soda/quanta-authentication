@@ -20,7 +20,7 @@ import { getAllSettings, saveAllSettings, resetSettings, testEmailSend } from '@
 
 const queryClient = useQueryClient();
 
-// 使用 TanStack Query 获取设置数据
+// 获取设置数据
 const { data: settingsData, isLoading } = useQuery({
    queryKey: ['settings'],
    queryFn: getAllSettings,

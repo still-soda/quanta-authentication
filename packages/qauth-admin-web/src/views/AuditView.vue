@@ -15,7 +15,7 @@ import type { AuditLog, SimpleStatData } from '@/types';
 import { AUDIT_MODULE_ICONS } from '@/config';
 import { getAuditLogs } from '@/apis/audit';
 
-// 使用 TanStack Query 获取审计日志数据
+// 获取审计日志数据
 const { data: auditLogsData, isLoading } = useQuery({
    queryKey: ['audit-logs'],
    queryFn: () => getAuditLogs(),

@@ -18,7 +18,7 @@ import {
 
 const queryClient = useQueryClient();
 
-// 使用 TanStack Query 获取 OAuth 应用数据
+// 获取 OAuth 应用数据
 const { data: apps, isLoading } = useQuery({
    queryKey: ['oauth-apps'],
    queryFn: getOAuthApps,

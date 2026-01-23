@@ -26,7 +26,7 @@ import {
 
 const queryClient = useQueryClient();
 
-// 使用 TanStack Query 获取数据
+// 获取数据
 const { data: profile, isLoading: isLoadingProfile } = useQuery({
    queryKey: ['profile'],
    queryFn: getProfile,

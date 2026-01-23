@@ -9,7 +9,7 @@ import RecentActivities from '@/components/dashboard/RecentActivities.vue';
 import TopApps from '@/components/dashboard/TopApps.vue';
 import { getDashboardStats } from '@/apis/dashboard';
 
-// 使用 TanStack Query 获取统计卡片数据
+// 获取统计卡片数据
 const { data: statsData, isLoading, refetch } = useQuery({
    queryKey: ['dashboard', 'stats'],
    queryFn: getDashboardStats,

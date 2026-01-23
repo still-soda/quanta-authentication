@@ -21,7 +21,7 @@ import {
 
 const queryClient = useQueryClient();
 
-// 使用 TanStack Query 获取通知数据
+// 获取通知数据
 const { data: notificationsData, isLoading } = useQuery({
    queryKey: ['notifications'],
    queryFn: () => getNotifications(),

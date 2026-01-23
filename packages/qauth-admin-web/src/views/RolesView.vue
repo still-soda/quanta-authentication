@@ -17,13 +17,13 @@ import {
 
 const queryClient = useQueryClient();
 
-// 使用 TanStack Query 获取角色数据
+// 获取角色数据
 const { data: roles, isLoading: isLoadingRoles } = useQuery({
    queryKey: ['roles'],
    queryFn: getRoles,
 });
 
-// 使用 TanStack Query 获取权限组数据
+// 获取权限组数据
 const { data: permissionGroups, isLoading: isLoadingPermissions } = useQuery({
    queryKey: ['permissions'],
    queryFn: getPermissionGroups,

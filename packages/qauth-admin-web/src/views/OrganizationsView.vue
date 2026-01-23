@@ -18,7 +18,7 @@ import {
 
 const queryClient = useQueryClient();
 
-// 使用 TanStack Query 获取组织架构数据
+// 获取组织架构数据
 const { data: orgData, isLoading } = useQuery({
    queryKey: ['organization'],
    queryFn: getOrganizationTree,

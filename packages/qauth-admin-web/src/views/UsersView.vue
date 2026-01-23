@@ -19,7 +19,7 @@ import {
 
 const queryClient = useQueryClient();
 
-// 使用 TanStack Query 获取用户数据
+// 获取用户数据
 const { data: users, isLoading } = useQuery({
    queryKey: ['users'],
    queryFn: getUsers,
