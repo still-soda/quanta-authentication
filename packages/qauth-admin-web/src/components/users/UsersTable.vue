@@ -133,7 +133,6 @@ const onSelectionChange = (selection: User[]) => {
             :paginator="true"
             :rowsPerPageOptions="[5, 10, 20, 50]"
             dataKey="id"
-            filterDisplay="row"
             :globalFilterFields="['name', 'email', 'role']"
             class="text-sm"
             stripedRows>

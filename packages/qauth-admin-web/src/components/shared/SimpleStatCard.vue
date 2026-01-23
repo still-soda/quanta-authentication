@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue';
+import { useAnimatedNumber } from '@/composables/useAnimatedNumber';
 
 export interface SimpleStatData {
    title: string;
@@ -15,6 +16,22 @@ const props = withDefaults(
    }>(),
    {},
 );
+
+// 解析数值
+const numericValue = computed(() => {
+   if (typeof props.stat.value === 'number') {
+      return props.stat.value;
+   }
+   const cleaned = props.stat.value.replace(/[^0-9.-]/g, '');
+   return parseFloat(cleaned) || 0;
+});
+
+// 使用动画数字
+const { formattedValue: animatedValue } = useAnimatedNumber(numericValue, {
+   duration: 1000,
+   delay: 50,
+   padStart: true,
+});
 
 const themeColors = computed(() => {
    const colorMap = {
@@ -72,8 +89,8 @@ const themeColors = computed(() => {
       </div>
       <div class="flex flex-col gap-0.5">
          <span
-            class="text-2xl font-bold text-surface-900 dark:text-surface-0 tracking-tight leading-tight">
-            {{ stat.value }}
+            class="text-2xl font-bold text-surface-900 dark:text-surface-0 tracking-tight leading-tight tabular-nums">
+            {{ animatedValue }}
          </span>
          <span
             class="text-[0.8125rem] font-medium text-surface-500 dark:text-surface-400">

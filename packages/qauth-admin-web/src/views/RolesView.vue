@@ -78,7 +78,7 @@ const roles = ref<Role[]>([
       isSystem: false,
       createdAt: '2024-08-10',
    },
-]);
+].sort((a, b) => Number(b.isSystem) - Number(a.isSystem)));
 
 // 权限组
 const permissionGroups = ref<PermissionGroup[]>([

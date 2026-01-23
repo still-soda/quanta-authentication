@@ -2,9 +2,9 @@
 import { ref, computed } from 'vue';
 import Button from 'primevue/button';
 import PageHeader from '@/components/shared/PageHeader.vue';
-import MiniStats, {
-   type MiniStatItem,
-} from '@/components/shared/MiniStats.vue';
+import SimpleStatCard, {
+   type SimpleStatData,
+} from '@/components/shared/SimpleStatCard.vue';
 import SearchBox from '@/components/shared/SearchBox.vue';
 import OAuthAppCard, {
    type OAuthApp,
@@ -115,22 +115,30 @@ const filteredApps = computed(() => {
    );
 });
 
-const stats = computed<MiniStatItem[]>(() => [
-   { label: '总应用', value: apps.value.length },
+const stats = computed<SimpleStatData[]>(() => [
    {
-      label: '生产环境',
+      title: '总应用',
+      value: apps.value.length,
+      icon: 'pi pi-th-large',
+      color: 'blue',
+   },
+   {
+      title: '生产环境',
       value: apps.value.filter((a) => a.status === 'active').length,
-      colorClass: 'text-green-500',
+      icon: 'pi pi-check-circle',
+      color: 'green',
    },
    {
-      label: '开发中',
+      title: '开发中',
       value: apps.value.filter((a) => a.status === 'development').length,
-      colorClass: 'text-yellow-500',
+      icon: 'pi pi-code',
+      color: 'orange',
    },
    {
-      label: '已弃用',
+      title: '已弃用',
       value: apps.value.filter((a) => a.status === 'deprecated').length,
-      colorClass: 'text-gray-400',
+      icon: 'pi pi-history',
+      color: 'gray',
    },
 ]);
 
@@ -174,8 +182,10 @@ const saveApp = (data: OAuthAppFormData) => {
          </template>
       </PageHeader>
 
-      <!-- Stats -->
-      <MiniStats :items="stats" />
+      <!-- Stats Cards -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+         <SimpleStatCard v-for="stat in stats" :key="stat.title" :stat="stat" />
+      </div>
 
       <!-- Search -->
       <SearchBox v-model="searchQuery" />

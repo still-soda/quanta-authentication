@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
+import { useThemeStore } from '@/stores/theme';
+import { useAnimatedNumber } from '@/composables/useAnimatedNumber';
 
 export interface StatCardData {
    title: string;
@@ -20,71 +22,135 @@ const props = withDefaults(
    {},
 );
 
-// 主题配色 - 使用柔和的背景色搭配深色文字
+const themeStore = useThemeStore();
+
+// 解析 value 字符串中的数值（支持千分位格式，如 "1,234" -> 1234）
+const numericValue = computed(() => {
+   const cleaned = props.stat.value.replace(/[^0-9.-]/g, '');
+   return parseFloat(cleaned) || 0;
+});
+
+// 判断 value 是否包含前缀或后缀（如 "¥1,234" 或 "1,234人"）
+const valuePrefix = computed(() => {
+   const match = props.stat.value.match(/^([^0-9]*)/);
+   return match?.[1] || '';
+});
+
+const valueSuffix = computed(() => {
+   const match = props.stat.value.match(/[0-9]([^0-9]*)$/);
+   return match?.[1] || '';
+});
+
+// 使用动画数字
+const { formattedValue: animatedValue } = useAnimatedNumber(numericValue, {
+   duration: 1200,
+   delay: 100,
+   padStart: true,
+});
+
+// 完整的显示值（带前缀后缀）
+const displayValue = computed(() => {
+   return `${valuePrefix.value}${animatedValue.value}${valueSuffix.value}`;
+});
+
+// 主题配色 - 亮色模式柔和优雅，暗色模式深邃有质感
 const themeColors = {
    orange: {
-      bg: 'linear-gradient(135deg, #fef3e2 0%, #ffd7aa 80%, #fef3e2 120%)',
-      bgDark: 'linear-gradient(135deg, #431407 0%, #7c2d12 100%)',
-      text: '#9a3412',
-      textDark: '#fed7aa',
-      badge: '#fdba74',
-      badgeDark: '#c2410c',
-      line: '#ea580c',
+      // 亮色模式 - 温暖的橙色渐变
+      bgLight: 'linear-gradient(145deg, #fff7ed 0%, #fed7aa 30%, #fdba74 80%, #fff7ed 120%)',
+      textLight: '#9a3412',
+      badgeLight: 'rgba(251, 146, 60, 0.25)',
+      lineLight: '#ea580c',
+      // 暗色模式 - 深邃的琥珀色调配发光边缘
+      bgDark:
+         'linear-gradient(145deg, #1c1917 0%, #292524 50%, #44403c 100%)',
+      glowDark: 'inset 0 1px 0 rgba(251, 146, 60, 0.15)',
+      textDark: '#fdba74',
+      badgeDark: 'rgba(251, 146, 60, 0.2)',
       lineDark: '#fb923c',
+      accentDark: '#f97316',
    },
    blue: {
-      bg: 'linear-gradient(135deg, #eff6ff 0%, #bfebfe 80%, #eff6ff 120%)',
-      bgDark: 'linear-gradient(135deg, #172554 0%, #1e3a8a 100%)',
-      text: '#1e40af',
-      textDark: '#bfdbfe',
-      badge: '#93c5fd',
-      badgeDark: '#1d4ed8',
-      line: '#2563eb',
+      bgLight: 'linear-gradient(145deg, #eff6ff 0%, #bfdbfe 30%, #93c5fd 80%, #eff6ff 120%)',
+      textLight: '#1e40af',
+      badgeLight: 'rgba(59, 130, 246, 0.2)',
+      lineLight: '#2563eb',
+      bgDark:
+         'linear-gradient(145deg, #0c1929 0%, #1e293b 50%, #334155 100%)',
+      glowDark: 'inset 0 1px 0 rgba(59, 130, 246, 0.2)',
+      textDark: '#93c5fd',
+      badgeDark: 'rgba(59, 130, 246, 0.25)',
       lineDark: '#60a5fa',
+      accentDark: '#3b82f6',
    },
    green: {
-      bg: 'linear-gradient(135deg, #f0fdf4 0%, #bbf7d0 80%, #f0fdf4 120%)',
-      bgDark: 'linear-gradient(135deg, #052e16 0%, #14532d 100%)',
-      text: '#166534',
-      textDark: '#bbf7d0',
-      badge: '#86efac',
-      badgeDark: '#15803d',
-      line: '#16a34a',
+      bgLight: 'linear-gradient(145deg, #f0fdf4 0%, #bbf7d0 30%, #86efac 80%, #f0fdf4 120%)',
+      textLight: '#166534',
+      badgeLight: 'rgba(34, 197, 94, 0.2)',
+      lineLight: '#16a34a',
+      bgDark:
+         'linear-gradient(145deg, #052e16 0%, #14532d 50%, #166534 100%)',
+      glowDark: 'inset 0 1px 0 rgba(34, 197, 94, 0.2)',
+      textDark: '#86efac',
+      badgeDark: 'rgba(34, 197, 94, 0.25)',
       lineDark: '#4ade80',
+      accentDark: '#22c55e',
    },
    purple: {
-      bg: 'linear-gradient(135deg, #faf5ff 0%, #e9d5ff 80%, #faf5ff 120%)',
-      bgDark: 'linear-gradient(135deg, #3b0764 0%, #581c87 100%)',
-      text: '#7e22ce',
-      textDark: '#e9d5ff',
-      badge: '#d8b4fe',
-      badgeDark: '#7e22ce',
-      line: '#9333ea',
+      bgLight: 'linear-gradient(145deg, #faf5ff 0%, #e9d5ff 30%, #d8b4fe 80%, #faf5ff 120%)',
+      textLight: '#7e22ce',
+      badgeLight: 'rgba(168, 85, 247, 0.2)',
+      lineLight: '#9333ea',
+      bgDark:
+         'linear-gradient(145deg, #1a0a2e 0%, #2e1065 50%, #4c1d95 100%)',
+      glowDark: 'inset 0 1px 0 rgba(168, 85, 247, 0.2)',
+      textDark: '#d8b4fe',
+      badgeDark: 'rgba(168, 85, 247, 0.25)',
       lineDark: '#c084fc',
+      accentDark: '#a855f7',
    },
    cyan: {
-      bg: 'linear-gradient(135deg, #ecfeff 0%, #a5f3fc 80%, #ecfeff 120%)',
-      bgDark: 'linear-gradient(135deg, #083344 0%, #164e63 100%)',
-      text: '#0e7490',
-      textDark: '#a5f3fc',
-      badge: '#67e8f9',
-      badgeDark: '#0891b2',
-      line: '#06b6d4',
+      bgLight: 'linear-gradient(145deg, #ecfeff 0%, #a5f3fc 30%, #67e8f9 80%, #ecfeff 120%)',
+      textLight: '#0e7490',
+      badgeLight: 'rgba(6, 182, 212, 0.2)',
+      lineLight: '#06b6d4',
+      bgDark:
+         'linear-gradient(145deg, #042f2e 0%, #134e4a 50%, #115e59 100%)',
+      glowDark: 'inset 0 1px 0 rgba(6, 182, 212, 0.25)',
+      textDark: '#67e8f9',
+      badgeDark: 'rgba(6, 182, 212, 0.25)',
       lineDark: '#22d3ee',
+      accentDark: '#06b6d4',
    },
    red: {
-      bg: 'linear-gradient(135deg, #fef2f2 0%, #fecaca 100%)',
-      bgDark: 'linear-gradient(135deg, #450a0a 0%, #7f1d1d 100%)',
-      text: '#b91c1c',
-      textDark: '#fecaca',
-      badge: '#fca5a5',
-      badgeDark: '#dc2626',
-      line: '#dc2626',
+      bgLight: 'linear-gradient(145deg, #fef2f2 0%, #fecaca 30%, #fca5a5 80%, #fef2f2 120%)',
+      textLight: '#b91c1c',
+      badgeLight: 'rgba(239, 68, 68, 0.2)',
+      lineLight: '#dc2626',
+      bgDark:
+         'linear-gradient(145deg, #1c0a0a 0%, #450a0a 50%, #7f1d1d 100%)',
+      glowDark: 'inset 0 1px 0 rgba(239, 68, 68, 0.15)',
+      textDark: '#fca5a5',
+      badgeDark: 'rgba(239, 68, 68, 0.25)',
       lineDark: '#f87171',
+      accentDark: '#ef4444',
    },
 };
 
-const colors = computed(() => themeColors[props.stat.color || 'orange']);
+// 根据当前主题动态计算颜色
+const colors = computed(() => {
+   const colorScheme = themeColors[props.stat.color || 'orange'];
+   const isDark = themeStore.isDark;
+
+   return {
+      bg: isDark ? colorScheme.bgDark : colorScheme.bgLight,
+      glow: isDark ? colorScheme.glowDark : 'none',
+      text: isDark ? colorScheme.textDark : colorScheme.textLight,
+      badge: isDark ? colorScheme.badgeDark : colorScheme.badgeLight,
+      line: isDark ? colorScheme.lineDark : colorScheme.lineLight,
+      accent: isDark ? colorScheme.accentDark : colorScheme.lineLight,
+   };
+});
 
 // 生成默认趋势数据
 const trendData = computed(() => {
@@ -134,85 +200,129 @@ const trendPath = computed(() => {
 
 <template>
    <div
-      class="relative flex flex-col py-5 px-6 rounded-[20px] overflow-hidden transition-all duration-300 ease-in-out min-h-40 dark:hover:shadow-[0_20px_40px_-12px_rgba(0,0,0,0.5)]"
+      class="stats-card group relative flex flex-col py-5 px-6 rounded-[20px] overflow-hidden transition-all duration-300 ease-out min-h-40"
       :style="{
-         '--card-bg': colors.bg,
-         '--card-bg-dark': colors.bgDark,
-         '--card-text': colors.text,
-         '--card-text-dark': colors.textDark,
-         '--badge-bg': colors.badge,
-         '--badge-bg-dark': colors.badgeDark,
-         '--line-color': colors.line,
-         '--line-color-dark': colors.lineDark,
-         background: 'var(--card-bg)',
+         background: colors.bg,
+         boxShadow: colors.glow,
       }">
+      <!-- 暗色模式下的发光边框效果 -->
+      <div
+         v-if="themeStore.isDark"
+         class="absolute inset-0 rounded-[20px] pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-500"
+         :style="{
+            boxShadow: `0 0 30px -5px ${colors.accent}40, inset 0 0 20px -10px ${colors.accent}20`,
+         }"></div>
+
       <!-- Header: Icon + Title / Change Badge -->
-      <div class="flex items-center justify-between mb-3">
-         <div class="flex items-center gap-2">
-            <i
-               :class="stat.icon"
-               class="text-base opacity-90"
-               :style="{ color: 'var(--card-text)' }"></i>
+      <div class="relative z-10 flex items-center justify-between mb-3">
+         <div class="flex items-center gap-2.5">
+            <div
+               class="flex items-center justify-center w-8 h-8 rounded-lg transition-transform duration-300 group-hover:scale-110"
+               :style="{
+                  background: colors.badge,
+               }">
+               <i
+                  :class="stat.icon"
+                  class="text-sm"
+                  :style="{ color: colors.text }"></i>
+            </div>
             <span
                class="text-[0.9375rem] font-semibold tracking-[0.01em]"
-               :style="{ color: 'var(--card-text)' }">
+               :style="{ color: colors.text }">
                {{ stat.title }}
             </span>
          </div>
          <span
-            class="inline-flex items-center py-1 px-2.5 rounded-lg text-xs font-bold"
+            class="inline-flex items-center py-1.5 px-3 rounded-full text-xs font-bold backdrop-blur-sm"
             :style="{
-               background: 'var(--badge-bg)',
-               color: 'var(--card-text)',
+               background: colors.badge,
+               color: colors.text,
             }">
+            <i
+               :class="
+                  stat.changeType === 'increase'
+                     ? 'pi pi-arrow-up-right'
+                     : 'pi pi-arrow-down-right'
+               "
+               class="text-[10px] mr-1"></i>
             {{ stat.change }}
          </span>
       </div>
 
       <!-- Value -->
       <div
-         class="font-mono text-4xl font-bold tracking-tight leading-none mb-auto"
-         :style="{ color: 'var(--card-text)' }">
-         {{ stat.value }}
+         class="relative z-10 font-mono text-4xl font-bold tracking-tight leading-none mb-auto transition-transform duration-300 group-hover:translate-x-1"
+         :style="{ color: colors.text }">
+         {{ displayValue }}
       </div>
 
       <!-- Mini Trend Chart -->
-      <div class="mt-3 h-9 w-full">
+      <div class="relative z-10 mt-3 h-9 w-full">
          <svg
             viewBox="0 0 120 36"
             preserveAspectRatio="none"
             class="w-full h-full overflow-visible">
+            <!-- 渐变定义 -->
+            <defs>
+               <linearGradient
+                  :id="`line-gradient-${stat.color || 'orange'}`"
+                  x1="0%"
+                  y1="0%"
+                  x2="100%"
+                  y2="0%">
+                  <stop
+                     offset="0%"
+                     :stop-color="colors.line"
+                     stop-opacity="0.4" />
+                  <stop
+                     offset="50%"
+                     :stop-color="colors.line"
+                     stop-opacity="1" />
+                  <stop
+                     offset="100%"
+                     :stop-color="colors.accent"
+                     stop-opacity="0.8" />
+               </linearGradient>
+            </defs>
+            <!-- 发光效果（暗色模式） -->
+            <path
+               v-if="themeStore.isDark"
+               :d="trendPath"
+               fill="none"
+               :stroke="colors.accent"
+               stroke-width="6"
+               stroke-linecap="round"
+               stroke-linejoin="round"
+               class="opacity-20 blur-[2px]" />
+            <!-- 主线条 -->
             <path
                :d="trendPath"
                fill="none"
+               :stroke="`url(#line-gradient-${stat.color || 'orange'})`"
                stroke-width="2.5"
                stroke-linecap="round"
                stroke-linejoin="round"
-               class="opacity-65 dark:opacity-75"
-               :style="{ stroke: 'var(--line-color)' }" />
+               class="transition-all duration-300" />
          </svg>
       </div>
    </div>
 </template>
 
 <style scoped>
-/* Dark mode background override */
-:global(.app-dark) div[style*='--card-bg'] {
-   background: var(--card-bg-dark) !important;
+.stats-card {
+   /* 悬浮效果 */
+   &:hover {
+      transform: translateY(-2px);
+   }
 }
 
-:global(.app-dark) div[style*='--card-bg'] i[style*='color'],
-:global(.app-dark) div[style*='--card-bg'] span[style*='color: var(--card-text)'],
-:global(.app-dark) div[style*='--card-bg'] > div[style*='color'] {
-   color: var(--card-text-dark) !important;
+/* 暗色模式下的特殊效果 */
+:global(.app-dark) .stats-card {
+   /* 添加微妙的边框 */
+   border: 1px solid rgba(255, 255, 255, 0.06);
 }
 
-:global(.app-dark) div[style*='--card-bg'] span[style*='background'] {
-   background: var(--badge-bg-dark) !important;
-   color: var(--card-text-dark) !important;
-}
-
-:global(.app-dark) div[style*='--card-bg'] path[style*='stroke'] {
-   stroke: var(--line-color-dark) !important;
+:global(.app-dark) .stats-card:hover {
+   border-color: rgba(255, 255, 255, 0.1);
 }
 </style>
