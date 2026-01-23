@@ -6,29 +6,9 @@ import Dialog from 'primevue/dialog';
 import InputText from 'primevue/inputtext';
 import Select from 'primevue/select';
 import PageHeader from '@/components/shared/PageHeader.vue';
-import SimpleStatCard, {
-   type SimpleStatData,
-} from '@/components/shared/SimpleStatCard.vue';
-
-// 定义组织架构节点类型
-interface OrgNode {
-   key: string;
-   type?: string;
-   styleClass?: string;
-   data: {
-      id: string;
-      name: string;
-      displayName?: string;
-      avatar?: string;
-      orgRole: string;
-      class?: string;
-      email?: string;
-      depth: number;
-   };
-   children?: OrgNode[];
-   selectable?: boolean;
-   expanded?: boolean;
-}
+import SimpleStatCard from '@/components/shared/SimpleStatCard.vue';
+import type { OrgNode, SimpleStatData } from '@/types';
+import { ORG_CLASS_OPTIONS, ORG_CLASS_COLORS } from '@/config';
 
 // 模拟组织架构数据
 const orgData = ref<OrgNode>({
@@ -311,12 +291,7 @@ const memberForm = ref({
    email: '',
 });
 
-// 职级选项
-const classOptions = [
-   { label: '高管层', value: '高管层' },
-   { label: '管理层', value: '管理层' },
-   { label: '员工', value: '员工' },
-];
+const classOptions = ORG_CLASS_OPTIONS;
 
 // 节点选择处理
 const onNodeSelect = (node: OrgNode) => {
@@ -354,19 +329,7 @@ const saveMember = () => {
    memberDialog.value = false;
 };
 
-// 获取职级的颜色类
-const getClassColor = (classType?: string) => {
-   switch (classType) {
-      case '高管层':
-         return 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400';
-      case '管理层':
-         return 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400';
-      case '员工':
-         return 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400';
-      default:
-         return 'bg-surface-100 text-surface-700 dark:bg-surface-800 dark:text-surface-400';
-   }
-};
+const getClassColor = (classType?: string) => ORG_CLASS_COLORS[classType || ''] || 'bg-surface-100 text-surface-700 dark:bg-surface-800 dark:text-surface-400';
 </script>
 
 <template>

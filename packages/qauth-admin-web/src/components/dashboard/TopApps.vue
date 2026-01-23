@@ -3,12 +3,7 @@ import { ref } from 'vue';
 import Card from 'primevue/card';
 import Button from 'primevue/button';
 import ProgressBar from 'primevue/progressbar';
-
-export interface TopApp {
-   name: string;
-   users: number;
-   percentage: number;
-}
+import type { TopApp } from '@/types';
 
 const topApps = ref<TopApp[]>([
    { name: 'Web Dashboard', users: 4521, percentage: 85 },

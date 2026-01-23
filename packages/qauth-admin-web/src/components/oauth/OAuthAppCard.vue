@@ -3,27 +3,9 @@ import Card from 'primevue/card';
 import Button from 'primevue/button';
 import Tag from 'primevue/tag';
 import Chip from 'primevue/chip';
+import type { OAuthApp } from '@/types';
 
-export interface OAuthApp {
-   id: number;
-   name: string;
-   clientId: string;
-   description: string;
-   icon: string;
-   iconBg: string;
-   redirectUris: string[];
-   scopes: string[];
-   grantTypes: string[];
-   status: string;
-   trusted: boolean;
-   createdAt: string;
-   lastUsed: string;
-   requestCount: number;
-}
-
-defineProps<{
-   app: OAuthApp;
-}>();
+defineProps<{ app: OAuthApp }>();
 
 const emit = defineEmits<{
    (e: 'view', app: OAuthApp): void;
@@ -31,33 +13,12 @@ const emit = defineEmits<{
    (e: 'regenerateSecret', app: OAuthApp): void;
 }>();
 
-const getStatusSeverity = (status: string) => {
-   const map: Record<string, 'success' | 'warn' | 'danger' | 'secondary'> = {
-      active: 'success',
-      development: 'warn',
-      deprecated: 'secondary',
-   };
-   return map[status] || 'info';
-};
+const STATUS_MAP = { active: { label: '生产环境', severity: 'success' }, development: { label: '开发中', severity: 'warn' }, deprecated: { label: '已弃用', severity: 'secondary' } } as const;
+const getStatusSeverity = (status: string) => (STATUS_MAP[status as keyof typeof STATUS_MAP]?.severity || 'info') as 'success' | 'warn' | 'danger' | 'secondary';
+const getStatusLabel = (status: string) => STATUS_MAP[status as keyof typeof STATUS_MAP]?.label || status;
 
-const getStatusLabel = (status: string) => {
-   const map: Record<string, string> = {
-      active: '生产环境',
-      development: '开发中',
-      deprecated: '已弃用',
-   };
-   return map[status] || status;
-};
-
-const formatNumber = (num: number) => {
-   if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
-   if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
-   return num.toString();
-};
-
-const copyToClipboard = (text: string) => {
-   navigator.clipboard.writeText(text);
-};
+const formatNumber = (num: number) => num >= 1e6 ? (num / 1e6).toFixed(1) + 'M' : num >= 1e3 ? (num / 1e3).toFixed(1) + 'K' : String(num);
+const copyToClipboard = (text: string) => navigator.clipboard.writeText(text);
 </script>
 
 <template>

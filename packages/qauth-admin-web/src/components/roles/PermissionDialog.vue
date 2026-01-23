@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue';
+import { computed } from 'vue';
 import Dialog from 'primevue/dialog';
 import Button from 'primevue/button';
 import Checkbox from 'primevue/checkbox';
@@ -7,19 +7,7 @@ import Accordion from 'primevue/accordion';
 import AccordionPanel from 'primevue/accordionpanel';
 import AccordionHeader from 'primevue/accordionheader';
 import AccordionContent from 'primevue/accordioncontent';
-import type { Role } from './RoleCard.vue';
-
-export interface Permission {
-   id: string;
-   name: string;
-   checked: boolean;
-}
-
-export interface PermissionGroup {
-   name: string;
-   icon: string;
-   permissions: Permission[];
-}
+import type { Role, PermissionGroup } from '@/types';
 
 const props = defineProps<{
    visible: boolean;

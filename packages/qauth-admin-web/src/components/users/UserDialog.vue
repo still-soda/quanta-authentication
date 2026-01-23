@@ -5,13 +5,8 @@ import Button from 'primevue/button';
 import InputText from 'primevue/inputtext';
 import InputSwitch from 'primevue/inputswitch';
 import Select from 'primevue/select';
-
-export interface UserFormData {
-   name: string;
-   email: string;
-   role: string;
-   status: boolean;
-}
+import type { UserFormData } from '@/types';
+import { USER_ROLE_OPTIONS } from '@/config';
 
 const props = defineProps<{
    visible: boolean;
@@ -31,22 +26,13 @@ const userForm = ref<UserFormData>({
    status: props.initialData?.status ?? true,
 });
 
-const roleOptions = ref([
-   { label: '管理员', value: '管理员' },
-   { label: '开发者', value: '开发者' },
-   { label: '普通用户', value: '普通用户' },
-]);
-
 const dialogVisible = computed({
    get: () => props.visible,
    set: (value) => emit('update:visible', value),
 });
 
-const saveUser = () => {
-   emit('save', userForm.value);
-};
+const saveUser = () => emit('save', userForm.value);
 
-// 监听 initialData 变化重置表单
 const resetForm = (data?: Partial<UserFormData>) => {
    userForm.value = {
       name: data?.name || '',
@@ -101,7 +87,7 @@ defineExpose({ resetForm });
             <Select
                id="role"
                v-model="userForm.role"
-               :options="roleOptions"
+               :options="USER_ROLE_OPTIONS"
                optionLabel="label"
                optionValue="value"
                placeholder="选择角色"

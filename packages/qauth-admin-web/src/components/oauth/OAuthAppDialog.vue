@@ -5,14 +5,8 @@ import Button from 'primevue/button';
 import InputText from 'primevue/inputtext';
 import Textarea from 'primevue/textarea';
 import InputSwitch from 'primevue/inputswitch';
-
-export interface OAuthAppFormData {
-   name: string;
-   description: string;
-   redirectUris: string;
-   scopes: string[];
-   trusted: boolean;
-}
+import type { OAuthAppFormData } from '@/types';
+import { OAUTH_SCOPE_OPTIONS } from '@/config';
 
 const props = defineProps<{
    visible: boolean;
@@ -32,16 +26,6 @@ const appForm = ref<OAuthAppFormData>({
    scopes: props.initialData?.scopes || ['openid', 'profile'],
    trusted: props.initialData?.trusted || false,
 });
-
-const availableScopes = [
-   { label: 'OpenID', value: 'openid' },
-   { label: 'Profile', value: 'profile' },
-   { label: 'Email', value: 'email' },
-   { label: 'Admin', value: 'admin' },
-   { label: 'Read Users', value: 'read:users' },
-   { label: 'Write Users', value: 'write:users' },
-   { label: 'Offline Access', value: 'offline_access' },
-];
 
 const dialogVisible = computed({
    get: () => props.visible,
@@ -132,7 +116,7 @@ defineExpose({ resetForm });
             </label>
             <div class="flex flex-wrap gap-2">
                <button
-                  v-for="scope in availableScopes"
+                  v-for="scope in OAUTH_SCOPE_OPTIONS"
                   :key="scope.value"
                   type="button"
                   class="py-1.5 px-3 border border-surface-200 dark:border-surface-700 rounded-full bg-transparent text-surface-600 dark:text-surface-400 text-[0.8125rem] cursor-pointer transition-all duration-200 ease hover:border-primary-300 hover:text-primary-600 dark:hover:border-primary-400 dark:hover:text-primary-400"

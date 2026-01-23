@@ -14,21 +14,9 @@ import Tab from 'primevue/tab';
 import TabPanels from 'primevue/tabpanels';
 import TabPanel from 'primevue/tabpanel';
 import PageHeader from '@/components/shared/PageHeader.vue';
+import { SETTING_GROUPS, LANGUAGE_OPTIONS, TIMEZONE_OPTIONS, ENCRYPTION_OPTIONS, STORAGE_TYPE_OPTIONS, DEFAULT_SETTINGS } from '@/config';
 
-// 设置分组
-interface SettingGroup {
-   id: string;
-   label: string;
-   icon: string;
-}
-
-const settingGroups: SettingGroup[] = [
-   { id: 'general', label: '基本设置', icon: 'pi pi-cog' },
-   { id: 'security', label: '安全设置', icon: 'pi pi-shield' },
-   { id: 'oauth', label: 'OAuth 配置', icon: 'pi pi-key' },
-   { id: 'email', label: '邮件服务', icon: 'pi pi-envelope' },
-   { id: 'storage', label: '存储配置', icon: 'pi pi-database' },
-];
+const settingGroups = SETTING_GROUPS;
 
 const activeTab = ref('general');
 
@@ -97,36 +85,10 @@ const storageSettings = reactive({
    allowedFileTypes: 'jpg,png,gif,pdf,doc,docx',
 });
 
-// 语言选项
-const languageOptions = [
-   { label: '简体中文', value: 'zh-CN' },
-   { label: '繁体中文', value: 'zh-TW' },
-   { label: 'English', value: 'en-US' },
-   { label: '日本語', value: 'ja-JP' },
-];
-
-// 时区选项
-const timezoneOptions = [
-   { label: '(UTC+8) 中国标准时间', value: 'Asia/Shanghai' },
-   { label: '(UTC+9) 日本标准时间', value: 'Asia/Tokyo' },
-   { label: '(UTC+0) 格林威治时间', value: 'UTC' },
-   { label: '(UTC-5) 美国东部时间', value: 'America/New_York' },
-];
-
-// 加密选项
-const encryptionOptions = [
-   { label: 'TLS', value: 'tls' },
-   { label: 'SSL', value: 'ssl' },
-   { label: '无加密', value: 'none' },
-];
-
-// 存储类型选项
-const storageTypeOptions = [
-   { label: '本地存储', value: 'local' },
-   { label: 'Amazon S3', value: 's3' },
-   { label: '阿里云 OSS', value: 'oss' },
-   { label: '腾讯云 COS', value: 'cos' },
-];
+const languageOptions = LANGUAGE_OPTIONS;
+const timezoneOptions = TIMEZONE_OPTIONS;
+const encryptionOptions = ENCRYPTION_OPTIONS;
+const storageTypeOptions = STORAGE_TYPE_OPTIONS;
 
 // 保存状态
 const isSaving = ref(false);

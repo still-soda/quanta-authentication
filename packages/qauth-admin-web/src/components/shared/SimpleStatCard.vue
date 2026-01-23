@@ -1,78 +1,18 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { useAnimatedNumber } from '@/composables/useAnimatedNumber';
+import type { SimpleStatData } from '@/types';
+import { SIMPLE_STAT_COLORS } from '@/config';
 
-export interface SimpleStatData {
-   title: string;
-   value: number | string;
-   icon: string;
-   /** 卡片主题色 */
-   color?: 'orange' | 'blue' | 'green' | 'purple' | 'cyan' | 'red' | 'gray';
-}
+const props = defineProps<{ stat: SimpleStatData }>();
 
-const props = withDefaults(
-   defineProps<{
-      stat: SimpleStatData;
-   }>(),
-   {},
-);
-
-// 解析数值
 const numericValue = computed(() => {
-   if (typeof props.stat.value === 'number') {
-      return props.stat.value;
-   }
-   const cleaned = props.stat.value.replace(/[^0-9.-]/g, '');
-   return parseFloat(cleaned) || 0;
+   if (typeof props.stat.value === 'number') return props.stat.value;
+   return parseFloat(props.stat.value.replace(/[^0-9.-]/g, '')) || 0;
 });
 
-// 使用动画数字
-const { formattedValue: animatedValue } = useAnimatedNumber(numericValue, {
-   duration: 1000,
-   delay: 50,
-   padStart: true,
-});
-
-const themeColors = computed(() => {
-   const colorMap = {
-      orange: {
-         color: 'var(--p-orange-500)',
-         bg: 'var(--p-orange-50)',
-         bgDark: 'rgba(251, 146, 60, 0.15)',
-      },
-      blue: {
-         color: 'var(--p-blue-500)',
-         bg: 'var(--p-blue-50)',
-         bgDark: 'rgba(59, 130, 246, 0.15)',
-      },
-      green: {
-         color: 'var(--p-green-500)',
-         bg: 'var(--p-green-50)',
-         bgDark: 'rgba(34, 197, 94, 0.15)',
-      },
-      purple: {
-         color: 'var(--p-purple-500)',
-         bg: 'var(--p-purple-50)',
-         bgDark: 'rgba(168, 85, 247, 0.15)',
-      },
-      cyan: {
-         color: 'var(--p-cyan-500)',
-         bg: 'var(--p-cyan-50)',
-         bgDark: 'rgba(6, 182, 212, 0.15)',
-      },
-      red: {
-         color: 'var(--p-red-500)',
-         bg: 'var(--p-red-50)',
-         bgDark: 'rgba(239, 68, 68, 0.15)',
-      },
-      gray: {
-         color: 'var(--p-surface-500)',
-         bg: 'var(--p-surface-100)',
-         bgDark: 'rgba(107, 114, 128, 0.15)',
-      },
-   };
-   return colorMap[props.stat.color || 'orange'];
-});
+const { formattedValue: animatedValue } = useAnimatedNumber(numericValue, { duration: 1000, delay: 50, padStart: true });
+const themeColors = computed(() => SIMPLE_STAT_COLORS[props.stat.color || 'orange']);
 </script>
 
 <template>

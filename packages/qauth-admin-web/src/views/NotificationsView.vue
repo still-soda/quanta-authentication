@@ -5,23 +5,9 @@ import Tag from 'primevue/tag';
 import Checkbox from 'primevue/checkbox';
 import Menu from 'primevue/menu';
 import PageHeader from '@/components/shared/PageHeader.vue';
-import SimpleStatCard, {
-   type SimpleStatData,
-} from '@/components/shared/SimpleStatCard.vue';
-
-// 通知类型
-type NotificationType = 'system' | 'security' | 'user' | 'oauth' | 'alert';
-
-interface Notification {
-   id: string;
-   type: NotificationType;
-   title: string;
-   message: string;
-   time: string;
-   read: boolean;
-   actionUrl?: string;
-   actionLabel?: string;
-}
+import SimpleStatCard from '@/components/shared/SimpleStatCard.vue';
+import type { Notification, NotificationType, SimpleStatData } from '@/types';
+import { NOTIFICATION_TYPE_CONFIG } from '@/config';
 
 // 通知数据
 const notifications = ref<Notification[]>([
@@ -167,42 +153,7 @@ const filteredNotifications = computed(() => {
    return notifications.value.filter((n) => n.type === filterType.value);
 });
 
-// 通知类型配置
-const typeConfig: Record<
-   NotificationType,
-   { label: string; icon: string; color: string; bgColor: string }
-> = {
-   system: {
-      label: '系统',
-      icon: 'pi pi-cog',
-      color: 'text-blue-600 dark:text-blue-400',
-      bgColor: 'bg-blue-100 dark:bg-blue-900/30',
-   },
-   security: {
-      label: '安全',
-      icon: 'pi pi-shield',
-      color: 'text-green-600 dark:text-green-400',
-      bgColor: 'bg-green-100 dark:bg-green-900/30',
-   },
-   user: {
-      label: '用户',
-      icon: 'pi pi-user',
-      color: 'text-purple-600 dark:text-purple-400',
-      bgColor: 'bg-purple-100 dark:bg-purple-900/30',
-   },
-   oauth: {
-      label: 'OAuth',
-      icon: 'pi pi-key',
-      color: 'text-cyan-600 dark:text-cyan-400',
-      bgColor: 'bg-cyan-100 dark:bg-cyan-900/30',
-   },
-   alert: {
-      label: '警告',
-      icon: 'pi pi-exclamation-triangle',
-      color: 'text-red-600 dark:text-red-400',
-      bgColor: 'bg-red-100 dark:bg-red-900/30',
-   },
-};
+const typeConfig = NOTIFICATION_TYPE_CONFIG;
 
 // 过滤选项
 const filterOptions = [

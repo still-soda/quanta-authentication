@@ -2,35 +2,17 @@
 import Card from 'primevue/card';
 import Button from 'primevue/button';
 import Tag from 'primevue/tag';
+import type { Role } from '@/types';
 
-export interface Role {
-   id: number;
-   name: string;
-   code: string;
-   description: string;
-   userCount: number;
-   permissions: number;
-   status: string;
-   isSystem: boolean;
-   createdAt: string;
-}
-
-defineProps<{
-   role: Role;
-}>();
+defineProps<{ role: Role }>();
 
 const emit = defineEmits<{
    (e: 'edit', role: Role): void;
    (e: 'configPermissions', role: Role): void;
 }>();
 
-const getStatusSeverity = (status: string) => {
-   return status === 'active' ? 'success' : 'secondary';
-};
-
-const getStatusLabel = (status: string) => {
-   return status === 'active' ? '启用' : '禁用';
-};
+const getStatusSeverity = (status: string) => (status === 'active' ? 'success' : 'secondary');
+const getStatusLabel = (status: string) => (status === 'active' ? '启用' : '禁用');
 </script>
 
 <template>

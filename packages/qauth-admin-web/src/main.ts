@@ -11,6 +11,7 @@ import ToastService from 'primevue/toastservice';
 import ConfirmationService from 'primevue/confirmationservice';
 import Tooltip from 'primevue/tooltip';
 import Ripple from 'primevue/ripple';
+import { DARK_MODE_SELECTOR } from './config';
 
 const AppPreset = definePreset(Aura, {
    primitive: {
@@ -108,11 +109,8 @@ app.use(PrimeVue, {
    theme: {
       preset: AppPreset,
       options: {
-         darkModeSelector: '.app-dark',
-         cssLayer: {
-            name: 'primevue',
-            order: 'theme, base, primevue',
-         },
+         darkModeSelector: DARK_MODE_SELECTOR,
+         cssLayer: { name: 'primevue', order: 'theme, base, primevue' },
       },
    },
 });

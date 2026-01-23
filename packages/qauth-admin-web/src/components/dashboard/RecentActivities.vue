@@ -6,15 +6,7 @@ import DataTable from 'primevue/datatable';
 import Column from 'primevue/column';
 import Tag from 'primevue/tag';
 import Avatar from 'primevue/avatar';
-
-export interface Activity {
-   user: string;
-   avatar: string;
-   action: string;
-   client: string;
-   time: string;
-   status: string;
-}
+import type { Activity } from '@/types';
 
 const recentActivities = ref<Activity[]>([
    {

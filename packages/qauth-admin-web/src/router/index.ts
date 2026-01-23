@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router';
 import DefaultLayout from '@/layouts/DefaultLayout.vue';
+import { APP_NAME } from '@/config';
 
 const router = createRouter({
    history: createWebHistory(import.meta.env.BASE_URL),
@@ -69,7 +70,7 @@ const router = createRouter({
 
 router.beforeEach((to, _from, next) => {
    const title = to.meta?.title as string;
-   document.title = title ? `${title} - Quanta Auth` : 'Quanta Auth';
+   document.title = title ? `${title} - ${APP_NAME}` : APP_NAME;
    next();
 });
 

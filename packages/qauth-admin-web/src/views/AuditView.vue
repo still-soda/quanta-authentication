@@ -9,26 +9,9 @@ import Select from 'primevue/select';
 import DatePicker from 'primevue/datepicker';
 import Dialog from 'primevue/dialog';
 import PageHeader from '@/components/shared/PageHeader.vue';
-import SimpleStatCard, {
-   type SimpleStatData,
-} from '@/components/shared/SimpleStatCard.vue';
-
-// 审计日志类型定义
-interface AuditLog {
-   id: string;
-   operatorId: string;
-   operatorName: string;
-   operatorAvatar: string;
-   module: string;
-   action: string;
-   targetId: string;
-   targetName?: string;
-   detail: Record<string, any>;
-   ip: string;
-   time: string;
-   durationMs: number;
-   status: 'success' | 'warning' | 'error';
-}
+import SimpleStatCard from '@/components/shared/SimpleStatCard.vue';
+import type { AuditLog, SimpleStatData } from '@/types';
+import { AUDIT_MODULE_ICONS } from '@/config';
 
 // 模拟审计日志数据
 const auditLogs = ref<AuditLog[]>([
@@ -269,76 +252,16 @@ const filteredLogs = computed(() => {
    });
 });
 
-// 获取状态标签样式
-const getStatusSeverity = (status: string) => {
-   switch (status) {
-      case 'success':
-         return 'success';
-      case 'warning':
-         return 'warn';
-      case 'error':
-         return 'danger';
-      default:
-         return 'secondary';
-   }
-};
+const STATUS_CONFIG = { success: { label: '成功', severity: 'success' }, warning: { label: '警告', severity: 'warn' }, error: { label: '失败', severity: 'danger' } } as const;
+const getStatusSeverity = (status: string) => STATUS_CONFIG[status as keyof typeof STATUS_CONFIG]?.severity || 'secondary';
+const getStatusLabel = (status: string) => STATUS_CONFIG[status as keyof typeof STATUS_CONFIG]?.label || status;
+const getModuleIcon = (module: string) => AUDIT_MODULE_ICONS[module] || 'pi pi-circle';
 
-const getStatusLabel = (status: string) => {
-   switch (status) {
-      case 'success':
-         return '成功';
-      case 'warning':
-         return '警告';
-      case 'error':
-         return '失败';
-      default:
-         return status;
-   }
-};
-
-// 获取模块图标
-const getModuleIcon = (module: string) => {
-   switch (module) {
-      case '用户管理':
-         return 'pi pi-users';
-      case 'OAuth应用':
-         return 'pi pi-key';
-      case '角色权限':
-         return 'pi pi-shield';
-      case '系统设置':
-         return 'pi pi-cog';
-      case '认证登录':
-         return 'pi pi-sign-in';
-      case '数据导出':
-         return 'pi pi-download';
-      default:
-         return 'pi pi-circle';
-   }
-};
-
-// 详情对话框
 const detailDialog = ref(false);
 const selectedLog = ref<AuditLog | null>(null);
-
-const showDetail = (log: AuditLog) => {
-   selectedLog.value = log;
-   detailDialog.value = true;
-};
-
-// 导出日志
-const exportLogs = () => {
-   console.log('Exporting logs...');
-};
-
-// 清除筛选
-const clearFilters = () => {
-   filters.value = {
-      search: '',
-      module: null,
-      action: null,
-      dateRange: null,
-   };
-};
+const showDetail = (log: AuditLog) => { selectedLog.value = log; detailDialog.value = true; };
+const exportLogs = () => console.log('Exporting logs...');
+const clearFilters = () => { filters.value = { search: '', module: null, action: null, dateRange: null }; };
 </script>
 
 <template>

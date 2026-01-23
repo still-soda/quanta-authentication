@@ -3,30 +3,16 @@ import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue';
 import { useRouter } from 'vue-router';
 import Dialog from 'primevue/dialog';
 import Button from 'primevue/button';
+import type { SearchItem, SearchCategory } from '@/types';
+import { STORAGE_KEYS, MAX_RECENT_SEARCHES, SEARCH_CATEGORY_CONFIG } from '@/config';
 
-const props = defineProps<{
-   visible: boolean;
-}>();
-
-const emit = defineEmits<{
-   'update:visible': [value: boolean];
-}>();
+const props = defineProps<{ visible: boolean }>();
+const emit = defineEmits<{ 'update:visible': [value: boolean] }>();
 
 const router = useRouter();
 const searchQuery = ref('');
 const selectedIndex = ref(0);
 const searchInputRef = ref<HTMLInputElement | null>(null);
-
-// 搜索数据源
-interface SearchItem {
-   id: string;
-   label: string;
-   description?: string;
-   icon: string;
-   category: 'navigation' | 'action' | 'user' | 'app' | 'recent';
-   action: () => void;
-   keywords?: string[];
-}
 
 // 页面导航项
 const navigationItems: SearchItem[] = [
@@ -239,290 +225,91 @@ const mockApps: SearchItem[] = [
    },
 ];
 
-// 最近搜索历史
 const recentSearches = ref<SearchItem[]>([]);
-const MAX_RECENT_SEARCHES = 5;
+const getAllItems = () => [...navigationItems, ...actionItems, ...mockUsers, ...mockApps];
 
-// 加载最近搜索
 const loadRecentSearches = () => {
    try {
-      const saved = localStorage.getItem('qauth-recent-searches');
+      const saved = localStorage.getItem(STORAGE_KEYS.RECENT_SEARCHES);
       if (saved) {
          const ids = JSON.parse(saved) as string[];
-         const allItems = [
-            ...navigationItems,
-            ...actionItems,
-            ...mockUsers,
-            ...mockApps,
-         ];
-         recentSearches.value = ids
-            .map((id) => allItems.find((item) => item.id === id))
-            .filter(Boolean) as SearchItem[];
+         recentSearches.value = ids.map((id) => getAllItems().find((item) => item.id === id)).filter(Boolean) as SearchItem[];
       }
-   } catch {
-      recentSearches.value = [];
-   }
+   } catch { recentSearches.value = []; }
 };
 
-// 保存最近搜索
 const saveRecentSearch = (item: SearchItem) => {
    const ids = recentSearches.value.map((i) => i.id);
-   const newIds = [
-      item.id,
-      ...ids.filter((id) => id !== item.id),
-   ].slice(0, MAX_RECENT_SEARCHES);
-
-   localStorage.setItem('qauth-recent-searches', JSON.stringify(newIds));
-
-   const allItems = [
-      ...navigationItems,
-      ...actionItems,
-      ...mockUsers,
-      ...mockApps,
-   ];
-   recentSearches.value = newIds
-      .map((id) => allItems.find((i) => i.id === id))
-      .filter(Boolean) as SearchItem[];
+   const newIds = [item.id, ...ids.filter((id) => id !== item.id)].slice(0, MAX_RECENT_SEARCHES);
+   localStorage.setItem(STORAGE_KEYS.RECENT_SEARCHES, JSON.stringify(newIds));
+   recentSearches.value = newIds.map((id) => getAllItems().find((i) => i.id === id)).filter(Boolean) as SearchItem[];
 };
 
-// 清除搜索历史
 const clearRecentSearches = () => {
-   localStorage.removeItem('qauth-recent-searches');
+   localStorage.removeItem(STORAGE_KEYS.RECENT_SEARCHES);
    recentSearches.value = [];
 };
 
-// 模糊搜索函数
 const fuzzyMatch = (text: string, query: string): boolean => {
-   const lowerText = text.toLowerCase();
-   const lowerQuery = query.toLowerCase();
-
-   // 简单包含匹配
+   const lowerText = text.toLowerCase(), lowerQuery = query.toLowerCase();
    if (lowerText.includes(lowerQuery)) return true;
-
-   // 首字母匹配
-   const words = lowerText.split(/\s+/);
-   const initials = words.map((w) => w[0]).join('');
-   if (initials.includes(lowerQuery)) return true;
-
-   return false;
+   const initials = lowerText.split(/\s+/).map((w) => w[0]).join('');
+   return initials.includes(lowerQuery);
 };
 
-// 搜索结果
 const searchResults = computed(() => {
    const query = searchQuery.value.trim();
-
    if (!query) {
-      // 无搜索词时显示最近搜索
       if (recentSearches.value.length > 0) {
-         return [
-            {
-               category: 'recent' as const,
-               label: '最近搜索',
-               items: recentSearches.value.map((item) => ({
-                  ...item,
-                  category: 'recent' as const,
-               })),
-            },
-         ];
+         return [{ category: 'recent' as const, label: '最近搜索', items: recentSearches.value.map((item) => ({ ...item, category: 'recent' as const })) }];
       }
-      // 显示默认推荐
-      return [
-         {
-            category: 'navigation' as const,
-            label: '快速导航',
-            items: navigationItems.slice(0, 5),
-         },
-         {
-            category: 'action' as const,
-            label: '快捷操作',
-            items: actionItems.slice(0, 3),
-         },
-      ];
+      return [{ category: 'navigation' as const, label: '快速导航', items: navigationItems.slice(0, 5) }, { category: 'action' as const, label: '快捷操作', items: actionItems.slice(0, 3) }];
    }
 
-   // 搜索所有数据源
-   const allItems = [
-      ...navigationItems,
-      ...actionItems,
-      ...mockUsers,
-      ...mockApps,
-   ];
+   const matched = getAllItems().filter((item) => fuzzyMatch(item.label, query) || (item.description && fuzzyMatch(item.description, query)) || item.keywords?.some((kw) => fuzzyMatch(kw, query)));
+   const groups: { category: SearchCategory; label: string; items: SearchItem[] }[] = [];
+   const categoryLabels = { navigation: '页面', action: '操作', user: '用户', app: '应用' } as const;
 
-   const matched = allItems.filter((item) => {
-      if (fuzzyMatch(item.label, query)) return true;
-      if (item.description && fuzzyMatch(item.description, query)) return true;
-      if (item.keywords?.some((kw) => fuzzyMatch(kw, query))) return true;
-      return false;
+   (['navigation', 'action', 'user', 'app'] as const).forEach((cat) => {
+      const items = matched.filter((i) => i.category === cat);
+      if (items.length) groups.push({ category: cat, label: categoryLabels[cat], items });
    });
-
-   // 按类别分组
-   const groups: {
-      category: 'navigation' | 'action' | 'user' | 'app';
-      label: string;
-      items: SearchItem[];
-   }[] = [];
-
-   const navResults = matched.filter((i) => i.category === 'navigation');
-   const actionResults = matched.filter((i) => i.category === 'action');
-   const userResults = matched.filter((i) => i.category === 'user');
-   const appResults = matched.filter((i) => i.category === 'app');
-
-   if (navResults.length)
-      groups.push({ category: 'navigation', label: '页面', items: navResults });
-   if (actionResults.length)
-      groups.push({ category: 'action', label: '操作', items: actionResults });
-   if (userResults.length)
-      groups.push({ category: 'user', label: '用户', items: userResults });
-   if (appResults.length)
-      groups.push({ category: 'app', label: '应用', items: appResults });
-
    return groups;
 });
 
-// 扁平化的搜索结果列表
-const flatResults = computed(() => {
-   return searchResults.value.flatMap((group) => group.items);
-});
+const flatResults = computed(() => searchResults.value.flatMap((group) => group.items));
 
-// 高亮匹配文字
-const highlightMatch = (text: string, query: string): string => {
+const escapeRegExp = (str: string) => str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+const highlightMatch = (text: string, query: string) => {
    if (!query.trim()) return text;
-
-   const regex = new RegExp(`(${escapeRegExp(query)})`, 'gi');
-   return text.replace(
-      regex,
-      '<mark class="bg-primary-100 dark:bg-primary-900/40 text-primary-700 dark:text-primary-300 rounded px-0.5">$1</mark>',
-   );
+   return text.replace(new RegExp(`(${escapeRegExp(query)})`, 'gi'), '<mark class="bg-primary-100 dark:bg-primary-900/40 text-primary-700 dark:text-primary-300 rounded px-0.5">$1</mark>');
 };
 
-const escapeRegExp = (str: string): string => {
-   return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-};
+const navigateTo = (path: string) => { router.push(path); closeDialog(); };
+const closeDialog = () => { emit('update:visible', false); searchQuery.value = ''; selectedIndex.value = 0; };
+const executeSelected = () => { const item = flatResults.value[selectedIndex.value]; if (item) { saveRecentSearch(item); item.action(); } };
+const handleItemClick = (item: SearchItem) => { saveRecentSearch(item); item.action(); };
 
-// 导航函数
-const navigateTo = (path: string) => {
-   router.push(path);
-   closeDialog();
-};
-
-// 关闭弹窗
-const closeDialog = () => {
-   emit('update:visible', false);
-   searchQuery.value = '';
-   selectedIndex.value = 0;
-};
-
-// 执行选中项
-const executeSelected = () => {
-   const item = flatResults.value[selectedIndex.value];
-   if (item) {
-      saveRecentSearch(item);
-      item.action();
-   }
-};
-
-// 处理点击项
-const handleItemClick = (item: SearchItem) => {
-   saveRecentSearch(item);
-   item.action();
-};
-
-// 键盘导航
 const handleKeydown = (e: KeyboardEvent) => {
    const total = flatResults.value.length;
    if (!total) return;
-
-   switch (e.key) {
-      case 'ArrowDown':
-         e.preventDefault();
-         selectedIndex.value = (selectedIndex.value + 1) % total;
-         scrollToSelected();
-         break;
-      case 'ArrowUp':
-         e.preventDefault();
-         selectedIndex.value = (selectedIndex.value - 1 + total) % total;
-         scrollToSelected();
-         break;
-      case 'Enter':
-         e.preventDefault();
-         executeSelected();
-         break;
-      case 'Escape':
-         closeDialog();
-         break;
-   }
+   if (e.key === 'ArrowDown') { e.preventDefault(); selectedIndex.value = (selectedIndex.value + 1) % total; scrollToSelected(); }
+   else if (e.key === 'ArrowUp') { e.preventDefault(); selectedIndex.value = (selectedIndex.value - 1 + total) % total; scrollToSelected(); }
+   else if (e.key === 'Enter') { e.preventDefault(); executeSelected(); }
+   else if (e.key === 'Escape') closeDialog();
 };
 
-// 滚动到选中项
-const scrollToSelected = () => {
-   nextTick(() => {
-      const selected = document.querySelector('.search-item-selected');
-      selected?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-   });
-};
+const scrollToSelected = () => nextTick(() => document.querySelector('.search-item-selected')?.scrollIntoView({ block: 'nearest', behavior: 'smooth' }));
 
-// 重置选中索引
-watch(searchQuery, () => {
-   selectedIndex.value = 0;
-});
+watch(searchQuery, () => selectedIndex.value = 0);
+watch(() => props.visible, (visible) => { if (visible) { loadRecentSearches(); nextTick(() => searchInputRef.value?.focus()); } });
 
-// 打开时聚焦输入框
-watch(
-   () => props.visible,
-   (visible) => {
-      if (visible) {
-         loadRecentSearches();
-         nextTick(() => {
-            searchInputRef.value?.focus();
-         });
-      }
-   },
-);
+const handleGlobalKeydown = (e: KeyboardEvent) => { if ((e.metaKey || e.ctrlKey) && e.key === 'k') { e.preventDefault(); emit('update:visible', true); } };
+onMounted(() => { loadRecentSearches(); window.addEventListener('keydown', handleGlobalKeydown); });
+onUnmounted(() => window.removeEventListener('keydown', handleGlobalKeydown));
 
-// 全局快捷键
-const handleGlobalKeydown = (e: KeyboardEvent) => {
-   if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
-      e.preventDefault();
-      emit('update:visible', true);
-   }
-};
-
-onMounted(() => {
-   loadRecentSearches();
-   window.addEventListener('keydown', handleGlobalKeydown);
-});
-
-onUnmounted(() => {
-   window.removeEventListener('keydown', handleGlobalKeydown);
-});
-
-// 获取类别图标
-const getCategoryIcon = (
-   category: 'navigation' | 'action' | 'user' | 'app' | 'recent',
-): string => {
-   const icons = {
-      navigation: 'pi pi-compass',
-      action: 'pi pi-bolt',
-      user: 'pi pi-users',
-      app: 'pi pi-box',
-      recent: 'pi pi-clock',
-   };
-   return icons[category];
-};
-
-// 获取类别颜色类
-const getCategoryColorClass = (
-   category: 'navigation' | 'action' | 'user' | 'app' | 'recent',
-): string => {
-   const colors = {
-      navigation: 'text-blue-500 bg-blue-50 dark:bg-blue-900/20',
-      action: 'text-amber-500 bg-amber-50 dark:bg-amber-900/20',
-      user: 'text-emerald-500 bg-emerald-50 dark:bg-emerald-900/20',
-      app: 'text-violet-500 bg-violet-50 dark:bg-violet-900/20',
-      recent: 'text-surface-500 bg-surface-100 dark:bg-surface-700',
-   };
-   return colors[category];
-};
+const getCategoryIcon = (category: SearchCategory) => SEARCH_CATEGORY_CONFIG[category].icon;
+const getCategoryColorClass = (category: SearchCategory) => SEARCH_CATEGORY_CONFIG[category].color;
 </script>
 
 <template>

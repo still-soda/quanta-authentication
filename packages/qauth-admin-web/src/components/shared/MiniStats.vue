@@ -1,13 +1,7 @@
 <script setup lang="ts">
-export interface MiniStatItem {
-   label: string;
-   value: number | string;
-   colorClass?: string;
-}
+import type { MiniStatItem } from '@/types';
 
-defineProps<{
-   items: MiniStatItem[];
-}>();
+defineProps<{ items: MiniStatItem[] }>();
 </script>
 
 <template>

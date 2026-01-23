@@ -4,12 +4,7 @@ import Dialog from 'primevue/dialog';
 import Button from 'primevue/button';
 import InputText from 'primevue/inputtext';
 import Textarea from 'primevue/textarea';
-
-export interface RoleFormData {
-   name: string;
-   code: string;
-   description: string;
-}
+import type { RoleFormData } from '@/types';
 
 const props = defineProps<{
    visible: boolean;

@@ -1,30 +1,8 @@
 <script setup lang="ts">
 import Avatar from 'primevue/avatar';
-import Tag from 'primevue/tag';
+import type { User } from '@/types';
 
-export interface User {
-   id: number;
-   name: string;
-   email: string;
-   avatar: string;
-   role: string;
-   status: string;
-   lastLogin: string;
-   createdAt: string;
-}
-
-defineProps<{
-   user: User;
-}>();
-
-const getRoleSeverity = (role: string) => {
-   const map: Record<string, 'danger' | 'warn' | 'info'> = {
-      管理员: 'danger',
-      开发者: 'warn',
-      普通用户: 'info',
-   };
-   return map[role] || 'info';
-};
+defineProps<{ user: User }>();
 </script>
 
 <template>

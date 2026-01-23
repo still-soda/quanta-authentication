@@ -1,42 +1,28 @@
 import { defineStore } from 'pinia';
 import { ref, watch } from 'vue';
+import { STORAGE_KEYS, DARK_MODE_SELECTOR } from '@/config';
 
 export const useThemeStore = defineStore('theme', () => {
    const isDark = ref(false);
-
-   const initTheme = () => {
-      const savedTheme = localStorage.getItem('theme');
-      if (savedTheme) {
-         isDark.value = savedTheme === 'dark';
-      } else {
-         isDark.value = window.matchMedia(
-            '(prefers-color-scheme: dark)',
-         ).matches;
-      }
-      applyTheme();
-   };
+   const darkClass = DARK_MODE_SELECTOR.replace('.', '');
 
    const applyTheme = () => {
-      if (isDark.value) {
-         document.documentElement.classList.add('app-dark');
-      } else {
-         document.documentElement.classList.remove('app-dark');
-      }
+      document.documentElement.classList.toggle(darkClass, isDark.value);
+   };
+
+   const initTheme = () => {
+      const saved = localStorage.getItem(STORAGE_KEYS.THEME);
+      isDark.value = saved ? saved === 'dark' : window.matchMedia('(prefers-color-scheme: dark)').matches;
+      applyTheme();
    };
 
    const toggleTheme = () => {
       isDark.value = !isDark.value;
-      localStorage.setItem('theme', isDark.value ? 'dark' : 'light');
+      localStorage.setItem(STORAGE_KEYS.THEME, isDark.value ? 'dark' : 'light');
       applyTheme();
    };
 
-   watch(isDark, () => {
-      applyTheme();
-   });
+   watch(isDark, applyTheme);
 
-   return {
-      isDark,
-      initTheme,
-      toggleTheme,
-   };
+   return { isDark, initTheme, toggleTheme };
 });
