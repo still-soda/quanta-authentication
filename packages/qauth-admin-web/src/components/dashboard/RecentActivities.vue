@@ -71,9 +71,11 @@ const getStatusSeverity = (status: string) => {
 </script>
 
 <template>
-   <Card class="activities-card">
+   <Card
+      class="rounded-2xl border border-surface-100 dark:border-surface-800">
       <template #title>
-         <div class="card-header">
+         <div
+            class="flex items-center justify-between text-base font-semibold text-surface-900 dark:text-surface-100">
             <span>最近活动</span>
             <Button label="查看全部" text size="small" />
          </div>
@@ -82,31 +84,40 @@ const getStatusSeverity = (status: string) => {
          <DataTable
             :value="recentActivities"
             :rows="5"
-            class="activities-table"
+            class="text-sm"
             :pt="{
                table: { style: 'min-width: 40rem' },
             }">
             <Column field="user" header="用户">
                <template #body="{ data }">
-                  <div class="user-cell">
+                  <div class="flex items-center gap-3">
                      <Avatar :image="data.avatar" shape="circle" size="small" />
-                     <span class="user-email">{{ data.user }}</span>
+                     <span
+                        class="text-surface-700 dark:text-surface-200 font-medium">
+                        {{ data.user }}
+                     </span>
                   </div>
                </template>
             </Column>
             <Column field="action" header="操作">
                <template #body="{ data }">
-                  <span class="action-text">{{ data.action }}</span>
+                  <span class="text-surface-600 dark:text-surface-400">
+                     {{ data.action }}
+                  </span>
                </template>
             </Column>
             <Column field="client" header="来源">
                <template #body="{ data }">
-                  <span class="client-text">{{ data.client }}</span>
+                  <span class="text-surface-500 text-[0.8125rem]">
+                     {{ data.client }}
+                  </span>
                </template>
             </Column>
             <Column field="time" header="时间">
                <template #body="{ data }">
-                  <span class="time-text">{{ data.time }}</span>
+                  <span class="text-surface-400 text-[0.8125rem]">
+                     {{ data.time }}
+                  </span>
                </template>
             </Column>
             <Column field="status" header="状态">
@@ -120,64 +131,3 @@ const getStatusSeverity = (status: string) => {
       </template>
    </Card>
 </template>
-
-<style scoped>
-.activities-card {
-   border-radius: 16px;
-   border: 1px solid var(--p-surface-100);
-}
-
-:global(.app-dark) .activities-card {
-   border-color: var(--p-surface-800);
-}
-
-.card-header {
-   display: flex;
-   align-items: center;
-   justify-content: space-between;
-   font-size: 1rem;
-   font-weight: 600;
-   color: var(--p-surface-900);
-}
-
-:global(.app-dark) .card-header {
-   color: var(--p-surface-100);
-}
-
-.activities-table {
-   font-size: 0.875rem;
-}
-
-.user-cell {
-   display: flex;
-   align-items: center;
-   gap: 0.75rem;
-}
-
-.user-email {
-   color: var(--p-surface-700);
-   font-weight: 500;
-}
-
-:global(.app-dark) .user-email {
-   color: var(--p-surface-200);
-}
-
-.action-text {
-   color: var(--p-surface-600);
-}
-
-:global(.app-dark) .action-text {
-   color: var(--p-surface-400);
-}
-
-.client-text {
-   color: var(--p-surface-500);
-   font-size: 0.8125rem;
-}
-
-.time-text {
-   color: var(--p-surface-400);
-   font-size: 0.8125rem;
-}
-</style>

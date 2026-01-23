@@ -28,39 +28,16 @@ const getRoleSeverity = (role: string) => {
 </script>
 
 <template>
-   <div class="user-cell">
+   <div class="flex items-center gap-3.5">
       <Avatar :image="user.avatar" shape="circle" size="normal" />
-      <div class="user-info">
-         <span class="user-name">{{ user.name }}</span>
-         <span class="user-email">{{ user.email }}</span>
+      <div class="flex flex-col gap-0.5">
+         <span
+            class="font-semibold text-surface-900 dark:text-surface-100">
+            {{ user.name }}
+         </span>
+         <span class="text-[0.8125rem] text-surface-500">
+            {{ user.email }}
+         </span>
       </div>
    </div>
 </template>
-
-<style scoped>
-.user-cell {
-   display: flex;
-   align-items: center;
-   gap: 0.875rem;
-}
-
-.user-info {
-   display: flex;
-   flex-direction: column;
-   gap: 0.125rem;
-}
-
-.user-name {
-   font-weight: 600;
-   color: var(--p-surface-900);
-}
-
-:global(.app-dark) .user-name {
-   color: var(--p-surface-100);
-}
-
-.user-email {
-   font-size: 0.8125rem;
-   color: var(--p-surface-500);
-}
-</style>

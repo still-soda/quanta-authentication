@@ -61,17 +61,20 @@ const copyToClipboard = (text: string) => {
 </script>
 
 <template>
-   <Card class="app-card">
+   <Card
+      class="rounded-2xl border border-surface-100 dark:border-surface-800 transition-all duration-300 ease hover:-translate-y-0.5 hover:shadow-[0_12px_24px_-8px_rgba(0,0,0,0.08)] dark:hover:shadow-[0_12px_24px_-8px_rgba(0,0,0,0.3)]">
       <template #content>
-         <div class="app-header">
-            <div class="app-icon" :style="{ background: app.iconBg }">
+         <div class="flex justify-between items-start mb-4">
+            <div
+               class="w-12 h-12 flex items-center justify-center rounded-xl text-white text-xl shadow-[0_4px_12px_rgba(0,0,0,0.15)]"
+               :style="{ background: app.iconBg }">
                <i :class="app.icon"></i>
             </div>
-            <div class="app-badges">
+            <div class="flex gap-2">
                <Tag
                   v-if="app.trusted"
                   severity="info"
-                  class="trusted-badge"
+                  class="flex items-center gap-1"
                   rounded>
                   <i class="pi pi-verified"></i>
                   可信
@@ -82,14 +85,26 @@ const copyToClipboard = (text: string) => {
             </div>
          </div>
 
-         <div class="app-body">
-            <h3 class="app-name">{{ app.name }}</h3>
-            <p class="app-description">{{ app.description }}</p>
+         <div class="flex flex-col gap-4">
+            <h3
+               class="text-lg font-semibold text-surface-900 dark:text-surface-100 m-0">
+               {{ app.name }}
+            </h3>
+            <p class="text-sm text-surface-500 m-0 leading-relaxed">
+               {{ app.description }}
+            </p>
 
-            <div class="app-client-id">
-               <label>Client ID</label>
-               <div class="client-id-value">
-                  <code>{{ app.clientId }}</code>
+            <div class="flex flex-col gap-1.5">
+               <label
+                  class="text-xs font-medium text-surface-500 uppercase tracking-wider">
+                  Client ID
+               </label>
+               <div
+                  class="flex items-center gap-2 py-2 px-3 bg-surface-50 dark:bg-surface-800 rounded-lg">
+                  <code
+                     class="flex-1 text-[0.8125rem] font-mono text-surface-700 dark:text-surface-300">
+                     {{ app.clientId }}
+                  </code>
                   <Button
                      icon="pi pi-copy"
                      text
@@ -101,29 +116,36 @@ const copyToClipboard = (text: string) => {
                </div>
             </div>
 
-            <div class="app-scopes">
-               <label>授权范围</label>
-               <div class="scope-tags">
+            <div class="flex flex-col gap-2">
+               <label
+                  class="text-xs font-medium text-surface-500 uppercase tracking-wider">
+                  授权范围
+               </label>
+               <div class="flex flex-wrap gap-1.5">
                   <Chip
                      v-for="scope in app.scopes"
                      :key="scope"
-                     :label="scope" />
+                     :label="scope"
+                     class="text-xs py-1 px-2" />
                </div>
             </div>
 
-            <div class="app-stats">
-               <div class="stat-item">
-                  <i class="pi pi-chart-line"></i>
+            <div class="flex gap-5">
+               <div
+                  class="flex items-center gap-2 text-[0.8125rem] text-surface-500">
+                  <i class="pi pi-chart-line text-sm"></i>
                   <span>{{ formatNumber(app.requestCount) }} 请求</span>
                </div>
-               <div class="stat-item">
-                  <i class="pi pi-clock"></i>
+               <div
+                  class="flex items-center gap-2 text-[0.8125rem] text-surface-500">
+                  <i class="pi pi-clock text-sm"></i>
                   <span>{{ app.lastUsed }}</span>
                </div>
             </div>
          </div>
 
-         <div class="app-actions">
+         <div
+            class="flex gap-2 mt-4 pt-4 border-t border-surface-100 dark:border-surface-800">
             <Button
                icon="pi pi-eye"
                label="查看"
@@ -148,163 +170,3 @@ const copyToClipboard = (text: string) => {
       </template>
    </Card>
 </template>
-
-<style scoped>
-.app-card {
-   border-radius: 16px;
-   border: 1px solid var(--p-surface-100);
-   transition: all 0.3s ease;
-}
-
-.app-card:hover {
-   transform: translateY(-2px);
-   box-shadow: 0 12px 24px -8px rgba(0, 0, 0, 0.08);
-}
-
-:global(.app-dark) .app-card {
-   border-color: var(--p-surface-800);
-}
-
-:global(.app-dark) .app-card:hover {
-   box-shadow: 0 12px 24px -8px rgba(0, 0, 0, 0.3);
-}
-
-.app-header {
-   display: flex;
-   justify-content: space-between;
-   align-items: flex-start;
-   margin-bottom: 1rem;
-}
-
-.app-icon {
-   width: 3rem;
-   height: 3rem;
-   display: flex;
-   align-items: center;
-   justify-content: center;
-   border-radius: 12px;
-   color: white;
-   font-size: 1.25rem;
-   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-}
-
-.app-badges {
-   display: flex;
-   gap: 0.5rem;
-}
-
-.trusted-badge {
-   display: flex;
-   align-items: center;
-   gap: 0.25rem;
-}
-
-.app-body {
-   display: flex;
-   flex-direction: column;
-   gap: 1rem;
-}
-
-.app-name {
-   font-size: 1.125rem;
-   font-weight: 600;
-   color: var(--p-surface-900);
-   margin: 0;
-}
-
-:global(.app-dark) .app-name {
-   color: var(--p-surface-100);
-}
-
-.app-description {
-   font-size: 0.875rem;
-   color: var(--p-surface-500);
-   margin: 0;
-   line-height: 1.5;
-}
-
-.app-client-id {
-   display: flex;
-   flex-direction: column;
-   gap: 0.375rem;
-}
-
-.app-client-id label,
-.app-scopes label {
-   font-size: 0.75rem;
-   font-weight: 500;
-   color: var(--p-surface-500);
-   text-transform: uppercase;
-   letter-spacing: 0.05em;
-}
-
-.client-id-value {
-   display: flex;
-   align-items: center;
-   gap: 0.5rem;
-   padding: 0.5rem 0.75rem;
-   background: var(--p-surface-50);
-   border-radius: 8px;
-}
-
-:global(.app-dark) .client-id-value {
-   background: var(--p-surface-800);
-}
-
-.client-id-value code {
-   flex: 1;
-   font-size: 0.8125rem;
-   font-family: monospace;
-   color: var(--p-surface-700);
-}
-
-:global(.app-dark) .client-id-value code {
-   color: var(--p-surface-300);
-}
-
-.app-scopes {
-   display: flex;
-   flex-direction: column;
-   gap: 0.5rem;
-}
-
-.scope-tags {
-   display: flex;
-   flex-wrap: wrap;
-   gap: 0.375rem;
-}
-
-.scope-tags :deep(.p-chip) {
-   font-size: 0.75rem;
-   padding: 0.25rem 0.5rem;
-}
-
-.app-stats {
-   display: flex;
-   gap: 1.25rem;
-}
-
-.stat-item {
-   display: flex;
-   align-items: center;
-   gap: 0.5rem;
-   font-size: 0.8125rem;
-   color: var(--p-surface-500);
-}
-
-.stat-item i {
-   font-size: 0.875rem;
-}
-
-.app-actions {
-   display: flex;
-   gap: 0.5rem;
-   margin-top: 1rem;
-   padding-top: 1rem;
-   border-top: 1px solid var(--p-surface-100);
-}
-
-:global(.app-dark) .app-actions {
-   border-top-color: var(--p-surface-800);
-}
-</style>

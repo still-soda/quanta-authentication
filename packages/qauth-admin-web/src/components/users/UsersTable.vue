@@ -99,20 +99,21 @@ const onSelectionChange = (selection: User[]) => {
 </script>
 
 <template>
-   <Card class="users-card">
+   <Card
+      class="rounded-2xl border border-surface-100 dark:border-surface-800">
       <template #content>
          <!-- Toolbar -->
-         <div class="table-toolbar">
-            <div class="toolbar-left">
-               <div class="search-box">
-                  <i class="pi pi-search"></i>
-                  <InputText
-                     v-model="filters['global'].value"
-                     placeholder="搜索用户..."
-                     class="search-input" />
-               </div>
+         <div
+            class="flex justify-between items-center mb-4 flex-wrap gap-4">
+            <div class="relative flex items-center">
+               <i
+                  class="pi pi-search absolute left-3.5 text-surface-400 text-sm"></i>
+               <InputText
+                  v-model="filters['global'].value"
+                  placeholder="搜索用户..."
+                  class="pl-10 min-w-72 h-10 rounded-[10px] max-md:min-w-full" />
             </div>
-            <div class="toolbar-right">
+            <div>
                <Button
                   v-if="selectedUsers.length > 0"
                   :label="`已选择 ${selectedUsers.length} 项`"
@@ -134,7 +135,7 @@ const onSelectionChange = (selection: User[]) => {
             dataKey="id"
             filterDisplay="row"
             :globalFilterFields="['name', 'email', 'role']"
-            class="users-table"
+            class="text-sm"
             stripedRows>
             <Column selectionMode="multiple" headerStyle="width: 3rem"></Column>
 
@@ -144,14 +145,19 @@ const onSelectionChange = (selection: User[]) => {
                sortable
                style="min-width: 14rem">
                <template #body="{ data }">
-                  <div class="user-cell">
+                  <div class="flex items-center gap-3.5">
                      <Avatar
                         :image="data.avatar"
                         shape="circle"
                         size="normal" />
-                     <div class="user-info">
-                        <span class="user-name">{{ data.name }}</span>
-                        <span class="user-email">{{ data.email }}</span>
+                     <div class="flex flex-col gap-0.5">
+                        <span
+                           class="font-semibold text-surface-900 dark:text-surface-100">
+                           {{ data.name }}
+                        </span>
+                        <span class="text-[0.8125rem] text-surface-500">
+                           {{ data.email }}
+                        </span>
                      </div>
                   </div>
                </template>
@@ -183,7 +189,9 @@ const onSelectionChange = (selection: User[]) => {
                sortable
                style="min-width: 10rem">
                <template #body="{ data }">
-                  <span class="text-muted">{{ data.lastLogin }}</span>
+                  <span class="text-surface-500 text-[0.8125rem]">
+                     {{ data.lastLogin }}
+                  </span>
                </template>
             </Column>
 
@@ -193,7 +201,9 @@ const onSelectionChange = (selection: User[]) => {
                sortable
                style="min-width: 8rem">
                <template #body="{ data }">
-                  <span class="text-muted">{{ data.createdAt }}</span>
+                  <span class="text-surface-500 text-[0.8125rem]">
+                     {{ data.createdAt }}
+                  </span>
                </template>
             </Column>
 
@@ -209,8 +219,9 @@ const onSelectionChange = (selection: User[]) => {
             </Column>
 
             <template #empty>
-               <div class="empty-state">
-                  <i class="pi pi-users"></i>
+               <div
+                  class="flex flex-col items-center justify-center p-12 text-surface-400">
+                  <i class="pi pi-users text-5xl mb-4"></i>
                   <p>暂无用户数据</p>
                </div>
             </template>
@@ -221,98 +232,3 @@ const onSelectionChange = (selection: User[]) => {
    <!-- Action Menu -->
    <Menu ref="actionMenu" :model="actionMenuItems" popup />
 </template>
-
-<style scoped>
-.users-card {
-   border-radius: 16px;
-   border: 1px solid var(--p-surface-100);
-}
-
-:global(.app-dark) .users-card {
-   border-color: var(--p-surface-800);
-}
-
-.table-toolbar {
-   display: flex;
-   justify-content: space-between;
-   align-items: center;
-   margin-bottom: 1rem;
-   flex-wrap: wrap;
-   gap: 1rem;
-}
-
-.search-box {
-   position: relative;
-   display: flex;
-   align-items: center;
-}
-
-.search-box i {
-   position: absolute;
-   left: 0.875rem;
-   color: var(--p-surface-400);
-   font-size: 0.875rem;
-}
-
-.search-input {
-   padding-left: 2.5rem;
-   min-width: 18rem;
-   height: 2.5rem;
-   border-radius: 10px;
-}
-
-.users-table {
-   font-size: 0.875rem;
-}
-
-.user-cell {
-   display: flex;
-   align-items: center;
-   gap: 0.875rem;
-}
-
-.user-info {
-   display: flex;
-   flex-direction: column;
-   gap: 0.125rem;
-}
-
-.user-name {
-   font-weight: 600;
-   color: var(--p-surface-900);
-}
-
-:global(.app-dark) .user-name {
-   color: var(--p-surface-100);
-}
-
-.user-email {
-   font-size: 0.8125rem;
-   color: var(--p-surface-500);
-}
-
-.text-muted {
-   color: var(--p-surface-500);
-   font-size: 0.8125rem;
-}
-
-.empty-state {
-   display: flex;
-   flex-direction: column;
-   align-items: center;
-   justify-content: center;
-   padding: 3rem;
-   color: var(--p-surface-400);
-}
-
-.empty-state i {
-   font-size: 3rem;
-   margin-bottom: 1rem;
-}
-
-@media (max-width: 768px) {
-   .search-input {
-      min-width: 100%;
-   }
-}
-</style>

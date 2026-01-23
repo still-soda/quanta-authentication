@@ -163,7 +163,7 @@ const saveApp = (data: OAuthAppFormData) => {
 </script>
 
 <template>
-   <div class="oauth-page">
+   <div class="flex flex-col gap-6">
       <!-- Page Header -->
       <PageHeader title="OAuth 应用" subtitle="管理 OAuth 2.0 客户端应用和授权">
          <template #actions>
@@ -181,7 +181,8 @@ const saveApp = (data: OAuthAppFormData) => {
       <SearchBox v-model="searchQuery" />
 
       <!-- Apps Grid -->
-      <div class="apps-grid">
+      <div
+         class="grid grid-cols-1 md:grid-cols-[repeat(auto-fill,minmax(340px,1fr))] gap-5">
          <OAuthAppCard
             v-for="app in filteredApps"
             :key="app.id"
@@ -191,8 +192,10 @@ const saveApp = (data: OAuthAppFormData) => {
             @regenerateSecret="regenerateSecret" />
 
          <!-- Empty State -->
-         <div v-if="filteredApps.length === 0" class="empty-state">
-            <i class="pi pi-key"></i>
+         <div
+            v-if="filteredApps.length === 0"
+            class="col-span-full flex flex-col items-center justify-center p-16 text-surface-400">
+            <i class="pi pi-key text-5xl mb-4"></i>
             <p>未找到匹配的应用</p>
          </div>
       </div>
@@ -218,38 +221,3 @@ const saveApp = (data: OAuthAppFormData) => {
       <SecretDialog v-model:visible="secretDialog" :secret="newSecret" />
    </div>
 </template>
-
-<style scoped>
-.oauth-page {
-   display: flex;
-   flex-direction: column;
-   gap: 1.5rem;
-}
-
-.apps-grid {
-   display: grid;
-   grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
-   gap: 1.25rem;
-}
-
-.empty-state {
-   grid-column: 1 / -1;
-   display: flex;
-   flex-direction: column;
-   align-items: center;
-   justify-content: center;
-   padding: 4rem;
-   color: var(--p-surface-400);
-}
-
-.empty-state i {
-   font-size: 3rem;
-   margin-bottom: 1rem;
-}
-
-@media (max-width: 768px) {
-   .apps-grid {
-      grid-template-columns: 1fr;
-   }
-}
-</style>

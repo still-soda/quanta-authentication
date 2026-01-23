@@ -134,7 +134,7 @@ const trendPath = computed(() => {
 
 <template>
    <div
-      class="stat-card"
+      class="relative flex flex-col py-5 px-6 rounded-[20px] overflow-hidden transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] min-h-40 dark:hover:shadow-[0_20px_40px_-12px_rgba(0,0,0,0.5)]"
       :style="{
          '--card-bg': colors.bg,
          '--card-bg-dark': colors.bgDark,
@@ -144,144 +144,75 @@ const trendPath = computed(() => {
          '--badge-bg-dark': colors.badgeDark,
          '--line-color': colors.line,
          '--line-color-dark': colors.lineDark,
+         background: 'var(--card-bg)',
       }">
       <!-- Header: Icon + Title / Change Badge -->
-      <div class="stat-header">
-         <div class="stat-label">
-            <i :class="stat.icon" class="stat-icon"></i>
-            <span class="stat-title">{{ stat.title }}</span>
+      <div class="flex items-center justify-between mb-3">
+         <div class="flex items-center gap-2">
+            <i
+               :class="stat.icon"
+               class="text-base opacity-90"
+               :style="{ color: 'var(--card-text)' }"></i>
+            <span
+               class="text-[0.9375rem] font-semibold tracking-[0.01em]"
+               :style="{ color: 'var(--card-text)' }">
+               {{ stat.title }}
+            </span>
          </div>
-         <span class="stat-badge">
+         <span
+            class="inline-flex items-center py-1 px-2.5 rounded-lg text-xs font-bold"
+            :style="{
+               background: 'var(--badge-bg)',
+               color: 'var(--card-text)',
+            }">
             {{ stat.change }}
          </span>
       </div>
 
       <!-- Value -->
-      <div class="stat-value">{{ stat.value }}</div>
+      <div
+         class="font-mono text-4xl font-bold tracking-tight leading-none mb-auto"
+         :style="{ color: 'var(--card-text)' }">
+         {{ stat.value }}
+      </div>
 
       <!-- Mini Trend Chart -->
-      <div class="stat-trend">
-         <svg viewBox="0 0 120 36" preserveAspectRatio="none">
+      <div class="mt-3 h-9 w-full">
+         <svg
+            viewBox="0 0 120 36"
+            preserveAspectRatio="none"
+            class="w-full h-full overflow-visible">
             <path
                :d="trendPath"
                fill="none"
                stroke-width="2.5"
                stroke-linecap="round"
                stroke-linejoin="round"
-               class="trend-line" />
+               class="opacity-65 dark:opacity-75"
+               :style="{ stroke: 'var(--line-color)' }" />
          </svg>
       </div>
    </div>
 </template>
 
 <style scoped>
-.stat-card {
-   position: relative;
-   display: flex;
-   flex-direction: column;
-   padding: 1.25rem 1.5rem;
-   background: var(--card-bg);
-   border-radius: 20px;
-   overflow: hidden;
-   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-   min-height: 160px;
+/* Dark mode background override */
+:global(.app-dark) div[style*='--card-bg'] {
+   background: var(--card-bg-dark) !important;
 }
 
-:global(.app-dark) .stat-card {
-   background: var(--card-bg-dark);
+:global(.app-dark) div[style*='--card-bg'] i[style*='color'],
+:global(.app-dark) div[style*='--card-bg'] span[style*='color: var(--card-text)'],
+:global(.app-dark) div[style*='--card-bg'] > div[style*='color'] {
+   color: var(--card-text-dark) !important;
 }
 
-:global(.app-dark) .stat-card:hover {
-   box-shadow: 0 20px 40px -12px rgba(0, 0, 0, 0.5);
+:global(.app-dark) div[style*='--card-bg'] span[style*='background'] {
+   background: var(--badge-bg-dark) !important;
+   color: var(--card-text-dark) !important;
 }
 
-/* Header */
-.stat-header {
-   display: flex;
-   align-items: center;
-   justify-content: space-between;
-   margin-bottom: 0.75rem;
-}
-
-.stat-label {
-   display: flex;
-   align-items: center;
-   gap: 0.5rem;
-}
-
-.stat-icon {
-   font-size: 1rem;
-   color: var(--card-text);
-   opacity: 0.9;
-}
-
-:global(.app-dark) .stat-icon {
-   color: var(--card-text-dark);
-}
-
-.stat-title {
-   font-size: 0.9375rem;
-   font-weight: 600;
-   color: var(--card-text);
-   letter-spacing: 0.01em;
-}
-
-:global(.app-dark) .stat-title {
-   color: var(--card-text-dark);
-}
-
-/* Badge */
-.stat-badge {
-   display: inline-flex;
-   align-items: center;
-   padding: 0.3rem 0.625rem;
-   border-radius: 8px;
-   font-size: 0.75rem;
-   font-weight: 700;
-   background: var(--badge-bg);
-   color: var(--card-text);
-}
-
-:global(.app-dark) .stat-badge {
-   background: var(--badge-bg-dark);
-   color: var(--card-text-dark);
-}
-
-/* Value */
-.stat-value {
-   font-family: monospace;
-   font-size: 2.25rem;
-   font-weight: 700;
-   color: var(--card-text);
-   letter-spacing: -0.03em;
-   line-height: 1.1;
-   margin-bottom: auto;
-}
-
-:global(.app-dark) .stat-value {
-   color: var(--card-text-dark);
-}
-
-/* Mini Trend Chart */
-.stat-trend {
-   margin-top: 0.75rem;
-   height: 36px;
-   width: 100%;
-}
-
-.stat-trend svg {
-   width: 100%;
-   height: 100%;
-   overflow: visible;
-}
-
-.trend-line {
-   stroke: var(--line-color);
-   opacity: 0.65;
-}
-
-:global(.app-dark) .trend-line {
-   stroke: var(--line-color-dark);
-   opacity: 0.75;
+:global(.app-dark) div[style*='--card-bg'] path[style*='stroke'] {
+   stroke: var(--line-color-dark) !important;
 }
 </style>

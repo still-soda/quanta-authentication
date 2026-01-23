@@ -19,12 +19,15 @@ const mainStyle = computed(() => ({
 </script>
 
 <template>
-   <div class="app-layout">
+   <div
+      class="min-h-screen bg-surface-50 dark:bg-surface-950">
       <AppSidebar />
       <AppTopbar />
 
-      <main class="main-content" :style="mainStyle">
-         <div class="content-wrapper">
+      <main
+         class="pt-16 min-h-screen transition-[margin-left] duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] lg:ml-[var(--sidebar-margin)]"
+         :style="{ '--sidebar-margin': mainStyle.marginLeft }">
+         <div class="p-6 max-w-[1600px] mx-auto lg:p-6 max-lg:p-4">
             <router-view v-slot="{ Component }">
                <Transition name="page" mode="out-in">
                   <component :is="Component" />
@@ -38,28 +41,7 @@ const mainStyle = computed(() => ({
 </template>
 
 <style scoped>
-.app-layout {
-   min-height: 100vh;
-   background: var(--p-surface-50);
-}
-
-:global(.app-dark) .app-layout {
-   background: var(--p-surface-950);
-}
-
-.main-content {
-   padding-top: 4rem;
-   min-height: 100vh;
-   transition: margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.content-wrapper {
-   padding: 1.5rem;
-   max-width: 1600px;
-   margin: 0 auto;
-}
-
-/* Page transition */
+/* Page transition - must remain as CSS for Vue transitions */
 .page-enter-active,
 .page-leave-active {
    transition: all 0.2s ease;
@@ -75,14 +57,10 @@ const mainStyle = computed(() => ({
    transform: translateY(-10px);
 }
 
-/* Mobile */
+/* Mobile override */
 @media (max-width: 1024px) {
-   .main-content {
+   main {
       margin-left: 0 !important;
-   }
-
-   .content-wrapper {
-      padding: 1rem;
    }
 }
 </style>

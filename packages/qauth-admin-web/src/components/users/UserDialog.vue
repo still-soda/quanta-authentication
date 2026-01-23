@@ -64,11 +64,14 @@ defineExpose({ resetForm });
       v-model:visible="dialogVisible"
       :header="isEditing ? '编辑用户' : '新建用户'"
       modal
-      :style="{ width: '28rem' }"
-      class="user-dialog">
-      <div class="dialog-content">
-         <div class="form-field">
-            <label for="name">姓名</label>
+      :style="{ width: '28rem' }">
+      <div class="flex flex-col gap-5 py-2">
+         <div class="flex flex-col gap-2">
+            <label
+               for="name"
+               class="text-sm font-medium text-surface-700 dark:text-surface-300">
+               姓名
+            </label>
             <InputText
                id="name"
                v-model="userForm.name"
@@ -76,8 +79,12 @@ defineExpose({ resetForm });
                class="w-full" />
          </div>
 
-         <div class="form-field">
-            <label for="email">邮箱</label>
+         <div class="flex flex-col gap-2">
+            <label
+               for="email"
+               class="text-sm font-medium text-surface-700 dark:text-surface-300">
+               邮箱
+            </label>
             <InputText
                id="email"
                v-model="userForm.email"
@@ -85,8 +92,12 @@ defineExpose({ resetForm });
                class="w-full" />
          </div>
 
-         <div class="form-field">
-            <label for="role">角色</label>
+         <div class="flex flex-col gap-2">
+            <label
+               for="role"
+               class="text-sm font-medium text-surface-700 dark:text-surface-300">
+               角色
+            </label>
             <Select
                id="role"
                v-model="userForm.role"
@@ -97,19 +108,23 @@ defineExpose({ resetForm });
                class="w-full" />
          </div>
 
-         <div class="form-field switch-field">
-            <label for="status">账号状态</label>
-            <div class="switch-wrapper">
+         <div class="flex flex-row justify-between items-center gap-2">
+            <label
+               for="status"
+               class="text-sm font-medium text-surface-700 dark:text-surface-300">
+               账号状态
+            </label>
+            <div class="flex items-center gap-3">
                <InputSwitch id="status" v-model="userForm.status" />
-               <span class="switch-label">{{
-                  userForm.status ? '启用' : '禁用'
-               }}</span>
+               <span class="text-sm text-surface-600">
+                  {{ userForm.status ? '启用' : '禁用' }}
+               </span>
             </div>
          </div>
       </div>
 
       <template #footer>
-         <div class="dialog-footer">
+         <div class="flex justify-end gap-3">
             <Button
                label="取消"
                severity="secondary"
@@ -120,51 +135,3 @@ defineExpose({ resetForm });
       </template>
    </Dialog>
 </template>
-
-<style scoped>
-.dialog-content {
-   display: flex;
-   flex-direction: column;
-   gap: 1.25rem;
-   padding: 0.5rem 0;
-}
-
-.form-field {
-   display: flex;
-   flex-direction: column;
-   gap: 0.5rem;
-}
-
-.form-field label {
-   font-size: 0.875rem;
-   font-weight: 500;
-   color: var(--p-surface-700);
-}
-
-:global(.app-dark) .form-field label {
-   color: var(--p-surface-300);
-}
-
-.switch-field {
-   flex-direction: row;
-   justify-content: space-between;
-   align-items: center;
-}
-
-.switch-wrapper {
-   display: flex;
-   align-items: center;
-   gap: 0.75rem;
-}
-
-.switch-label {
-   font-size: 0.875rem;
-   color: var(--p-surface-600);
-}
-
-.dialog-footer {
-   display: flex;
-   justify-content: flex-end;
-   gap: 0.75rem;
-}
-</style>

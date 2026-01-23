@@ -19,136 +19,48 @@ const topApps = ref<TopApp[]>([
 </script>
 
 <template>
-   <Card class="top-apps-card">
+   <Card
+      class="rounded-2xl border border-surface-100 dark:border-surface-800">
       <template #title>
-         <div class="card-header">
+         <div
+            class="flex items-center justify-between text-base font-semibold text-surface-900 dark:text-surface-100">
             <span>热门应用</span>
             <Button label="管理" text size="small" icon="pi pi-cog" />
          </div>
       </template>
       <template #content>
-         <div class="apps-list">
-            <div v-for="app in topApps" :key="app.name" class="app-item">
-               <div class="app-info">
-                  <div class="app-icon">
+         <div class="flex flex-col gap-5">
+            <div
+               v-for="app in topApps"
+               :key="app.name"
+               class="flex flex-col gap-3">
+               <div class="flex items-center gap-3">
+                  <div
+                     class="w-10 h-10 flex items-center justify-center bg-primary-50 dark:bg-[rgba(251,146,60,0.15)] text-primary-600 dark:text-primary-400 rounded-[10px]">
                      <i class="pi pi-box"></i>
                   </div>
-                  <div class="app-details">
-                     <span class="app-name">{{ app.name }}</span>
-                     <span class="app-users">
+                  <div class="flex flex-col gap-0.5">
+                     <span
+                        class="font-semibold text-surface-900 dark:text-surface-100 text-sm">
+                        {{ app.name }}
+                     </span>
+                     <span class="text-xs text-surface-500">
                         {{ app.users.toLocaleString() }} 用户
                      </span>
                   </div>
                </div>
-               <div class="app-progress">
-                  <ProgressBar :value="app.percentage" :showValue="false" />
-                  <span class="app-percentage">{{ app.percentage }}%</span>
+               <div class="flex items-center gap-3">
+                  <ProgressBar
+                     :value="app.percentage"
+                     :showValue="false"
+                     class="flex-1 h-2 rounded-full [&_.p-progressbar-value]:rounded-full" />
+                  <span
+                     class="text-xs font-semibold text-surface-600 dark:text-surface-400 min-w-10 text-right">
+                     {{ app.percentage }}%
+                  </span>
                </div>
             </div>
          </div>
       </template>
    </Card>
 </template>
-
-<style scoped>
-.top-apps-card {
-   border-radius: 16px;
-   border: 1px solid var(--p-surface-100);
-}
-
-:global(.app-dark) .top-apps-card {
-   border-color: var(--p-surface-800);
-}
-
-.card-header {
-   display: flex;
-   align-items: center;
-   justify-content: space-between;
-   font-size: 1rem;
-   font-weight: 600;
-   color: var(--p-surface-900);
-}
-
-:global(.app-dark) .card-header {
-   color: var(--p-surface-100);
-}
-
-.apps-list {
-   display: flex;
-   flex-direction: column;
-   gap: 1.25rem;
-}
-
-.app-item {
-   display: flex;
-   flex-direction: column;
-   gap: 0.75rem;
-}
-
-.app-info {
-   display: flex;
-   align-items: center;
-   gap: 0.75rem;
-}
-
-.app-icon {
-   width: 2.5rem;
-   height: 2.5rem;
-   display: flex;
-   align-items: center;
-   justify-content: center;
-   background: var(--p-orange-50);
-   color: var(--p-orange-600);
-   border-radius: 10px;
-}
-
-:global(.app-dark) .app-icon {
-   background: rgba(251, 146, 60, 0.15);
-   color: var(--p-orange-400);
-}
-
-.app-details {
-   display: flex;
-   flex-direction: column;
-   gap: 0.125rem;
-}
-
-.app-name {
-   font-weight: 600;
-   color: var(--p-surface-900);
-   font-size: 0.875rem;
-}
-
-:global(.app-dark) .app-name {
-   color: var(--p-surface-100);
-}
-
-.app-users {
-   font-size: 0.75rem;
-   color: var(--p-surface-500);
-}
-
-.app-progress {
-   display: flex;
-   align-items: center;
-   gap: 0.75rem;
-}
-
-.app-progress :deep(.p-progressbar) {
-   flex: 1;
-   height: 0.5rem;
-   border-radius: 9999px;
-}
-
-.app-percentage {
-   font-size: 0.75rem;
-   font-weight: 600;
-   color: var(--p-surface-600);
-   min-width: 2.5rem;
-   text-align: right;
-}
-
-:global(.app-dark) .app-percentage {
-   color: var(--p-surface-400);
-}
-</style>

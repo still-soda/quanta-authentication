@@ -161,7 +161,7 @@ const savePermissions = (groups: PermissionGroup[]) => {
 </script>
 
 <template>
-   <div class="roles-page">
+   <div class="flex flex-col gap-6">
       <!-- Page Header -->
       <PageHeader title="角色权限" subtitle="管理系统角色和权限配置">
          <template #actions>
@@ -173,7 +173,8 @@ const savePermissions = (groups: PermissionGroup[]) => {
       </PageHeader>
 
       <!-- Roles Grid -->
-      <div class="roles-grid">
+      <div
+         class="grid grid-cols-1 md:grid-cols-[repeat(auto-fill,minmax(320px,1fr))] gap-5">
          <RoleCard
             v-for="role in roles"
             :key="role.id"
@@ -205,23 +206,3 @@ const savePermissions = (groups: PermissionGroup[]) => {
          @save="savePermissions" />
    </div>
 </template>
-
-<style scoped>
-.roles-page {
-   display: flex;
-   flex-direction: column;
-   gap: 1.5rem;
-}
-
-.roles-grid {
-   display: grid;
-   grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-   gap: 1.25rem;
-}
-
-@media (max-width: 768px) {
-   .roles-grid {
-      grid-template-columns: 1fr;
-   }
-}
-</style>

@@ -78,15 +78,17 @@ const sidebarWidth = computed(() =>
 </script>
 
 <template>
-   <header class="topbar" :style="{ '--sidebar-width': sidebarWidth }">
-      <div class="topbar-left">
+   <header
+      class="fixed top-0 right-0 h-16 flex items-center justify-between px-6 bg-white/80 dark:bg-[rgba(24,24,27,0.85)] backdrop-blur-xl border-b border-surface-100 dark:border-surface-800 z-[900] transition-[left] duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] max-lg:left-0!"
+      :style="{ left: sidebarWidth }">
+      <div class="flex items-center gap-3">
          <!-- 移动端菜单按钮 -->
          <Button
             icon="pi pi-bars"
             severity="secondary"
             text
             rounded
-            class="mobile-menu-btn"
+            class="hidden! max-lg:flex!"
             @click="sidebarStore.toggleMobile" />
 
          <!-- 折叠按钮 -->
@@ -99,490 +101,147 @@ const sidebarWidth = computed(() =>
             severity="secondary"
             text
             rounded
-            class="collapse-btn"
+            class="text-surface-500 max-lg:hidden!"
             @click="sidebarStore.toggleCollapsed"
             v-tooltip.bottom="
                sidebarStore.isCollapsed ? '展开菜单' : '折叠菜单'
             " />
 
          <!-- 面包屑 -->
-         <nav class="breadcrumb">
-            <span class="breadcrumb-item home">
+         <nav
+            class="flex items-center gap-2 text-sm text-surface-500 max-lg:hidden!">
+            <span class="flex items-center text-surface-400">
                <i class="pi pi-home"></i>
             </span>
-            <span class="breadcrumb-separator">/</span>
-            <span class="breadcrumb-item current">仪表盘</span>
+            <span class="text-surface-300">/</span>
+            <span
+               class="text-surface-900 dark:text-surface-100 font-medium">
+               仪表盘
+            </span>
          </nav>
       </div>
 
-      <div class="topbar-center">
+      <div class="flex-1 max-w-128 mx-6 max-lg:hidden!">
          <!-- 搜索框 -->
-         <div class="search-container">
-            <span class="search-icon">
+         <div class="relative flex items-center">
+            <span
+               class="absolute left-4 text-surface-400 text-sm pointer-events-none">
                <i class="pi pi-search"></i>
             </span>
             <InputText
                v-model="searchQuery"
                placeholder="搜索用户、应用、设置..."
-               class="search-input" />
-            <span class="search-shortcut">
-               <kbd>⌘</kbd>
-               <kbd>K</kbd>
+               class="w-full pl-11 pr-18 h-10 rounded-xl bg-surface-50 dark:bg-surface-800 border border-surface-200 dark:border-surface-700 text-sm transition-all duration-200 ease focus:bg-surface-0! dark:focus:bg-surface-900! focus:border-primary-300! dark:focus:border-primary-500! focus:shadow-[0_0_0_3px_rgba(249,115,22,0.1)]! dark:focus:shadow-[0_0_0_3px_rgba(251,146,60,0.15)]!" />
+            <span
+               class="absolute right-3 flex gap-1 pointer-events-none">
+               <kbd
+                  class="py-0.5 px-1.5 rounded bg-surface-100 dark:bg-surface-700 border border-surface-200 dark:border-surface-600 text-xs font-inherit text-surface-500 dark:text-surface-400">
+                  ⌘
+               </kbd>
+               <kbd
+                  class="py-0.5 px-1.5 rounded bg-surface-100 dark:bg-surface-700 border border-surface-200 dark:border-surface-600 text-xs font-inherit text-surface-500 dark:text-surface-400">
+                  K
+               </kbd>
             </span>
          </div>
       </div>
 
-      <div class="topbar-right">
+      <div class="flex items-center gap-3">
          <!-- 主题切换 -->
          <Button
             :icon="themeStore.isDark ? 'pi pi-sun' : 'pi pi-moon'"
             severity="secondary"
             text
             rounded
-            class="theme-toggle"
+            class="text-surface-600! dark:text-surface-400!"
             @click="themeStore.toggleTheme"
             v-tooltip.bottom="
                themeStore.isDark ? '切换到亮色模式' : '切换到暗色模式'
             " />
 
          <!-- 通知 -->
-         <div class="notification-wrapper">
+         <div class="relative">
             <Button
                icon="pi pi-bell"
                severity="secondary"
                text
                rounded
-               class="notification-btn"
+               class="text-surface-600! dark:text-surface-400!"
                @click="toggleNotifications"
                v-tooltip.bottom="'通知'" />
             <Badge
                v-if="unreadCount > 0"
                :value="unreadCount"
                severity="danger"
-               class="notification-badge" />
+               class="absolute! top-0! right-0! translate-x-1/4! -translate-y-1/4! min-w-4.5! h-4.5! text-[0.625rem]!" />
          </div>
 
          <!-- 用户头像 -->
-         <button class="user-avatar-btn" @click="toggleUserMenu">
+         <button
+            class="flex items-center gap-2.5 py-1.5 pr-3 pl-1.5 border-none rounded-full bg-surface-50 dark:bg-surface-800 cursor-pointer transition-all duration-200 ease hover:bg-surface-100 dark:hover:bg-surface-700"
+            @click="toggleUserMenu">
             <Avatar
                image="https://api.dicebear.com/7.x/avataaars/svg?seed=admin"
                shape="circle"
-               class="user-avatar" />
-            <span class="user-name">管理员</span>
-            <i class="pi pi-chevron-down"></i>
+               class="w-8! h-8! border-2! border-primary-200! dark:border-primary-700!" />
+            <span
+               class="text-sm font-medium text-surface-700 dark:text-surface-200 max-lg:hidden!">
+               管理员
+            </span>
+            <i class="pi pi-chevron-down text-xs text-surface-400"></i>
          </button>
 
-         <Menu ref="userMenu" :model="userMenuItems" popup class="user-menu" />
+         <Menu ref="userMenu" :model="userMenuItems" popup class="min-w-48" />
 
          <!-- 通知面板 -->
-         <Menu ref="notificationMenu" popup class="notification-panel">
+         <Menu
+            ref="notificationMenu"
+            popup
+            class="w-88! max-w-[calc(100vw-2rem)]!">
             <template #start>
-               <div class="notification-header">
-                  <span class="notification-title">通知</span>
+               <div
+                  class="flex items-center justify-between p-4 border-b border-surface-100 dark:border-surface-700">
+                  <span
+                     class="font-semibold text-surface-900 dark:text-surface-100">
+                     通知
+                  </span>
                   <Button label="全部已读" text size="small" />
                </div>
             </template>
             <template #end>
-               <div class="notification-list">
+               <div class="max-h-80 overflow-y-auto">
                   <div
                      v-for="notification in notifications"
                      :key="notification.id"
-                     class="notification-item"
-                     :class="{ unread: notification.unread }">
+                     class="flex gap-3 p-4 border-b border-surface-50 dark:border-surface-800 cursor-pointer transition-colors duration-200 ease hover:bg-surface-50 dark:hover:bg-surface-800"
+                     :class="{
+                        'bg-primary-50! dark:bg-[rgba(251,146,60,0.08)]!':
+                           notification.unread,
+                     }">
                      <div
-                        class="notification-dot"
-                        v-if="notification.unread"></div>
-                     <div class="notification-content">
-                        <span class="notification-item-title">{{
-                           notification.title
-                        }}</span>
-                        <span class="notification-message">{{
-                           notification.message
-                        }}</span>
-                        <span class="notification-time">{{
-                           notification.time
-                        }}</span>
+                        v-if="notification.unread"
+                        class="shrink-0 w-2 h-2 mt-1.5 rounded-full bg-primary-500"></div>
+                     <div class="flex flex-col gap-1">
+                        <span
+                           class="text-sm font-semibold text-surface-900 dark:text-surface-100">
+                           {{ notification.title }}
+                        </span>
+                        <span
+                           class="text-[0.8125rem] text-surface-600 dark:text-surface-400">
+                           {{ notification.message }}
+                        </span>
+                        <span class="text-xs text-surface-400">
+                           {{ notification.time }}
+                        </span>
                      </div>
                   </div>
                </div>
-               <div class="notification-footer">
-                  <Button label="查看全部通知" text class="view-all-btn" />
+               <div
+                  class="p-3 border-t border-surface-100 dark:border-surface-700">
+                  <Button label="查看全部通知" text class="w-full!" />
                </div>
             </template>
          </Menu>
       </div>
    </header>
 </template>
-
-<style scoped>
-.topbar {
-   position: fixed;
-   top: 0;
-   left: var(--sidebar-width);
-   right: 0;
-   height: 4rem;
-   display: flex;
-   align-items: center;
-   justify-content: space-between;
-   padding: 0 1.5rem;
-   background: rgba(255, 255, 255, 0.8);
-   backdrop-filter: blur(12px);
-   border-bottom: 1px solid var(--p-surface-100);
-   z-index: 900;
-   transition: left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-:global(.app-dark) .topbar {
-   background: rgba(24, 24, 27, 0.85);
-   border-bottom-color: var(--p-surface-800);
-}
-
-.topbar-left,
-.topbar-right {
-   display: flex;
-   align-items: center;
-   gap: 0.75rem;
-}
-
-.topbar-center {
-   flex: 1;
-   max-width: 32rem;
-   margin: 0 1.5rem;
-}
-
-/* Mobile menu button */
-.mobile-menu-btn {
-   display: none;
-}
-
-/* Collapse button */
-.collapse-btn {
-   color: var(--p-surface-500);
-}
-
-/* Breadcrumb */
-.breadcrumb {
-   display: flex;
-   align-items: center;
-   gap: 0.5rem;
-   font-size: 0.875rem;
-   color: var(--p-surface-500);
-}
-
-.breadcrumb-item {
-   display: flex;
-   align-items: center;
-}
-
-.breadcrumb-item.home {
-   color: var(--p-surface-400);
-}
-
-.breadcrumb-item.current {
-   color: var(--p-surface-900);
-   font-weight: 500;
-}
-
-:global(.app-dark) .breadcrumb-item.current {
-   color: var(--p-surface-100);
-}
-
-.breadcrumb-separator {
-   color: var(--p-surface-300);
-}
-
-/* Search */
-.search-container {
-   position: relative;
-   display: flex;
-   align-items: center;
-}
-
-.search-icon {
-   position: absolute;
-   left: 1rem;
-   color: var(--p-surface-400);
-   font-size: 0.875rem;
-   pointer-events: none;
-}
-
-.search-input {
-   width: 100%;
-   padding-left: 2.75rem;
-   padding-right: 4.5rem;
-   height: 2.5rem;
-   border-radius: 12px;
-   background: var(--p-surface-50);
-   border: 1px solid var(--p-surface-200);
-   font-size: 0.875rem;
-   transition: all 0.2s ease;
-}
-
-.search-input:focus {
-   background: var(--p-surface-0);
-   border-color: var(--p-orange-300);
-   box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.1);
-}
-
-:global(.app-dark) .search-input {
-   background: var(--p-surface-800);
-   border-color: var(--p-surface-700);
-}
-
-:global(.app-dark) .search-input:focus {
-   background: var(--p-surface-900);
-   border-color: var(--p-orange-500);
-   box-shadow: 0 0 0 3px rgba(251, 146, 60, 0.15);
-}
-
-.search-shortcut {
-   position: absolute;
-   right: 0.75rem;
-   display: flex;
-   gap: 0.25rem;
-   pointer-events: none;
-}
-
-.search-shortcut kbd {
-   padding: 0.125rem 0.375rem;
-   border-radius: 4px;
-   background: var(--p-surface-100);
-   border: 1px solid var(--p-surface-200);
-   font-size: 0.75rem;
-   font-family: inherit;
-   color: var(--p-surface-500);
-}
-
-:global(.app-dark) .search-shortcut kbd {
-   background: var(--p-surface-700);
-   border-color: var(--p-surface-600);
-   color: var(--p-surface-400);
-}
-
-/* Theme toggle */
-.theme-toggle {
-   color: var(--p-surface-600);
-}
-
-:global(.app-dark) .theme-toggle {
-   color: var(--p-surface-400);
-}
-
-/* Notifications */
-.notification-wrapper {
-   position: relative;
-}
-
-.notification-btn {
-   color: var(--p-surface-600);
-}
-
-:global(.app-dark) .notification-btn {
-   color: var(--p-surface-400);
-}
-
-.notification-badge {
-   position: absolute;
-   top: 0;
-   right: 0;
-   transform: translate(25%, -25%);
-   min-width: 1.125rem;
-   height: 1.125rem;
-   font-size: 0.625rem;
-}
-
-/* User avatar button */
-.user-avatar-btn {
-   display: flex;
-   align-items: center;
-   gap: 0.625rem;
-   padding: 0.375rem 0.75rem 0.375rem 0.375rem;
-   border: none;
-   border-radius: 9999px;
-   background: var(--p-surface-50);
-   cursor: pointer;
-   transition: all 0.2s ease;
-}
-
-.user-avatar-btn:hover {
-   background: var(--p-surface-100);
-}
-
-:global(.app-dark) .user-avatar-btn {
-   background: var(--p-surface-800);
-}
-
-:global(.app-dark) .user-avatar-btn:hover {
-   background: var(--p-surface-700);
-}
-
-.user-avatar {
-   width: 2rem;
-   height: 2rem;
-   border: 2px solid var(--p-orange-200);
-}
-
-:global(.app-dark) .user-avatar {
-   border-color: var(--p-orange-700);
-}
-
-.user-name {
-   font-size: 0.875rem;
-   font-weight: 500;
-   color: var(--p-surface-700);
-}
-
-:global(.app-dark) .user-name {
-   color: var(--p-surface-200);
-}
-
-.user-avatar-btn i {
-   font-size: 0.75rem;
-   color: var(--p-surface-400);
-}
-
-/* Menu styles */
-:deep(.user-menu) {
-   min-width: 12rem;
-}
-
-/* Notification panel */
-:deep(.notification-panel) {
-   width: 22rem;
-   max-width: calc(100vw - 2rem);
-}
-
-.notification-header {
-   display: flex;
-   align-items: center;
-   justify-content: space-between;
-   padding: 1rem;
-   border-bottom: 1px solid var(--p-surface-100);
-}
-
-:global(.app-dark) .notification-header {
-   border-bottom-color: var(--p-surface-700);
-}
-
-.notification-title {
-   font-weight: 600;
-   color: var(--p-surface-900);
-}
-
-:global(.app-dark) .notification-title {
-   color: var(--p-surface-100);
-}
-
-.notification-list {
-   max-height: 20rem;
-   overflow-y: auto;
-}
-
-.notification-item {
-   display: flex;
-   gap: 0.75rem;
-   padding: 1rem;
-   border-bottom: 1px solid var(--p-surface-50);
-   cursor: pointer;
-   transition: background 0.2s ease;
-}
-
-.notification-item:hover {
-   background: var(--p-surface-50);
-}
-
-:global(.app-dark) .notification-item {
-   border-bottom-color: var(--p-surface-800);
-}
-
-:global(.app-dark) .notification-item:hover {
-   background: var(--p-surface-800);
-}
-
-.notification-item.unread {
-   background: var(--p-orange-50);
-}
-
-:global(.app-dark) .notification-item.unread {
-   background: rgba(251, 146, 60, 0.08);
-}
-
-.notification-dot {
-   flex-shrink: 0;
-   width: 0.5rem;
-   height: 0.5rem;
-   margin-top: 0.375rem;
-   border-radius: 9999px;
-   background: var(--p-orange-500);
-}
-
-.notification-content {
-   display: flex;
-   flex-direction: column;
-   gap: 0.25rem;
-}
-
-.notification-item-title {
-   font-size: 0.875rem;
-   font-weight: 600;
-   color: var(--p-surface-900);
-}
-
-:global(.app-dark) .notification-item-title {
-   color: var(--p-surface-100);
-}
-
-.notification-message {
-   font-size: 0.8125rem;
-   color: var(--p-surface-600);
-}
-
-:global(.app-dark) .notification-message {
-   color: var(--p-surface-400);
-}
-
-.notification-time {
-   font-size: 0.75rem;
-   color: var(--p-surface-400);
-}
-
-.notification-footer {
-   padding: 0.75rem;
-   border-top: 1px solid var(--p-surface-100);
-}
-
-:global(.app-dark) .notification-footer {
-   border-top-color: var(--p-surface-700);
-}
-
-.view-all-btn {
-   width: 100%;
-}
-
-/* Mobile */
-@media (max-width: 1024px) {
-   .topbar {
-      left: 0;
-   }
-
-   .mobile-menu-btn {
-      display: flex;
-   }
-
-   .collapse-btn {
-      display: none;
-   }
-
-   .topbar-center {
-      display: none;
-   }
-
-   .breadcrumb {
-      display: none;
-   }
-
-   .user-name {
-      display: none;
-   }
-}
-</style>

@@ -157,7 +157,7 @@ const handleDisable = (user: User) => {
 </script>
 
 <template>
-   <div class="users-page">
+   <div class="flex flex-col gap-6">
       <!-- Page Header -->
       <PageHeader title="用户管理" subtitle="管理系统用户账号和权限">
          <template #actions>
@@ -174,7 +174,7 @@ const handleDisable = (user: User) => {
       </PageHeader>
 
       <!-- Stats Cards -->
-      <div class="stats-grid">
+      <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
          <SimpleStatCard v-for="stat in stats" :key="stat.title" :stat="stat" />
       </div>
 
@@ -204,29 +204,3 @@ const handleDisable = (user: User) => {
          @save="saveUser" />
    </div>
 </template>
-
-<style scoped>
-.users-page {
-   display: flex;
-   flex-direction: column;
-   gap: 1.5rem;
-}
-
-.stats-grid {
-   display: grid;
-   grid-template-columns: repeat(4, 1fr);
-   gap: 1rem;
-}
-
-@media (max-width: 1280px) {
-   .stats-grid {
-      grid-template-columns: repeat(2, 1fr);
-   }
-}
-
-@media (max-width: 640px) {
-   .stats-grid {
-      grid-template-columns: 1fr;
-   }
-}
-</style>

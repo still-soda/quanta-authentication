@@ -6,66 +6,19 @@ defineProps<{
 </script>
 
 <template>
-   <div class="page-header">
-      <div class="header-content">
-         <h1 class="page-title">{{ title }}</h1>
-         <p v-if="subtitle" class="page-subtitle">{{ subtitle }}</p>
+   <div
+      class="flex justify-between items-start flex-wrap gap-4 max-sm:flex-col">
+      <div class="flex flex-col gap-1">
+         <h1
+            class="text-[1.75rem] font-bold text-surface-900 dark:text-surface-50 m-0 tracking-tight">
+            {{ title }}
+         </h1>
+         <p v-if="subtitle" class="text-[0.9375rem] text-surface-500 m-0">
+            {{ subtitle }}
+         </p>
       </div>
-      <div class="header-actions">
+      <div class="flex gap-3 max-sm:w-full max-sm:[&>*]:flex-1">
          <slot name="actions" />
       </div>
    </div>
 </template>
-
-<style scoped>
-.page-header {
-   display: flex;
-   justify-content: space-between;
-   align-items: flex-start;
-   flex-wrap: wrap;
-   gap: 1rem;
-}
-
-.header-content {
-   display: flex;
-   flex-direction: column;
-   gap: 0.25rem;
-}
-
-.page-title {
-   font-size: 1.75rem;
-   font-weight: 700;
-   color: var(--p-surface-900);
-   margin: 0;
-   letter-spacing: -0.02em;
-}
-
-:global(.app-dark) .page-title {
-   color: var(--p-surface-50);
-}
-
-.page-subtitle {
-   font-size: 0.9375rem;
-   color: var(--p-surface-500);
-   margin: 0;
-}
-
-.header-actions {
-   display: flex;
-   gap: 0.75rem;
-}
-
-@media (max-width: 640px) {
-   .page-header {
-      flex-direction: column;
-   }
-
-   .header-actions {
-      width: 100%;
-   }
-
-   .header-actions :deep(.p-button) {
-      flex: 1;
-   }
-}
-</style>

@@ -60,18 +60,18 @@ const savePermissions = () => {
       v-model:visible="dialogVisible"
       :header="`配置权限 - ${role?.name}`"
       modal
-      :style="{ width: '36rem' }"
-      class="permission-dialog">
-      <div class="permission-content">
+      :style="{ width: '36rem' }">
+      <div class="max-h-[60vh] overflow-y-auto">
          <Accordion multiple>
             <AccordionPanel
                v-for="group in permissionGroups"
                :key="group.name"
                :value="group.name">
                <AccordionHeader>
-                  <div class="permission-group-header">
-                     <div class="group-info">
-                        <i :class="group.icon"></i>
+                  <div
+                     class="flex justify-between items-center w-full pr-2">
+                     <div class="flex items-center gap-3">
+                        <i :class="group.icon" class="text-base text-primary-500"></i>
                         <span>{{ group.name }}</span>
                      </div>
                      <Checkbox
@@ -84,18 +84,23 @@ const savePermissions = () => {
                   </div>
                </AccordionHeader>
                <AccordionContent>
-                  <div class="permission-list">
+                  <div class="flex flex-col gap-3 py-2">
                      <div
                         v-for="perm in group.permissions"
                         :key="perm.id"
-                        class="permission-item">
+                        class="flex items-center gap-3">
                         <Checkbox
                            v-model="perm.checked"
                            :inputId="perm.id"
                            :binary="true" />
-                        <label :for="perm.id" class="permission-label">
+                        <label
+                           :for="perm.id"
+                           class="flex items-center gap-3 text-sm text-surface-700 dark:text-surface-300 cursor-pointer">
                            {{ perm.name }}
-                           <code class="permission-code">{{ perm.id }}</code>
+                           <code
+                              class="py-0.5 px-1.5 bg-surface-100 dark:bg-surface-800 rounded text-xs font-mono text-surface-500 dark:text-surface-400">
+                              {{ perm.id }}
+                           </code>
                         </label>
                      </div>
                   </div>
@@ -105,7 +110,7 @@ const savePermissions = () => {
       </div>
 
       <template #footer>
-         <div class="dialog-footer">
+         <div class="flex justify-end gap-3">
             <Button
                label="取消"
                severity="secondary"
@@ -116,75 +121,3 @@ const savePermissions = () => {
       </template>
    </Dialog>
 </template>
-
-<style scoped>
-.permission-content {
-   max-height: 60vh;
-   overflow-y: auto;
-}
-
-.permission-group-header {
-   display: flex;
-   justify-content: space-between;
-   align-items: center;
-   width: 100%;
-   padding-right: 0.5rem;
-}
-
-.group-info {
-   display: flex;
-   align-items: center;
-   gap: 0.75rem;
-}
-
-.group-info i {
-   font-size: 1rem;
-   color: var(--p-orange-500);
-}
-
-.permission-list {
-   display: flex;
-   flex-direction: column;
-   gap: 0.75rem;
-   padding: 0.5rem 0;
-}
-
-.permission-item {
-   display: flex;
-   align-items: center;
-   gap: 0.75rem;
-}
-
-.permission-label {
-   display: flex;
-   align-items: center;
-   gap: 0.75rem;
-   font-size: 0.875rem;
-   color: var(--p-surface-700);
-   cursor: pointer;
-}
-
-:global(.app-dark) .permission-label {
-   color: var(--p-surface-300);
-}
-
-.permission-code {
-   padding: 0.125rem 0.375rem;
-   background: var(--p-surface-100);
-   border-radius: 4px;
-   font-size: 0.75rem;
-   font-family: monospace;
-   color: var(--p-surface-500);
-}
-
-:global(.app-dark) .permission-code {
-   background: var(--p-surface-800);
-   color: var(--p-surface-400);
-}
-
-.dialog-footer {
-   display: flex;
-   justify-content: flex-end;
-   gap: 0.75rem;
-}
-</style>

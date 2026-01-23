@@ -54,9 +54,13 @@ defineExpose({ resetForm });
       :header="isEditing ? '编辑角色' : '新建角色'"
       modal
       :style="{ width: '28rem' }">
-      <div class="dialog-content">
-         <div class="form-field">
-            <label for="roleName">角色名称</label>
+      <div class="flex flex-col gap-5 py-2">
+         <div class="flex flex-col gap-2">
+            <label
+               for="roleName"
+               class="text-sm font-medium text-surface-700 dark:text-surface-300">
+               角色名称
+            </label>
             <InputText
                id="roleName"
                v-model="roleForm.name"
@@ -64,18 +68,28 @@ defineExpose({ resetForm });
                class="w-full" />
          </div>
 
-         <div class="form-field">
-            <label for="roleCode">角色标识</label>
+         <div class="flex flex-col gap-2">
+            <label
+               for="roleCode"
+               class="text-sm font-medium text-surface-700 dark:text-surface-300">
+               角色标识
+            </label>
             <InputText
                id="roleCode"
                v-model="roleForm.code"
                placeholder="例如：content_editor"
                class="w-full" />
-            <small class="field-hint">唯一标识符，仅支持小写字母和下划线</small>
+            <small class="text-xs text-surface-400">
+               唯一标识符，仅支持小写字母和下划线
+            </small>
          </div>
 
-         <div class="form-field">
-            <label for="roleDesc">描述</label>
+         <div class="flex flex-col gap-2">
+            <label
+               for="roleDesc"
+               class="text-sm font-medium text-surface-700 dark:text-surface-300">
+               描述
+            </label>
             <Textarea
                id="roleDesc"
                v-model="roleForm.description"
@@ -86,7 +100,7 @@ defineExpose({ resetForm });
       </div>
 
       <template #footer>
-         <div class="dialog-footer">
+         <div class="flex justify-end gap-3">
             <Button
                label="取消"
                severity="secondary"
@@ -97,39 +111,3 @@ defineExpose({ resetForm });
       </template>
    </Dialog>
 </template>
-
-<style scoped>
-.dialog-content {
-   display: flex;
-   flex-direction: column;
-   gap: 1.25rem;
-   padding: 0.5rem 0;
-}
-
-.form-field {
-   display: flex;
-   flex-direction: column;
-   gap: 0.5rem;
-}
-
-.form-field label {
-   font-size: 0.875rem;
-   font-weight: 500;
-   color: var(--p-surface-700);
-}
-
-:global(.app-dark) .form-field label {
-   color: var(--p-surface-300);
-}
-
-.field-hint {
-   font-size: 0.75rem;
-   color: var(--p-surface-400);
-}
-
-.dialog-footer {
-   display: flex;
-   justify-content: flex-end;
-   gap: 0.75rem;
-}
-</style>

@@ -80,9 +80,13 @@ defineExpose({ resetForm });
       :header="isEditing ? '编辑应用' : '新建应用'"
       modal
       :style="{ width: '32rem' }">
-      <div class="dialog-content">
-         <div class="form-field">
-            <label for="appName">应用名称</label>
+      <div class="flex flex-col gap-5 py-2">
+         <div class="flex flex-col gap-2">
+            <label
+               for="appName"
+               class="text-sm font-medium text-surface-700 dark:text-surface-300">
+               应用名称
+            </label>
             <InputText
                id="appName"
                v-model="appForm.name"
@@ -90,8 +94,12 @@ defineExpose({ resetForm });
                class="w-full" />
          </div>
 
-         <div class="form-field">
-            <label for="appDesc">应用描述</label>
+         <div class="flex flex-col gap-2">
+            <label
+               for="appDesc"
+               class="text-sm font-medium text-surface-700 dark:text-surface-300">
+               应用描述
+            </label>
             <Textarea
                id="appDesc"
                v-model="appForm.description"
@@ -100,45 +108,61 @@ defineExpose({ resetForm });
                class="w-full" />
          </div>
 
-         <div class="form-field">
-            <label for="redirectUris">重定向 URI</label>
+         <div class="flex flex-col gap-2">
+            <label
+               for="redirectUris"
+               class="text-sm font-medium text-surface-700 dark:text-surface-300">
+               重定向 URI
+            </label>
             <Textarea
                id="redirectUris"
                v-model="appForm.redirectUris"
                placeholder="每行一个 URI"
                rows="3"
                class="w-full" />
-            <small class="field-hint">授权完成后的回调地址</small>
+            <small class="text-xs text-surface-400">
+               授权完成后的回调地址
+            </small>
          </div>
 
-         <div class="form-field">
-            <label>授权范围</label>
-            <div class="scope-selector">
+         <div class="flex flex-col gap-2">
+            <label
+               class="text-sm font-medium text-surface-700 dark:text-surface-300">
+               授权范围
+            </label>
+            <div class="flex flex-wrap gap-2">
                <button
                   v-for="scope in availableScopes"
                   :key="scope.value"
                   type="button"
-                  class="scope-btn"
-                  :class="{ active: appForm.scopes.includes(scope.value) }"
+                  class="py-1.5 px-3 border border-surface-200 dark:border-surface-700 rounded-full bg-transparent text-surface-600 dark:text-surface-400 text-[0.8125rem] cursor-pointer transition-all duration-200 ease hover:border-primary-300 hover:text-primary-600 dark:hover:border-primary-400 dark:hover:text-primary-400"
+                  :class="{
+                     'bg-primary-500! border-primary-500! text-white!':
+                        appForm.scopes.includes(scope.value),
+                  }"
                   @click="toggleScope(scope.value)">
                   {{ scope.label }}
                </button>
             </div>
          </div>
 
-         <div class="form-field switch-field">
-            <label for="trusted">可信应用</label>
-            <div class="switch-wrapper">
+         <div class="flex flex-row justify-between items-center gap-2">
+            <label
+               for="trusted"
+               class="text-sm font-medium text-surface-700 dark:text-surface-300">
+               可信应用
+            </label>
+            <div class="flex items-center gap-3">
                <InputSwitch id="trusted" v-model="appForm.trusted" />
-               <span class="switch-label">{{
-                  appForm.trusted ? '跳过用户授权确认' : '需要用户确认授权'
-               }}</span>
+               <span class="text-[0.8125rem] text-surface-500">
+                  {{ appForm.trusted ? '跳过用户授权确认' : '需要用户确认授权' }}
+               </span>
             </div>
          </div>
       </div>
 
       <template #footer>
-         <div class="dialog-footer">
+         <div class="flex justify-end gap-3">
             <Button
                label="取消"
                severity="secondary"
@@ -149,94 +173,3 @@ defineExpose({ resetForm });
       </template>
    </Dialog>
 </template>
-
-<style scoped>
-.dialog-content {
-   display: flex;
-   flex-direction: column;
-   gap: 1.25rem;
-   padding: 0.5rem 0;
-}
-
-.form-field {
-   display: flex;
-   flex-direction: column;
-   gap: 0.5rem;
-}
-
-.form-field label {
-   font-size: 0.875rem;
-   font-weight: 500;
-   color: var(--p-surface-700);
-}
-
-:global(.app-dark) .form-field label {
-   color: var(--p-surface-300);
-}
-
-.field-hint {
-   font-size: 0.75rem;
-   color: var(--p-surface-400);
-}
-
-.scope-selector {
-   display: flex;
-   flex-wrap: wrap;
-   gap: 0.5rem;
-}
-
-.scope-btn {
-   padding: 0.375rem 0.75rem;
-   border: 1px solid var(--p-surface-200);
-   border-radius: 9999px;
-   background: transparent;
-   color: var(--p-surface-600);
-   font-size: 0.8125rem;
-   cursor: pointer;
-   transition: all 0.2s ease;
-}
-
-.scope-btn:hover {
-   border-color: var(--p-orange-300);
-   color: var(--p-orange-600);
-}
-
-.scope-btn.active {
-   background: var(--p-orange-500);
-   border-color: var(--p-orange-500);
-   color: white;
-}
-
-:global(.app-dark) .scope-btn {
-   border-color: var(--p-surface-700);
-   color: var(--p-surface-400);
-}
-
-:global(.app-dark) .scope-btn:hover {
-   border-color: var(--p-orange-400);
-   color: var(--p-orange-400);
-}
-
-.switch-field {
-   flex-direction: row;
-   justify-content: space-between;
-   align-items: center;
-}
-
-.switch-wrapper {
-   display: flex;
-   align-items: center;
-   gap: 0.75rem;
-}
-
-.switch-label {
-   font-size: 0.8125rem;
-   color: var(--p-surface-500);
-}
-
-.dialog-footer {
-   display: flex;
-   justify-content: flex-end;
-   gap: 0.75rem;
-}
-</style>

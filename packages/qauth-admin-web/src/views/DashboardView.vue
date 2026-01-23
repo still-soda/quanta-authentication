@@ -52,7 +52,7 @@ const statsCards = ref<StatCardData[]>([
 </script>
 
 <template>
-   <div class="dashboard">
+   <div class="flex flex-col gap-6">
       <!-- Page Header -->
       <PageHeader title="仪表盘" subtitle="欢迎回来，这是您的认证中心概览">
          <template #actions>
@@ -66,69 +66,21 @@ const statsCards = ref<StatCardData[]>([
       </PageHeader>
 
       <!-- Stats Cards -->
-      <div class="stats-grid">
+      <div
+         class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5">
          <StatsCard v-for="stat in statsCards" :key="stat.title" :stat="stat" />
       </div>
 
       <!-- Charts Row -->
-      <div class="charts-row">
-         <AuthTrendChart class="trend-chart" />
-         <UserDistChart class="distribution-chart" />
+      <div class="grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-5">
+         <AuthTrendChart />
+         <UserDistChart />
       </div>
 
       <!-- Bottom Row -->
-      <div class="bottom-row">
+      <div class="grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-5">
          <RecentActivities />
          <TopApps />
       </div>
    </div>
 </template>
-
-<style scoped>
-.dashboard {
-   display: flex;
-   flex-direction: column;
-   gap: 1.5rem;
-}
-
-/* Stats Grid */
-.stats-grid {
-   display: grid;
-   grid-template-columns: repeat(4, 1fr);
-   gap: 1.25rem;
-}
-
-/* Charts Row */
-.charts-row {
-   display: grid;
-   grid-template-columns: 2fr 1fr;
-   gap: 1.25rem;
-}
-
-/* Bottom Row */
-.bottom-row {
-   display: grid;
-   grid-template-columns: 2fr 1fr;
-   gap: 1.25rem;
-}
-
-/* Responsive */
-@media (max-width: 1280px) {
-   .stats-grid {
-      grid-template-columns: repeat(2, 1fr);
-   }
-}
-
-@media (max-width: 1024px) {
-   .charts-row,
-   .bottom-row {
-      grid-template-columns: 1fr;
-   }
-}
-
-@media (max-width: 640px) {
-   .stats-grid {
-      grid-template-columns: 1fr;
-   }
-}
-</style>

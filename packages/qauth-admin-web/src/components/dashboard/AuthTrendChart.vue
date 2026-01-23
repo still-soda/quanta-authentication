@@ -72,11 +72,13 @@ const authTrendData = computed(() => ({
 </script>
 
 <template>
-   <Card class="chart-card trend-chart">
+   <Card
+      class="rounded-2xl border border-surface-100 dark:border-surface-800 overflow-hidden">
       <template #title>
-         <div class="card-header">
+         <div
+            class="flex items-center justify-between text-base font-semibold text-surface-900 dark:text-surface-100">
             <span>认证趋势</span>
-            <div class="card-actions">
+            <div>
                <Button
                   icon="pi pi-ellipsis-h"
                   text
@@ -86,46 +88,13 @@ const authTrendData = computed(() => ({
          </div>
       </template>
       <template #content>
-         <div class="chart-container">
+         <div class="h-70">
             <Chart
                type="line"
                :data="authTrendData"
                :options="authTrendOptions"
-               class="auth-chart" />
+               class="h-full" />
          </div>
       </template>
    </Card>
 </template>
-
-<style scoped>
-.chart-card {
-   border-radius: 16px;
-   border: 1px solid var(--p-surface-100);
-   overflow: hidden;
-}
-
-:global(.app-dark) .chart-card {
-   border-color: var(--p-surface-800);
-}
-
-.card-header {
-   display: flex;
-   align-items: center;
-   justify-content: space-between;
-   font-size: 1rem;
-   font-weight: 600;
-   color: var(--p-surface-900);
-}
-
-:global(.app-dark) .card-header {
-   color: var(--p-surface-100);
-}
-
-.chart-container {
-   height: 280px;
-}
-
-.auth-chart {
-   height: 100%;
-}
-</style>
