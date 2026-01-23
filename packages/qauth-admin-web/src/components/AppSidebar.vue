@@ -2,12 +2,10 @@
 import { computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useSidebarStore } from '@/stores/sidebar';
-import { useThemeStore } from '@/stores/theme';
 
 const route = useRoute();
 const router = useRouter();
 const sidebarStore = useSidebarStore();
-const themeStore = useThemeStore();
 
 interface MenuItem {
    label: string;
@@ -78,7 +76,7 @@ const sidebarWidth = computed(() =>
 
 <template>
    <aside
-      class="fixed left-0 top-0 bottom-0 z-[1000] transition-[width] duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] max-lg:w-68! max-lg:-translate-x-full"
+      class="fixed left-0 top-0 bottom-0 z-1000 transition-[width] duration-300 ease-in-out max-lg:w-68! max-lg:-translate-x-full"
       :class="{
          'max-lg:translate-x-0': sidebarStore.isMobileOpen,
       }"

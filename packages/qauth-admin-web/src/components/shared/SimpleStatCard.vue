@@ -60,7 +60,7 @@ const themeColors = computed(() => {
 
 <template>
    <div
-      class="group flex items-center gap-4 py-5 px-6 bg-surface-0 dark:bg-surface-900 border border-surface-200 dark:border-surface-800 rounded-[14px] transition-all duration-250 ease-[cubic-bezier(0.4,0,0.2,1)] hover:-translate-y-0.5 hover:shadow-[0_8px_20px_-6px_rgba(0,0,0,0.08)] dark:hover:shadow-[0_8px_20px_-6px_rgba(0,0,0,0.35)]"
+      class="group flex items-center gap-4 py-5 px-6 bg-surface-0 dark:bg-surface-900 border border-surface-200 dark:border-surface-800 rounded-[14px] transition-all duration-250 ease-in-out hover:-translate-y-0.5 hover:shadow-[0_8px_20px_-6px_rgba(0,0,0,0.08)] dark:hover:shadow-[0_8px_20px_-6px_rgba(0,0,0,0.35)]"
       :style="{
          '--theme-color': themeColors.color,
          '--theme-bg': themeColors.bg,

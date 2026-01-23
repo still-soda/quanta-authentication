@@ -134,7 +134,7 @@ const trendPath = computed(() => {
 
 <template>
    <div
-      class="relative flex flex-col py-5 px-6 rounded-[20px] overflow-hidden transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] min-h-40 dark:hover:shadow-[0_20px_40px_-12px_rgba(0,0,0,0.5)]"
+      class="relative flex flex-col py-5 px-6 rounded-[20px] overflow-hidden transition-all duration-300 ease-in-out min-h-40 dark:hover:shadow-[0_20px_40px_-12px_rgba(0,0,0,0.5)]"
       :style="{
          '--card-bg': colors.bg,
          '--card-bg-dark': colors.bgDark,

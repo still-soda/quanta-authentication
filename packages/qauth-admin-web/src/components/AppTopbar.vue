@@ -79,7 +79,7 @@ const sidebarWidth = computed(() =>
 
 <template>
    <header
-      class="fixed top-0 right-0 h-16 flex items-center justify-between px-6 bg-white/80 dark:bg-[rgba(24,24,27,0.85)] backdrop-blur-xl border-b border-surface-100 dark:border-surface-800 z-[900] transition-[left] duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] max-lg:left-0!"
+      class="fixed top-0 right-0 h-16 flex items-center justify-between px-6 bg-white/80 dark:bg-[rgba(24,24,27,0.85)] backdrop-blur-xl border-b border-surface-100 dark:border-surface-800 z-900 transition-[left] duration-300 ease-in-out max-lg:left-0!"
       :style="{ left: sidebarWidth }">
       <div class="flex items-center gap-3">
          <!-- 移动端菜单按钮 -->
@@ -121,7 +121,7 @@ const sidebarWidth = computed(() =>
          </nav>
       </div>
 
-      <div class="flex-1 max-w-128 mx-6 max-lg:hidden!">
+      <div class="flex-1 max-w-lg mx-6 max-lg:hidden!">
          <!-- 搜索框 -->
          <div class="relative flex items-center">
             <span

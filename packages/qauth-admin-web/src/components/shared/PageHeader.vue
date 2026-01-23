@@ -17,7 +17,7 @@ defineProps<{
             {{ subtitle }}
          </p>
       </div>
-      <div class="flex gap-3 max-sm:w-full max-sm:[&>*]:flex-1">
+      <div class="flex gap-3 max-sm:w-full max-sm:*:flex-1">
          <slot name="actions" />
       </div>
    </div>

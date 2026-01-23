@@ -25,7 +25,7 @@ const mainStyle = computed(() => ({
       <AppTopbar />
 
       <main
-         class="pt-16 min-h-screen transition-[margin-left] duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] lg:ml-[var(--sidebar-margin)]"
+         class="pt-16 min-h-screen transition-[margin-left] duration-300 ease-in-out lg:ml-(--sidebar-margin)"
          :style="{ '--sidebar-margin': mainStyle.marginLeft }">
          <div class="p-6 max-w-[1600px] mx-auto lg:p-6 max-lg:p-4">
             <router-view v-slot="{ Component }">
