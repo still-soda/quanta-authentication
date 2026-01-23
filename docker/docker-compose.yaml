@@ -11,8 +11,8 @@ services:
     networks:
       - qauth-network
     environment:
-      - DATABASE_URL=postgresql://user:password@database:5432/qauth?sslmode=disable
-      - SECRET_KEY=your_secret_key_here
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-user}:${POSTGRES_PASSWORD:-password}@database:5432/${POSTGRES_DB:-qauth}?sslmode=disable
+      - SECRET_KEY=${SECRET_KEY:-your_secret_key_here}
     depends_on:
       database:
         condition: service_healthy
@@ -37,15 +37,15 @@ services:
       - qauth-network
     restart: unless-stopped
     environment:
-      - POSTGRES_USER=user
-      - POSTGRES_PASSWORD=password
-      - POSTGRES_DB=qauth
+      - POSTGRES_USER=${POSTGRES_USER:-user}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-password}
+      - POSTGRES_DB=${POSTGRES_DB:-qauth}
     ports:
       - "15432:5432"
     volumes:
       - db_data:/var/lib/postgresql/data
     healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U user -d qauth" ]
+      test: [ "CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-user} -d ${POSTGRES_DB:-qauth}" ]
       interval: 10s
       timeout: 5s
       retries: 5
