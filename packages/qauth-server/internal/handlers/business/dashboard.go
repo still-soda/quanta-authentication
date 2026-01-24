@@ -125,3 +125,100 @@ func (h *DashboardHandler) GetDashboardStats(c *gin.Context) {
 		"active_user_trend": activeTrendData,
 	})
 }
+
+// GetUserDistributionByRole 获取用户按角色的分布数据
+func (h *DashboardHandler) GetUserDistributionByRole(c *gin.Context) {
+	roleCountMap, err := h.userService.GetUserCountByRole()
+	if err != nil {
+		utilities.GetLogger().Error("failed to get user distribution by role", "error", err.Error())
+		response.HandlerError(c, app_error.ErrInternalServerError)
+		return
+	}
+
+	// 定义颜色映射
+	colorMap := map[string]string{
+		"系统超级管理员": "#f97316", // orange
+		"系统管理员":   "#3b82f6", // blue
+		"系统用户":    "#10b981", // green
+		"未分配角色":   "#9ca3af", // gray
+	}
+
+	defaultColors := []string{"#8b5cf6", "#06b6d4", "#ec4899", "#84cc16", "#f59e0b"}
+
+	labels := make([]string, 0)
+	data := make([]int64, 0)
+	colors := make([]string, 0)
+	colorIndex := 0
+
+	for roleName, count := range roleCountMap {
+		if count > 0 {
+			labels = append(labels, roleName)
+			data = append(data, count)
+
+			// 使用预定义颜色或默认颜色
+			if color, ok := colorMap[roleName]; ok {
+				colors = append(colors, color)
+			} else {
+				colors = append(colors, defaultColors[colorIndex%len(defaultColors)])
+				colorIndex++
+			}
+		}
+	}
+
+	// 如果没有数据，返回默认值
+	if len(labels) == 0 {
+		labels = []string{"暂无数据"}
+		data = []int64{1}
+		colors = []string{"#e5e7eb"}
+	}
+
+	response.HandlerSuccess(c, gin.H{
+		"labels": labels,
+		"data":   data,
+		"colors": colors,
+	})
+}
+
+// GetAuthTrend 获取最近认证用户数量趋势
+func (h *DashboardHandler) GetAuthTrend(c *gin.Context) {
+	rangeType := c.DefaultQuery("range", "weekly")
+
+	var days int
+	switch rangeType {
+	case "weekly":
+		days = 7
+	case "half-weekly":
+		days = 15
+	case "monthly":
+		days = 30
+	default:
+		utilities.GetLogger().Error("invalid range type for auth trend", "range", rangeType)
+		response.HandlerError(c, app_error.ErrBadRequest)
+		return
+	}
+
+	authCounter, err := h.counterService.GetRecentCounter(string(config.CounterAuthUser), days-1, &services.ZERO)
+	if err != nil {
+		utilities.GetLogger().Error("failed to get auth user trend", "error", err.Error())
+		response.HandlerError(c, app_error.ErrInternalServerError)
+		return
+	}
+
+	authCountToday, err := h.cacheService.GetKeyValueAsInt64("todays-authcount")
+	if err != nil {
+		utilities.GetLogger().Error("failed to get today's auth user count", "error", err.Error())
+		response.HandlerError(c, app_error.ErrInternalServerError)
+		return
+	}
+
+	// 组装响应数据
+	authTrend := make([]int64, 0)
+	for _, cnt := range authCounter {
+		authTrend = append(authTrend, cnt.Count)
+	}
+	authTrend = append(authTrend, authCountToday)
+
+	response.HandlerSuccess(c, gin.H{
+		"auth_trend": authTrend,
+	})
+}

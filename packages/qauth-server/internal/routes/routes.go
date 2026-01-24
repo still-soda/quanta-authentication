@@ -9,12 +9,13 @@ import (
 )
 
 type RegisterRouterHandlers struct {
-	HealthHandler *_handlers.HealthHandler
-	FileHandler   *_handlers.FileHandler
-	AuthHandler   *_handlers.AuthHandler
-	OAuthHandler  *_handlers.OAuthHandler
-	OIDCHandler   *_handlers.OIDCHandler
-	RoleHandler   *_handlers.RoleHandler
+	HealthHandler     *_handlers.HealthHandler
+	FileHandler       *_handlers.FileHandler
+	AuthHandler       *_handlers.AuthHandler
+	OAuthHandler      *_handlers.OAuthHandler
+	OIDCHandler       *_handlers.OIDCHandler
+	RoleHandler       *_handlers.RoleHandler
+	PermissionHandler *_handlers.PermissionHandler
 
 	DashboardHandler *business.DashboardHandler
 	AuditHandler     *business.AuditHandler
@@ -28,6 +29,7 @@ func RegisterRoutes(r *gin.Engine, handlers *RegisterRouterHandlers) {
 	oauthHandler := handlers.OAuthHandler
 	oidcHandler := handlers.OIDCHandler
 	roleHandler := handlers.RoleHandler
+	permissionHandler := handlers.PermissionHandler
 
 	r.Use(
 		middleware.Logger(),
@@ -108,15 +110,24 @@ func RegisterRoutes(r *gin.Engine, handlers *RegisterRouterHandlers) {
 			roleGroup := authRequiredGroup.Group("/roles")
 			{
 				roleGroup.GET("", roleHandler.GetRoles)
+				roleGroup.POST("", roleHandler.CreateRole)
 				roleGroup.GET("/:id", roleHandler.GetRole)
 				roleGroup.PUT("/:id", roleHandler.UpdateRole)
 				roleGroup.DELETE("/:id", roleHandler.DeleteRole)
+				roleGroup.GET("/:id/permissions", permissionHandler.GetRolePermissions)
+				roleGroup.PUT("/:id/permissions", permissionHandler.SetRolePermissions)
 			}
 
 			// 权限管理
 			// /system/v1/permissions
 			permissionGroup := authRequiredGroup.Group("/permissions")
 			{
+				permissionGroup.GET("", permissionHandler.GetPermissions)
+				permissionGroup.GET("/grouped", permissionHandler.GetPermissionsGrouped)
+				permissionGroup.POST("", permissionHandler.CreatePermission)
+				permissionGroup.GET("/:id", permissionHandler.GetPermission)
+				permissionGroup.PUT("/:id", permissionHandler.UpdatePermission)
+				permissionGroup.DELETE("/:id", permissionHandler.DeletePermission)
 				permissionGroup.POST("/grant-to-role", roleHandler.GrantPermissionsToRole)
 				permissionGroup.POST("/revoke-from-role", roleHandler.RevokePermissionsFromRole)
 			}
@@ -133,6 +144,8 @@ func RegisterRoutes(r *gin.Engine, handlers *RegisterRouterHandlers) {
 			dashboardGroup := authRequiredGroup.Group("/dashboard")
 			{
 				dashboardGroup.GET("/stats", handlers.DashboardHandler.GetDashboardStats)
+				dashboardGroup.GET("/user-distribution", handlers.DashboardHandler.GetUserDistributionByRole)
+				dashboardGroup.GET("/auth-trend", handlers.DashboardHandler.GetAuthTrend)
 			}
 
 			// 审计日志路由
@@ -148,5 +161,4 @@ func RegisterRoutes(r *gin.Engine, handlers *RegisterRouterHandlers) {
 			}
 		}
 	}
-
 }

@@ -45,3 +45,15 @@ const (
 	// 导出审计日志权限
 	AuditExport = "audit_export"
 )
+
+// 权限管理相关权限
+const (
+	// 创建权限
+	PermissionCreate = "permission_create"
+	// 删除权限
+	PermissionDelete = "permission_delete"
+	// 查看权限
+	PermissionView = "permission_view"
+	// 更新权限
+	PermissionUpdate = "permission_update"
+)

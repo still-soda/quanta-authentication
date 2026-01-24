@@ -5,6 +5,7 @@ import (
 	"qauth-server/internal/models"
 	"qauth-server/internal/permissions"
 	"qauth-server/internal/services"
+	"qauth-server/internal/utilities"
 	"qauth-server/pkg/response"
 	"time"
 
@@ -42,13 +43,15 @@ func (h *RoleHandler) getRoleExistByID(roleID string) (bool, error) {
 func (h *RoleHandler) GetRoles(c *gin.Context) {
 	// 验证是否有查看角色权限
 	if err := services.VerifyPermissions(c, h.roleService, []string{permissions.RoleView}); err != nil {
+		utilities.GetLogger().Error("permission denied when getting roles", "error", err.Error())
 		response.HandlerError(c, err)
 		return
 	}
 
-	// 获取所有角色
-	roles, err := h.roleService.GetAllRoles()
+	// 获取所有角色（带统计信息）
+	roles, err := h.roleService.GetAllRolesWithStats()
 	if err != nil {
+		utilities.GetLogger().Error("failed to get roles", "error", err.Error())
 		response.HandlerError(c, app_error.ErrFailedToGetRoles)
 		return
 	}
@@ -66,13 +69,15 @@ func (h *RoleHandler) GetRole(c *gin.Context) {
 
 	roleID := c.Param("id")
 
-	// 获取角色
-	role, err := h.roleService.GetRoleByID(roleID)
+	// 获取角色（带统计信息）
+	role, err := h.roleService.GetRoleWithStats(roleID)
 	if err != nil {
+		utilities.GetLogger().Error("failed to get role", "error", err.Error())
 		response.HandlerError(c, app_error.ErrFailedToGetRoles)
 		return
 	}
 	if role == nil {
+		utilities.GetLogger().Error("role does not exist", "role_id", roleID)
 		response.HandlerError(c, app_error.ErrRoleNoExist)
 		return
 	}
@@ -103,6 +108,7 @@ func (h *RoleHandler) CreateRole(c *gin.Context) {
 
 	// 验证权限是否存在
 	if exist, err := h.permissionService.CheckCodesExists(req.Permissions); err != nil || !exist {
+		utilities.GetLogger().Error("permission does not exist when creating role", "permissions", req.Permissions, "error", err.Error())
 		response.HandlerError(c, app_error.ErrPermissionNoExist)
 		return
 	}
@@ -110,6 +116,7 @@ func (h *RoleHandler) CreateRole(c *gin.Context) {
 	// 创建角色
 	role, err := h.roleService.CreateRole(req.Name, req.Code, req.Permissions)
 	if err != nil {
+		utilities.GetLogger().Error("failed to create role", "error", err.Error())
 		h.auditService.LogWithGinContext(c, &services.AuditEntry{
 			Module:       models.AuditModuleRole,
 			Action:       models.AuditActionRoleCreate,
@@ -154,11 +161,13 @@ func (h *RoleHandler) UpdateRole(c *gin.Context) {
 		return
 	}
 
+	roleID := c.Param("id")
+
 	// 绑定请求参数
 	var req struct {
-		RoleID string `json:"role_id" binding:"required"`
-		Name   string `json:"name" binding:"required"`
-		Code   string `json:"code" binding:"required"`
+		Name        string `json:"name" binding:"required"`
+		Code        string `json:"code" binding:"required"`
+		Description string `json:"description"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		response.HandlerError(c, app_error.ErrBadRequest)
@@ -166,23 +175,26 @@ func (h *RoleHandler) UpdateRole(c *gin.Context) {
 	}
 
 	// 验证角色是否存在
-	oldRole, err := h.roleService.GetRoleByID(req.RoleID)
+	oldRole, err := h.roleService.GetRoleByID(roleID)
 	if err != nil {
+		utilities.GetLogger().Error("failed to get role before update", "error", err.Error())
 		response.HandlerError(c, err)
 		return
 	}
 	if oldRole == nil {
+		utilities.GetLogger().Error("role does not exist before update", "role_id", roleID)
 		response.HandlerError(c, app_error.ErrRoleNoExist)
 		return
 	}
 
 	// 更新角色
-	role, err := h.roleService.UpdateRole(req.RoleID, req.Name, req.Code)
+	role, err := h.roleService.UpdateRole(roleID, req.Name, req.Code, req.Description)
 	if err != nil {
+		utilities.GetLogger().Error("failed to update role", "error", err.Error())
 		h.auditService.LogWithGinContext(c, &services.AuditEntry{
 			Module:       models.AuditModuleRole,
 			Action:       models.AuditActionRoleUpdate,
-			TargetID:     req.RoleID,
+			TargetID:     roleID,
 			TargetType:   "role",
 			TargetName:   oldRole.Name,
 			Status:       models.AuditStatusError,
@@ -202,14 +214,16 @@ func (h *RoleHandler) UpdateRole(c *gin.Context) {
 		TargetName: role.Name,
 		Detail: &models.AuditLogDetail{
 			OldValue: map[string]any{
-				"name": oldRole.Name,
-				"code": oldRole.Code,
+				"name":        oldRole.Name,
+				"code":        oldRole.Code,
+				"description": oldRole.Description,
 			},
 			NewValue: map[string]any{
-				"name": req.Name,
-				"code": req.Code,
+				"name":        req.Name,
+				"code":        req.Code,
+				"description": req.Description,
 			},
-			ChangedFields: []string{"name", "code"},
+			ChangedFields: []string{"name", "code", "description"},
 		},
 		Status:     models.AuditStatusSuccess,
 		DurationMs: time.Since(startTime).Milliseconds(),
@@ -228,32 +242,35 @@ func (h *RoleHandler) DeleteRole(c *gin.Context) {
 		return
 	}
 
-	// 绑定请求参数
-	var req struct {
-		RoleID string `json:"role_id" binding:"required"`
-	}
-	if err := c.ShouldBindJSON(&req); err != nil {
-		response.HandlerError(c, app_error.ErrBadRequest)
-		return
-	}
+	roleID := c.Param("id")
 
 	// 验证角色是否存在并获取信息
-	role, err := h.roleService.GetRoleByID(req.RoleID)
+	role, err := h.roleService.GetRoleByID(roleID)
 	if err != nil {
+		utilities.GetLogger().Error("failed to get role before delete", "error", err.Error())
 		response.HandlerError(c, err)
 		return
 	}
 	if role == nil {
+		utilities.GetLogger().Error("role does not exist before delete", "role_id", roleID)
 		response.HandlerError(c, app_error.ErrRoleNoExist)
 		return
 	}
 
+	// 检查是否是系统角色
+	if role.IsSystem {
+		utilities.GetLogger().Error("cannot delete system role", "role_id", roleID)
+		response.HandlerError(c, app_error.ErrBadRequest)
+		return
+	}
+
 	// 删除角色
-	if err := h.roleService.DeleteRole(req.RoleID); err != nil {
+	if err := h.roleService.DeleteRole(roleID); err != nil {
+		utilities.GetLogger().Error("failed to delete role", "error", err.Error())
 		h.auditService.LogWithGinContext(c, &services.AuditEntry{
 			Module:       models.AuditModuleRole,
 			Action:       models.AuditActionRoleDelete,
-			TargetID:     req.RoleID,
+			TargetID:     roleID,
 			TargetType:   "role",
 			TargetName:   role.Name,
 			Status:       models.AuditStatusError,
@@ -268,7 +285,7 @@ func (h *RoleHandler) DeleteRole(c *gin.Context) {
 	h.auditService.LogWithGinContext(c, &services.AuditEntry{
 		Module:     models.AuditModuleRole,
 		Action:     models.AuditActionRoleDelete,
-		TargetID:   req.RoleID,
+		TargetID:   roleID,
 		TargetType: "role",
 		TargetName: role.Name,
 		Status:     models.AuditStatusSuccess,
@@ -301,10 +318,12 @@ func (h *RoleHandler) GrantPermissionsToRole(c *gin.Context) {
 	// 验证角色是否存在
 	role, err := h.roleService.GetRoleByID(req.RoleID)
 	if err != nil {
+		utilities.GetLogger().Error("failed to get role", "error", err.Error())
 		response.HandlerError(c, err)
 		return
 	}
 	if role == nil {
+		utilities.GetLogger().Error("role does not exist", "role_id", req.RoleID)
 		response.HandlerError(c, app_error.ErrRoleNoExist)
 		return
 	}
@@ -373,22 +392,26 @@ func (h *RoleHandler) RevokePermissionsFromRole(c *gin.Context) {
 	// 验证角色是否存在
 	role, err := h.roleService.GetRoleByID(req.RoleID)
 	if err != nil {
+		utilities.GetLogger().Error("failed to get role", "error", err.Error())
 		response.HandlerError(c, err)
 		return
 	}
 	if role == nil {
+		utilities.GetLogger().Error("role does not exist", "role_id", req.RoleID)
 		response.HandlerError(c, app_error.ErrRoleNoExist)
 		return
 	}
 
 	// 验证权限是否存在
 	if exist, err := h.permissionService.CheckCodesExists(req.Permissions); err != nil || !exist {
+		utilities.GetLogger().Error("permission does not exist when revoking from role", "permissions", req.Permissions, "error", err.Error())
 		response.HandlerError(c, app_error.ErrPermissionNoExist)
 		return
 	}
 
 	// 从角色撤销权限
 	if err := h.roleService.RevokePermissionFromRole(req.RoleID, req.Permissions); err != nil {
+		utilities.GetLogger().Error("failed to revoke permissions from role", "error", err.Error())
 		h.auditService.LogWithGinContext(c, &services.AuditEntry{
 			Module:       models.AuditModulePermission,
 			Action:       models.AuditActionPermissionRevoke,

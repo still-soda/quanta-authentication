@@ -107,3 +107,29 @@ func (s *UserService) UserCount() (int64, error) {
 	}
 	return count, nil
 }
+
+// GetUserCountByRole 返回按角色分类的用户数量统计
+func (s *UserService) GetUserCountByRole() (map[string]int64, error) {
+	type RoleCount struct {
+		RoleName string
+		Count    int64
+	}
+
+	var results []RoleCount
+	if err := s.db.Table("users").
+		Joins("LEFT JOIN users_roles ON users.id = users_roles.users_id").
+		Joins("LEFT JOIN roles ON users_roles.roles_id = roles.id").
+		Where("users.deleted_at IS NULL AND roles.deleted_at IS NULL").
+		Select("COALESCE(roles.name, '未分配角色') as role_name, COUNT(DISTINCT users.id) as count").
+		Group("roles.name").
+		Scan(&results).Error; err != nil {
+		return nil, err
+	}
+
+	roleCountMap := make(map[string]int64)
+	for _, result := range results {
+		roleCountMap[result.RoleName] = result.Count
+	}
+
+	return roleCountMap, nil
+}

@@ -111,19 +111,21 @@ func main() {
 	oauthHandler := handlers.NewOAuthHandler(oauthService, roleService, userService, oidcService, cacheService, auditService)
 	oidcHandler := handlers.NewOIDCHandler(oidcService, userService)
 	roleHandler := handlers.NewRoleHandler(roleService, permissionService, auditService)
+	permissionHandler := handlers.NewPermissionHandler(roleService, permissionService, auditService)
 	dashboardHandler := business.NewDashboardHandler(userService, counterService, cacheService)
 	auditHandler := business.NewAuditHandler(auditService, roleService)
 
 	// 注册路由
 	routes.RegisterRoutes(r, &routes.RegisterRouterHandlers{
-		HealthHandler:    healthHandler,
-		FileHandler:      fileHandler,
-		AuthHandler:      authHandler,
-		OAuthHandler:     oauthHandler,
-		OIDCHandler:      oidcHandler,
-		RoleHandler:      roleHandler,
-		DashboardHandler: dashboardHandler,
-		AuditHandler:     auditHandler,
+		HealthHandler:     healthHandler,
+		FileHandler:       fileHandler,
+		AuthHandler:       authHandler,
+		OAuthHandler:      oauthHandler,
+		OIDCHandler:       oidcHandler,
+		RoleHandler:       roleHandler,
+		PermissionHandler: permissionHandler,
+		DashboardHandler:  dashboardHandler,
+		AuditHandler:      auditHandler,
 	})
 
 	// 启动服务器

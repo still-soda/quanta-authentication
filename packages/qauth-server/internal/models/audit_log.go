@@ -30,6 +30,9 @@ const (
 	AuditActionRoleCreate       AuditAction = "ROLE_CREATE"
 	AuditActionRoleUpdate       AuditAction = "ROLE_UPDATE"
 	AuditActionRoleDelete       AuditAction = "ROLE_DELETE"
+	AuditActionPermissionCreate AuditAction = "PERMISSION_CREATE"
+	AuditActionPermissionUpdate AuditAction = "PERMISSION_UPDATE"
+	AuditActionPermissionDelete AuditAction = "PERMISSION_DELETE"
 	AuditActionPermissionGrant  AuditAction = "PERMISSION_GRANT"
 	AuditActionPermissionRevoke AuditAction = "PERMISSION_REVOKE"
 

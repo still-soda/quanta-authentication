@@ -5,6 +5,7 @@ import (
 	"qauth-server/internal/permissions"
 
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 type RoleService struct {
@@ -23,11 +24,19 @@ func NewRoleService(
 
 // DeleteRole 删除角色
 func (s *RoleService) DeleteRole(roleID string) error {
+	// 先删除角色的权限关联
+	if err := s.db.Where("roles_id = ?", roleID).Delete(&models.RolesPermissions{}).Error; err != nil {
+		return err
+	}
+	// 删除用户角色关联
+	if err := s.db.Where("roles_id = ?", roleID).Delete(&models.UsersRoles{}).Error; err != nil {
+		return err
+	}
 	return s.db.Delete(&models.Roles{}, "id = ?", roleID).Error
 }
 
 // UpdateRole 更新角色信息
-func (s *RoleService) UpdateRole(roleID, name string, code string) (*models.Roles, error) {
+func (s *RoleService) UpdateRole(roleID, name string, code string, description string) (*models.Roles, error) {
 	var role models.Roles
 	if err := s.db.First(&role, "id = ?", roleID).Error; err != nil {
 		return nil, err
@@ -35,6 +44,7 @@ func (s *RoleService) UpdateRole(roleID, name string, code string) (*models.Role
 
 	role.Name = name
 	role.Code = code
+	role.Description = description
 
 	if err := s.db.Save(&role).Error; err != nil {
 		return nil, err
@@ -70,6 +80,58 @@ func (s *RoleService) GetAllRoles() ([]models.Roles, error) {
 		return nil, err
 	}
 	return roles, nil
+}
+
+// RoleWithStats 角色带统计信息
+type RoleWithStats struct {
+	models.Roles
+	UserCount       int64 `json:"user_count"`
+	PermissionCount int64 `json:"permission_count"`
+}
+
+// GetAllRolesWithStats 获取所有角色列表（带统计信息）
+func (s *RoleService) GetAllRolesWithStats() ([]RoleWithStats, error) {
+	var roles []models.Roles
+	if err := s.db.Find(&roles).Error; err != nil {
+		return nil, err
+	}
+
+	result := make([]RoleWithStats, len(roles))
+	for i, role := range roles {
+		var userCount int64
+		s.db.Model(&models.UsersRoles{}).Where("roles_id = ?", role.ID).Count(&userCount)
+
+		var permCount int64
+		s.db.Model(&models.RolesPermissions{}).Where("roles_id = ?", role.ID).Count(&permCount)
+
+		result[i] = RoleWithStats{
+			Roles:           role,
+			UserCount:       userCount,
+			PermissionCount: permCount,
+		}
+	}
+
+	return result, nil
+}
+
+// GetRoleWithStats 获取单个角色（带统计信息）
+func (s *RoleService) GetRoleWithStats(roleID string) (*RoleWithStats, error) {
+	var role models.Roles
+	if err := s.db.First(&role, "id = ?", roleID).Error; err != nil {
+		return nil, err
+	}
+
+	var userCount int64
+	s.db.Model(&models.UsersRoles{}).Where("roles_id = ?", role.ID).Count(&userCount)
+
+	var permCount int64
+	s.db.Model(&models.RolesPermissions{}).Where("roles_id = ?", role.ID).Count(&permCount)
+
+	return &RoleWithStats{
+		Roles:           role,
+		UserCount:       userCount,
+		PermissionCount: permCount,
+	}, nil
 }
 
 // GetRoleByID 根据角色 ID 获取角色信息
@@ -232,7 +294,7 @@ func (s *RoleService) AssignRolesToUserByCode(userID string, roleCodes []string)
 		})
 	}
 
-	if err := s.db.FirstOrCreate(&userRoles).Error; err != nil {
+	if err := s.db.Create(&userRoles).Clauses(clause.OnConflict{DoNothing: true}).Error; err != nil {
 		return err
 	}
 
