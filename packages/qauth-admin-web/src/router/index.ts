@@ -1,10 +1,41 @@
-import { createRouter, createWebHistory } from 'vue-router';
-import DefaultLayout from '@/layouts/DefaultLayout.vue';
-import { APP_NAME } from '@/config';
+import { createRouter, createWebHistory } from 'vue-router'
+import DefaultLayout from '@/layouts/DefaultLayout.vue'
+import AuthLayout from '@/layouts/AuthLayout.vue'
+import { APP_NAME } from '@/config'
 
 const router = createRouter({
    history: createWebHistory(import.meta.env.BASE_URL),
    routes: [
+      // Auth routes (public)
+      {
+         path: '/auth',
+         component: AuthLayout,
+         children: [
+            {
+               path: '',
+               redirect: '/auth/login',
+            },
+            {
+               path: 'login',
+               name: 'login',
+               component: () => import('@/views/LoginView.vue'),
+               meta: { title: '登录' },
+            },
+            {
+               path: 'register',
+               name: 'register',
+               component: () => import('@/views/RegisterView.vue'),
+               meta: { title: '注册申请' },
+            },
+            {
+               path: 'forgot-password',
+               name: 'forgot-password',
+               component: () => import('@/views/ForgotPasswordView.vue'),
+               meta: { title: '忘记密码' },
+            },
+         ],
+      },
+      // Main app routes (protected)
       {
          path: '/',
          component: DefaultLayout,
@@ -66,12 +97,12 @@ const router = createRouter({
          ],
       },
    ],
-});
+})
 
 router.beforeEach((to, _from, next) => {
-   const title = to.meta?.title as string;
-   document.title = title ? `${title} - ${APP_NAME}` : APP_NAME;
-   next();
-});
+   const title = to.meta?.title as string
+   document.title = title ? `${title} - ${APP_NAME}` : APP_NAME
+   next()
+})
 
-export default router;
+export default router
