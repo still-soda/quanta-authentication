@@ -6,13 +6,13 @@ import type {
    Activity,
    TopApp,
    DashboardStats,
-   AuthTrendData,
    UserDistData,
    StatCardData,
    DashboardStatsResponse,
-   AuditStatsResponse,
    RecentActivityResponse,
    TopClientResponse,
+   AuthTrendParams,
+   AuthTrendResponse,
 } from '@/types'
 
 /**
@@ -109,55 +109,44 @@ export async function getDashboardStats(): Promise<DashboardStats> {
 }
 
 /**
- * 获取用户分布数据
- * 从审计统计 API 获取数据
+ * 角色简要信息（用于角色选择）
  */
-export async function getUserDistData(): Promise<UserDistData> {
+export interface RoleBasicInfo {
+   code: string
+   name: string
+   isSystem: boolean
+}
+
+/**
+ * 获取所有角色列表（用于角色分布选择）
+ */
+export async function getAllRoles(): Promise<RoleBasicInfo[]> {
    try {
-      const response = await httpClient.get<{ code: number; data: AuditStatsResponse }>(
-         '/_/v1/audit/stats'
+      const response = await httpClient.get<{ code: number; data: RoleBasicInfo[] }>('/_/v1/roles')
+      return response.data.data
+   } catch {
+      // 如果 API 调用失败，返回默认的系统内置角色
+      return mockResponse([
+         { code: 'system_super_admin', name: '系统超级管理员', isSystem: true },
+         { code: 'system_admin', name: '系统管理员', isSystem: true },
+         { code: 'system_user', name: '系统普通用户', isSystem: true },
+      ])
+   }
+}
+
+/**
+ * 获取用户分布数据 - 按角色分类
+ * @param roleCodes - 要查询的角色代码数组，如果为空则查询所有角色
+ */
+export async function getUserDistData(roleCodes?: string[]): Promise<UserDistData> {
+   try {
+      const params = roleCodes && roleCodes.length > 0 ? { roles: roleCodes.join(',') } : {}
+      const response = await httpClient.get<{ code: number; data: UserDistData }>(
+         '/_/v1/dashboard/user-distribution',
+         { params }
       )
-      const moduleStats = response.data.data.module_stats
-
-      // 将模块统计转换为饼图数据
-      const moduleLabels: string[] = []
-      const moduleData: number[] = []
-
-      // 定义模块的中文映射
-      const moduleNameMap: Record<string, string> = {
-         AUTH: '认证模块',
-         OAUTH: 'OAuth模块',
-         USER: '用户管理',
-         ROLE: '角色管理',
-         PERMISSION: '权限管理',
-         CLIENT: '客户端管理',
-         SYSTEM: '系统管理',
-      }
-
-      // 定义颜色
-      const colors = ['#f97316', '#3b82f6', '#10b981', '#8b5cf6', '#06b6d4', '#ec4899', '#84cc16']
-
-      let colorIndex = 0
-      const usedColors: string[] = []
-
-      for (const [module, count] of Object.entries(moduleStats)) {
-         if (count > 0) {
-            moduleLabels.push(moduleNameMap[module] || module)
-            moduleData.push(count)
-            const color = colors[colorIndex % colors.length]
-            if (color) {
-               usedColors.push(color)
-            }
-            colorIndex++
-         }
-      }
-
-      return {
-         labels: moduleLabels.length > 0 ? moduleLabels : ['暂无数据'],
-         data: moduleData.length > 0 ? moduleData : [1],
-         colors: usedColors.length > 0 ? usedColors : ['#e5e7eb'],
-      }
-   } catch (error) {
+      return response.data.data
+   } catch {
       // 如果 API 调用失败，返回默认数据
       return mockResponse({
          labels: ['暂无数据'],
@@ -286,5 +275,23 @@ export async function getTopApps(): Promise<TopApp[]> {
    } catch (error) {
       // 如果 API 调用失败，返回空数组
       return []
+   }
+}
+
+/**
+ * 获取认证趋势数据
+ * @param params - 查询参数，包含时间范围
+ * @returns 认证趋势数据数组
+ */
+export async function getAuthTrend(params?: AuthTrendParams): Promise<number[]> {
+   try {
+      const response = await httpClient.get<{ code: number; data: AuthTrendResponse }>(
+         '/_/v1/dashboard/auth-trend',
+         { params }
+      )
+      return response.data.data.auth_trend
+   } catch (error) {
+      // 如果 API 调用失败，返回默认数据
+      return mockResponse([])
    }
 }

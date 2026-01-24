@@ -29,9 +29,14 @@ const menuItems: MenuItem[] = [
       badge: '128',
    },
    {
-      label: '角色权限',
+      label: '角色管理',
       icon: 'pi pi-shield',
       to: '/roles',
+   },
+   {
+      label: '权限管理',
+      icon: 'pi pi-lock',
+      to: '/permissions',
    },
    {
       label: 'OAuth 应用',

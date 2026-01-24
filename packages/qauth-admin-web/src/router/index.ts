@@ -64,7 +64,13 @@ const router = createRouter({
                path: 'roles',
                name: 'roles',
                component: () => import('@/views/RolesView.vue'),
-               meta: { title: '角色权限', requiresAuth: true },
+               meta: { title: '角色管理', requiresAuth: true },
+            },
+            {
+               path: 'permissions',
+               name: 'permissions',
+               component: () => import('@/views/PermissionsView.vue'),
+               meta: { title: '权限管理', requiresAuth: true },
             },
             {
                path: 'oauth',
