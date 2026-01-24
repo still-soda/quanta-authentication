@@ -1,4 +1,5 @@
 FROM node:24-slim AS builder
+ARG VITE_API_URL
 
 WORKDIR /app
 
@@ -7,6 +8,7 @@ RUN npm install -g pnpm
 RUN pnpm install
 
 COPY . .
+ENV VITE_API_URL=${VITE_API_URL}
 RUN pnpm run build
 
 FROM nginx:alpine
