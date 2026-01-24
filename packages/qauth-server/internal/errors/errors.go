@@ -35,4 +35,9 @@ var (
 	ErrFailedToGetRoles      = app_error.NewAppError(500, "failed to get roles")
 	ErrPermissionNoExist     = app_error.NewAppError(400, "permission does not exist")
 	ErrRoleNoExist           = app_error.NewAppError(400, "role does not exist")
+
+	// 审计日志相关错误
+	ErrFailedToGetAuditLogs   = app_error.NewAppError(500, "failed to get audit logs")
+	ErrAuditLogNotFound       = app_error.NewAppError(404, "audit log not found")
+	ErrFailedToCreateAuditLog = app_error.NewAppError(500, "failed to create audit log")
 )

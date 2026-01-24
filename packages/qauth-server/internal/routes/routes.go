@@ -17,6 +17,7 @@ type RegisterRouterHandlers struct {
 	RoleHandler   *_handlers.RoleHandler
 
 	DashboardHandler *business.DashboardHandler
+	AuditHandler     *business.AuditHandler
 }
 
 // RegisterRoutes 注册所有路由
@@ -132,6 +133,18 @@ func RegisterRoutes(r *gin.Engine, handlers *RegisterRouterHandlers) {
 			dashboardGroup := authRequiredGroup.Group("/dashboard")
 			{
 				dashboardGroup.GET("/stats", handlers.DashboardHandler.GetDashboardStats)
+			}
+
+			// 审计日志路由
+			// /system/v1/audit
+			auditGroup := authRequiredGroup.Group("/audit")
+			{
+				auditGroup.GET("/logs", handlers.AuditHandler.GetAuditLogs)
+				auditGroup.GET("/logs/:id", handlers.AuditHandler.GetAuditLogDetail)
+				auditGroup.GET("/activities", handlers.AuditHandler.GetRecentActivities)
+				auditGroup.GET("/stats", handlers.AuditHandler.GetAuditStats)
+				auditGroup.GET("/top-clients", handlers.AuditHandler.GetTopClients)
+				auditGroup.GET("/export", handlers.AuditHandler.ExportAuditLogs)
 			}
 		}
 	}

@@ -76,6 +76,7 @@ func main() {
 	roleService := services.NewRoleService(db, permissionService, userService)
 	oauthService := services.NewOAuthService(db, cfg, jwksManager, userService)
 	counterService := services.NewCounterService(db)
+	auditService := services.NewAuditService(db, userService)
 
 	// OIDC 服务
 	issuer := "http://localhost:" + cfg.Server.Port
@@ -106,11 +107,12 @@ func main() {
 	// 创建处理器
 	healthHandler := handlers.NewHealthHandler()
 	fileHandler := handlers.NewFileHandler(fileService)
-	authHandler := handlers.NewAuthHandler(userService, roleService)
-	oauthHandler := handlers.NewOAuthHandler(oauthService, roleService, userService, oidcService, cacheService)
+	authHandler := handlers.NewAuthHandler(userService, roleService, auditService)
+	oauthHandler := handlers.NewOAuthHandler(oauthService, roleService, userService, oidcService, cacheService, auditService)
 	oidcHandler := handlers.NewOIDCHandler(oidcService, userService)
-	roleHandler := handlers.NewRoleHandler(roleService, permissionService)
+	roleHandler := handlers.NewRoleHandler(roleService, permissionService, auditService)
 	dashboardHandler := business.NewDashboardHandler(userService, counterService, cacheService)
+	auditHandler := business.NewAuditHandler(auditService, roleService)
 
 	// 注册路由
 	routes.RegisterRoutes(r, &routes.RegisterRouterHandlers{
@@ -121,6 +123,7 @@ func main() {
 		OIDCHandler:      oidcHandler,
 		RoleHandler:      roleHandler,
 		DashboardHandler: dashboardHandler,
+		AuditHandler:     auditHandler,
 	})
 
 	// 启动服务器

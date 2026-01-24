@@ -37,3 +37,11 @@ const (
 	// 角色取消授权权限
 	RoleRevokePermissions = "role_revoke_permissions"
 )
+
+// 审计日志相关权限
+const (
+	// 查看审计日志权限
+	AuditView = "audit_view"
+	// 导出审计日志权限
+	AuditExport = "audit_export"
+)

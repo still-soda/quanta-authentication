@@ -74,5 +74,6 @@ func AutoMigrate(db *gorm.DB) error {
 		&models.OperationRecord{},
 		&models.ErrorRecord{},
 		&models.Counters{},
+		&models.AuditLog{},
 	)
 }

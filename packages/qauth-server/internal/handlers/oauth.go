@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"qauth-server/internal/config"
 	app_error "qauth-server/internal/errors"
+	"qauth-server/internal/models"
 	"qauth-server/internal/permissions"
 	"qauth-server/internal/services"
 	"qauth-server/internal/utilities"
@@ -12,6 +13,7 @@ import (
 	"qauth-server/pkg/response"
 	"slices"
 	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 )
@@ -23,6 +25,7 @@ type OAuthHandler struct {
 	userService  *services.UserService
 	oidcService  *services.OIDCService
 	cacheService *services.CacheService
+	auditService *services.AuditService
 }
 
 // NewOAuthHandler 创建新的 OAuth2 处理器
@@ -32,6 +35,7 @@ func NewOAuthHandler(
 	userService *services.UserService,
 	oidcService *services.OIDCService,
 	cacheService *services.CacheService,
+	auditService *services.AuditService,
 ) *OAuthHandler {
 	return &OAuthHandler{
 		oauthService: oauthService,
@@ -39,6 +43,7 @@ func NewOAuthHandler(
 		userService:  userService,
 		oidcService:  oidcService,
 		cacheService: cacheService,
+		auditService: auditService,
 	}
 }
 
@@ -193,6 +198,8 @@ func (h *OAuthHandler) restoreRequestQuery(c *gin.Context, aid string) error {
 // Authorize 处理授权请求（授权码模式）
 // POST /oauth/authorize
 func (h *OAuthHandler) Authorize(c *gin.Context) {
+	startTime := time.Now()
+
 	// 验证 authorizeID
 	authorizeID := c.Query("aid")
 	if err := h.restoreRequestQuery(c, authorizeID); err != nil {
@@ -200,10 +207,18 @@ func (h *OAuthHandler) Authorize(c *gin.Context) {
 		return
 	}
 
-	// 验证授权结果
+	// 获取授权参数
+	clientID := c.Request.URL.Query().Get("client_id")
+	scope := c.Request.URL.Query().Get("scope")
 	redirectUri := c.Query("redirect_uri")
+	responseType := c.Request.URL.Query().Get("response_type")
+	scopes := strings.Split(scope, " ")
+
+	// 验证授权结果
 	action := c.PostForm("action")
 	if action == "deny" {
+		// 记录授权拒绝
+		h.auditService.LogOAuthAuthorize(c, "", "", &clientID, scopes, "", responseType, redirectUri, false, "user denied")
 		h.oauthService.HandlerAuthorizeDeny(c, redirectUri)
 		return
 	}
@@ -231,8 +246,40 @@ func (h *OAuthHandler) Authorize(c *gin.Context) {
 	err := h.oauthService.HandleAuthorizeRequest(c.Writer, c.Request)
 	if err != nil {
 		utilities.GetLogger().Error("OAuth authorize error", "error", err)
+		// 记录授权失败
+		h.auditService.LogOAuthAuthorize(c, "", "", &clientID, scopes, "", responseType, redirectUri, false, err.Error())
 		c.Error(app_error.ErrBadRequest)
+		return
 	}
+
+	// 记录授权成功
+	userID := ""
+	userName := ""
+	if uid, exists := c.Get("userID"); exists {
+		userID = uid.(string)
+		if user, err := h.userService.GetUserByID(userID, false); err == nil {
+			userName = user.Name
+		}
+	}
+	h.auditService.Log(&services.AuditContext{
+		OperatorID:   userID,
+		OperatorName: userName,
+		IP:           c.ClientIP(),
+		UserAgent:    c.GetHeader("User-Agent"),
+		ClientID:     &clientID,
+	}, &services.AuditEntry{
+		Module:     models.AuditModuleOAuth,
+		Action:     models.AuditActionOAuthAuthorize,
+		TargetID:   clientID,
+		TargetType: "oauth_client",
+		Detail: &models.AuditLogDetail{
+			Scopes:       scopes,
+			ResponseType: responseType,
+			RedirectURI:  redirectUri,
+		},
+		Status:     models.AuditStatusSuccess,
+		DurationMs: time.Since(startTime).Milliseconds(),
+	})
 
 	// 增加今日授权计数器
 	h.cacheService.IncrKey("todays-authcount")
@@ -244,11 +291,42 @@ func (h *OAuthHandler) Authorize(c *gin.Context) {
 // Token 处理令牌请求
 // POST /oauth/token
 func (h *OAuthHandler) Token(c *gin.Context) {
+	startTime := time.Now()
+	clientID := c.PostForm("client_id")
+	grantType := c.PostForm("grant_type")
+
 	err := h.oauthService.HandleTokenRequest(c.Writer, c.Request)
 	if err != nil {
 		utilities.GetLogger().Error("OAuth token error", "error", err)
+		h.auditService.LogWithGinContext(c, &services.AuditEntry{
+			Module:     models.AuditModuleOAuth,
+			Action:     models.AuditActionOAuthToken,
+			TargetID:   clientID,
+			TargetType: "oauth_client",
+			Detail: &models.AuditLogDetail{
+				GrantType:  grantType,
+				FailReason: err.Error(),
+			},
+			Status:       models.AuditStatusError,
+			ErrorMessage: err.Error(),
+			DurationMs:   time.Since(startTime).Milliseconds(),
+		})
 		c.Error(app_error.ErrBadRequest)
+		return
 	}
+
+	// 记录令牌请求成功
+	h.auditService.LogWithGinContext(c, &services.AuditEntry{
+		Module:     models.AuditModuleOAuth,
+		Action:     models.AuditActionOAuthToken,
+		TargetID:   clientID,
+		TargetType: "oauth_client",
+		Detail: &models.AuditLogDetail{
+			GrantType: grantType,
+		},
+		Status:     models.AuditStatusSuccess,
+		DurationMs: time.Since(startTime).Milliseconds(),
+	})
 }
 
 // ValidateToken 验证访问令牌
@@ -272,6 +350,8 @@ func (h *OAuthHandler) ValidateToken(c *gin.Context) {
 // RevokeToken 撤销令牌
 // POST /oauth/revoke
 func (h *OAuthHandler) RevokeToken(c *gin.Context) {
+	startTime := time.Now()
+
 	var req struct {
 		Token         string `json:"token" form:"token" binding:"required"`
 		TokenTypeHint string `json:"token_type_hint" form:"token_type_hint"`
@@ -291,9 +371,31 @@ func (h *OAuthHandler) RevokeToken(c *gin.Context) {
 
 	if err != nil {
 		utilities.GetLogger().Error("OAuth revoke error", "error", err)
+		h.auditService.LogWithGinContext(c, &services.AuditEntry{
+			Module:       models.AuditModuleOAuth,
+			Action:       models.AuditActionOAuthRevoke,
+			TargetType:   "token",
+			Status:       models.AuditStatusError,
+			ErrorMessage: err.Error(),
+			DurationMs:   time.Since(startTime).Milliseconds(),
+		})
 		c.Error(app_error.ErrBadRequest)
 		return
 	}
+
+	// 记录令牌撤销成功
+	h.auditService.LogWithGinContext(c, &services.AuditEntry{
+		Module:     models.AuditModuleOAuth,
+		Action:     models.AuditActionOAuthRevoke,
+		TargetType: "token",
+		Detail: &models.AuditLogDetail{
+			Metadata: map[string]any{
+				"token_type_hint": req.TokenTypeHint,
+			},
+		},
+		Status:     models.AuditStatusSuccess,
+		DurationMs: time.Since(startTime).Milliseconds(),
+	})
 
 	c.Status(200)
 }
@@ -301,6 +403,8 @@ func (h *OAuthHandler) RevokeToken(c *gin.Context) {
 // CreateClient 创建 OAuth2 客户端
 // POST /oauth/clients
 func (h *OAuthHandler) CreateClient(c *gin.Context) {
+	startTime := time.Now()
+
 	if err := services.VerifyPermissions(c, h.roleService, []string{
 		permissions.OAuthClientCreate,
 	}); err != nil {
@@ -324,9 +428,36 @@ func (h *OAuthHandler) CreateClient(c *gin.Context) {
 	client, err := h.oauthService.CreateClient(req.Name, req.Domain, req.Secret, req.IsPublic, req.UserID)
 	if err != nil {
 		utilities.GetLogger().Error("Create OAuth client error", "error", err)
+		h.auditService.LogWithGinContext(c, &services.AuditEntry{
+			Module:       models.AuditModuleClient,
+			Action:       models.AuditActionClientCreate,
+			TargetType:   "oauth_client",
+			TargetName:   req.Name,
+			Status:       models.AuditStatusError,
+			ErrorMessage: err.Error(),
+			DurationMs:   time.Since(startTime).Milliseconds(),
+		})
 		response.HandlerError(c, app_error.ErrInternalServerError)
 		return
 	}
+
+	// 记录客户端创建成功
+	h.auditService.LogWithGinContext(c, &services.AuditEntry{
+		Module:     models.AuditModuleClient,
+		Action:     models.AuditActionClientCreate,
+		TargetID:   client.ID,
+		TargetType: "oauth_client",
+		TargetName: client.Name,
+		Detail: &models.AuditLogDetail{
+			NewValue: map[string]any{
+				"name":      client.Name,
+				"domain":    client.Domain,
+				"is_public": req.IsPublic,
+			},
+		},
+		Status:     models.AuditStatusSuccess,
+		DurationMs: time.Since(startTime).Milliseconds(),
+	})
 
 	response.HandlerSuccess(c, gin.H{
 		"client_id":     client.ID,
@@ -364,6 +495,8 @@ func (h *OAuthHandler) GetClient(c *gin.Context) {
 // UpdateClient 更新客户端信息
 // PUT /oauth/clients/:id
 func (h *OAuthHandler) UpdateClient(c *gin.Context) {
+	startTime := time.Now()
+
 	if err := services.VerifyPermissions(c, h.roleService, []string{
 		permissions.OAuthClientUpdate,
 	}); err != nil {
@@ -383,11 +516,49 @@ func (h *OAuthHandler) UpdateClient(c *gin.Context) {
 		return
 	}
 
+	// 获取旧的客户端信息
+	oldClient, _ := h.oauthService.GetClientByID(clientID)
+
 	if err := h.oauthService.UpdateClient(clientID, req.Name, req.Domain); err != nil {
 		utilities.GetLogger().Error("Update OAuth client error", "error", err)
+		h.auditService.LogWithGinContext(c, &services.AuditEntry{
+			Module:       models.AuditModuleClient,
+			Action:       models.AuditActionClientUpdate,
+			TargetID:     clientID,
+			TargetType:   "oauth_client",
+			Status:       models.AuditStatusError,
+			ErrorMessage: err.Error(),
+			DurationMs:   time.Since(startTime).Milliseconds(),
+		})
 		response.HandlerError(c, app_error.ErrInternalServerError)
 		return
 	}
+
+	// 记录客户端更新
+	var oldValue map[string]any
+	if oldClient != nil {
+		oldValue = map[string]any{
+			"name":   oldClient.Name,
+			"domain": oldClient.Domain,
+		}
+	}
+	h.auditService.LogWithGinContext(c, &services.AuditEntry{
+		Module:     models.AuditModuleClient,
+		Action:     models.AuditActionClientUpdate,
+		TargetID:   clientID,
+		TargetType: "oauth_client",
+		TargetName: req.Name,
+		Detail: &models.AuditLogDetail{
+			OldValue: oldValue,
+			NewValue: map[string]any{
+				"name":   req.Name,
+				"domain": req.Domain,
+			},
+			ChangedFields: []string{"name", "domain"},
+		},
+		Status:     models.AuditStatusSuccess,
+		DurationMs: time.Since(startTime).Milliseconds(),
+	})
 
 	response.HandlerSuccess(c, gin.H{"updated": true})
 }
@@ -395,6 +566,8 @@ func (h *OAuthHandler) UpdateClient(c *gin.Context) {
 // DeleteClient 删除客户端
 // DELETE /oauth/clients/:id
 func (h *OAuthHandler) DeleteClient(c *gin.Context) {
+	startTime := time.Now()
+
 	if err := services.VerifyPermissions(c, h.roleService, []string{
 		permissions.OAuthClientDelete,
 	}); err != nil {
@@ -404,11 +577,39 @@ func (h *OAuthHandler) DeleteClient(c *gin.Context) {
 
 	clientID := c.Param("id")
 
+	// 获取客户端信息用于审计
+	client, _ := h.oauthService.GetClientByID(clientID)
+	clientName := ""
+	if client != nil {
+		clientName = client.Name
+	}
+
 	if err := h.oauthService.DeleteClient(clientID); err != nil {
 		utilities.GetLogger().Error("Delete OAuth client error", "error", err)
+		h.auditService.LogWithGinContext(c, &services.AuditEntry{
+			Module:       models.AuditModuleClient,
+			Action:       models.AuditActionClientDelete,
+			TargetID:     clientID,
+			TargetType:   "oauth_client",
+			TargetName:   clientName,
+			Status:       models.AuditStatusError,
+			ErrorMessage: err.Error(),
+			DurationMs:   time.Since(startTime).Milliseconds(),
+		})
 		response.HandlerError(c, app_error.ErrInternalServerError)
 		return
 	}
+
+	// 记录客户端删除
+	h.auditService.LogWithGinContext(c, &services.AuditEntry{
+		Module:     models.AuditModuleClient,
+		Action:     models.AuditActionClientDelete,
+		TargetID:   clientID,
+		TargetType: "oauth_client",
+		TargetName: clientName,
+		Status:     models.AuditStatusSuccess,
+		DurationMs: time.Since(startTime).Milliseconds(),
+	})
 
 	response.HandlerSuccess(c, gin.H{"deleted": true})
 }
