@@ -2,6 +2,7 @@ package routes
 
 import (
 	_handlers "qauth-server/internal/handlers"
+	"qauth-server/internal/handlers/business"
 	"qauth-server/internal/middleware"
 
 	"github.com/gin-gonic/gin"
@@ -14,6 +15,8 @@ type RegisterRouterHandlers struct {
 	OAuthHandler  *_handlers.OAuthHandler
 	OIDCHandler   *_handlers.OIDCHandler
 	RoleHandler   *_handlers.RoleHandler
+
+	DashboardHandler *business.DashboardHandler
 }
 
 // RegisterRoutes 注册所有路由
@@ -122,6 +125,13 @@ func RegisterRoutes(r *gin.Engine, handlers *RegisterRouterHandlers) {
 			resourceGroup := authRequiredGroup.Group("/resources")
 			{
 				resourceGroup.POST("/upload", fileHandler.Upload)
+			}
+
+			// 仪表盘路由
+			// /system/v1/dashboard
+			dashboardGroup := authRequiredGroup.Group("/dashboard")
+			{
+				dashboardGroup.GET("/stats", handlers.DashboardHandler.GetDashboardStats)
 			}
 		}
 	}

@@ -85,3 +85,12 @@ const (
 	// roles
 	ClaimRoles Claim = "roles"
 )
+
+type Counter string
+
+const (
+	CounterAuthUser           Counter = "auth-count"
+	CounterOAuthApp           Counter = "oauthapp-count"
+	CounterDailyMaxActiveUser Counter = "daily-max-active-user"
+	CounterTotalUser          Counter = "total-user"
+)

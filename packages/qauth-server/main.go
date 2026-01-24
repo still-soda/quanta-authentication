@@ -8,14 +8,17 @@ import (
 	"qauth-server/internal/config"
 	"qauth-server/internal/database"
 	"qauth-server/internal/handlers"
+	"qauth-server/internal/handlers/business"
 	"qauth-server/internal/routes"
 	"qauth-server/internal/services"
+	"qauth-server/internal/tasks"
 	"qauth-server/internal/utilities"
 	"qauth-server/pkg/jwks"
 	"syscall"
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/robfig/cron/v3"
 )
 
 func main() {
@@ -72,6 +75,7 @@ func main() {
 	userService := services.NewUserService(db)
 	roleService := services.NewRoleService(db, permissionService, userService)
 	oauthService := services.NewOAuthService(db, cfg, jwksManager, userService)
+	counterService := services.NewCounterService(db)
 
 	// OIDC 服务
 	issuer := "http://localhost:" + cfg.Server.Port
@@ -81,20 +85,42 @@ func main() {
 	}
 	defer oidcService.Close()
 
+	// 创建定时器
+	cronScheduler := cron.New(cron.WithSeconds())
+
+	// 创建定时任务
+	counterTask := tasks.NewCounterTask(counterService, cacheService, userService)
+	cleanupCounterTask, err := counterTask.Register(cronScheduler)
+	if err != nil {
+		panic("failed to register counter task: " + err.Error())
+	}
+	defer cleanupCounterTask()
+
+	userTask := tasks.NewUserTask(cacheService)
+	cleanupUserTask, err := userTask.Register(cronScheduler)
+	if err != nil {
+		panic("failed to register user task: " + err.Error())
+	}
+	defer cleanupUserTask()
+
 	// 创建处理器
 	healthHandler := handlers.NewHealthHandler()
 	fileHandler := handlers.NewFileHandler(fileService)
 	authHandler := handlers.NewAuthHandler(userService, roleService)
 	oauthHandler := handlers.NewOAuthHandler(oauthService, roleService, userService, oidcService, cacheService)
 	oidcHandler := handlers.NewOIDCHandler(oidcService, userService)
+	roleHandler := handlers.NewRoleHandler(roleService, permissionService)
+	dashboardHandler := business.NewDashboardHandler(userService, counterService, cacheService)
 
 	// 注册路由
 	routes.RegisterRoutes(r, &routes.RegisterRouterHandlers{
-		HealthHandler: healthHandler,
-		FileHandler:   fileHandler,
-		AuthHandler:   authHandler,
-		OAuthHandler:  oauthHandler,
-		OIDCHandler:   oidcHandler,
+		HealthHandler:    healthHandler,
+		FileHandler:      fileHandler,
+		AuthHandler:      authHandler,
+		OAuthHandler:     oauthHandler,
+		OIDCHandler:      oidcHandler,
+		RoleHandler:      roleHandler,
+		DashboardHandler: dashboardHandler,
 	})
 
 	// 启动服务器

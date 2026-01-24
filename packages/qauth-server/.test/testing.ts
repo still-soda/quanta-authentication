@@ -1,4 +1,4 @@
-const BASE_URL = 'http://localhost:8080';
+const BASE_URL = 'http://localhost:8080'
 const r = (uri: string, option: RequestInit) =>
    fetch(BASE_URL + uri, {
       ...option,
@@ -6,12 +6,12 @@ const r = (uri: string, option: RequestInit) =>
          'Content-Type': 'application/json',
          ...option?.headers,
       },
-   }).then((res) => res.json());
+   }).then(res => res.json())
 const b = (token: string) => ({
    Authorization: `Bearer ${token}`,
-});
+})
 
-const secret = 'supersecret';
+const secret = 'supersecret'
 
 async function loginToAdmin() {
    const res = await r('/_/v1/auth/login', {
@@ -20,15 +20,15 @@ async function loginToAdmin() {
          student_id: '20231003059',
          password: '123456',
       }),
-   });
+   })
 
-   console.log(res.code.toString().startsWith('2') ? 'PASS' : 'FAILED');
+   console.log(res.code.toString().startsWith('2') ? 'PASS' : 'FAILED')
 
    return {
       freshToken: res.data.refresh_token,
       accessToken: res.data.access_token,
       userId: res.data.user.id,
-   };
+   }
 }
 
 async function createClient(token: string, id: string) {
@@ -42,20 +42,20 @@ async function createClient(token: string, id: string) {
          is_public: false,
          secret: secret,
       }),
-   });
+   })
 
-   console.log(res.code.toString().startsWith('2') ? 'PASS' : 'FAILED');
+   console.log(res.code.toString().startsWith('2') ? 'PASS' : 'FAILED')
 
-   return res.data.client_id;
+   return res.data.client_id
 }
 
 async function removeClient(token: string, clientId: string) {
    const res = await r(`/_/v1/clients/${clientId}`, {
       method: 'DELETE',
       headers: b(token),
-   });
+   })
 
-   console.log(res.code.toString().startsWith('2') ? 'PASS' : 'FAILED');
+   console.log(res.code.toString().startsWith('2') ? 'PASS' : 'FAILED')
 }
 
 async function authorizeClient(clientId: string, token: string) {
@@ -65,17 +65,14 @@ async function authorizeClient(clientId: string, token: string) {
       redirect_uri: 'http://localhost/callback',
       scope: 'openid email',
       state: 'xyz',
-   });
-   const res = await fetch(
-      `${BASE_URL}/v1/oauth/authorize?${params.toString()}`,
-      {
-         credentials: 'include',
-         redirect: 'manual',
-      },
-   );
+   })
+   const res = await fetch(`${BASE_URL}/v1/oauth/authorize?${params.toString()}`, {
+      credentials: 'include',
+      redirect: 'manual',
+   })
 
-   const location = res.headers.get('Location');
-   const aid = location ? new URL(location).searchParams.get('aid') : null;
+   const location = res.headers.get('Location')
+   const aid = location ? new URL(location).searchParams.get('aid') : null
 
    const res3 = await fetch(`${BASE_URL}/v1/oauth/authorize?aid=${aid}`, {
       method: 'POST',
@@ -88,16 +85,14 @@ async function authorizeClient(clientId: string, token: string) {
       body: new URLSearchParams({
          action: 'approve',
       }),
-   });
-   console.log(res3);
-   const finalLocation = res3.headers.get('Location');
-   const code = finalLocation
-      ? new URL(finalLocation).searchParams.get('code')
-      : null;
+   })
+   console.log(res3)
+   const finalLocation = res3.headers.get('Location')
+   const code = finalLocation ? new URL(finalLocation).searchParams.get('code') : null
 
-   console.log(code ? 'PASS' : 'FAILED');
+   console.log(code ? 'PASS' : 'FAILED')
 
-   return code ?? '';
+   return code ?? ''
 }
 
 async function tokenFromCode(clientId: string, code: string) {
@@ -107,23 +102,23 @@ async function tokenFromCode(clientId: string, code: string) {
       redirect_uri: 'http://localhost/callback',
       client_id: clientId,
       client_secret: secret,
-   });
+   })
    const res = await r('/v1/oauth/token', {
       method: 'POST',
       body: params,
       headers: {
          'Content-Type': 'application/x-www-form-urlencoded',
       },
-   });
+   })
 
-   console.log(res);
-   console.log('access_token' in res ? 'PASS' : 'FAILED');
+   console.log(res)
+   console.log('access_token' in res ? 'PASS' : 'FAILED')
 
    return {
       accessToken: res.access_token,
       idToken: res.id_token,
       refreshToken: res.refresh_token,
-   };
+   }
 }
 
 async function refreshToken(clientId: string, refreshToken: string) {
@@ -132,66 +127,61 @@ async function refreshToken(clientId: string, refreshToken: string) {
       refresh_token: refreshToken,
       client_id: clientId,
       client_secret: secret,
-   });
+   })
    const res = await r('/v1/oauth/token', {
       method: 'POST',
       body: params,
       headers: {
          'Content-Type': 'application/x-www-form-urlencoded',
       },
-   });
+   })
 
-   console.log(123, res);
-   console.log('access_token' in res ? 'PASS' : 'FAILED');
+   console.log(123, res)
+   console.log('access_token' in res ? 'PASS' : 'FAILED')
 
    return {
       accessToken: res.access_token,
       idToken: res.id_token,
       refreshToken: res.refresh_token,
-   };
+   }
 }
 
 async function verifyIdToken(token: string) {
-   const [headerB64, payload, signature] = token.split('.');
-   const decodedHeader = JSON.parse(atob(headerB64));
+   const [headerB64, payload, signature] = token.split('.')
+   const decodedHeader = JSON.parse(atob(headerB64))
 
-   const res1 = await r('/.well-known/jwks.json', { method: 'GET' });
+   const res1 = await r('/.well-known/jwks.json', { method: 'GET' })
 
    // 找到匹配的 key
-   const jwk = res1.keys.find((k: any) => k.kid === decodedHeader.kid);
-   const { n, e } = jwk;
+   const jwk = res1.keys.find((k: any) => k.kid === decodedHeader.kid)
+   const { n, e } = jwk
 
    const cryptoKey = await crypto.subtle.importKey(
       'jwk',
       { kty: 'RSA', n: n, e: e, alg: 'RS256', ext: true },
       { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' },
       false,
-      ['verify'],
-   );
+      ['verify']
+   )
 
-   const encoder = new TextEncoder();
-   const data = encoder.encode([headerB64, payload].join('.'));
+   const encoder = new TextEncoder()
+   const data = encoder.encode([headerB64, payload].join('.'))
 
-   const b64 = atob(signature.replace(/-/g, '+').replace(/_/g, '/'));
-   const signatureArray = Uint8Array.from(b64, (c) => c.charCodeAt(0));
-   const isValid = await crypto.subtle.verify(
-      'RSASSA-PKCS1-v1_5',
-      cryptoKey,
-      signatureArray,
-      data,
-   );
+   const b64 = atob(signature.replace(/-/g, '+').replace(/_/g, '/'))
+   const signatureArray = Uint8Array.from(b64, c => c.charCodeAt(0))
+   const isValid = await crypto.subtle.verify('RSASSA-PKCS1-v1_5', cryptoKey, signatureArray, data)
 
-   console.log(isValid ? 'PASS' : 'FAILED');
+   console.log(isValid ? 'PASS' : 'FAILED')
 }
 
 async function getUserInfo(token: string) {
    const res = await r('/v1/oauth/userinfo', {
       method: 'GET',
       headers: b(token),
-   });
+   })
 
-   console.log(22, res);
-   console.log(res.code.toString().startsWith('2') ? 'PASS' : 'FAILED');
+   console.log(22, res)
+   console.log(res.code.toString().startsWith('2') ? 'PASS' : 'FAILED')
 }
 
 async function logout(token: string) {
@@ -201,35 +191,46 @@ async function logout(token: string) {
       headers: {
          Authorization: `Bearer ${token}`,
       },
-   });
+   })
 
-   console.log(res);
+   console.log(res)
 
-   const location = res.headers.get('Location');
-   console.log(location ? 'PASS' : 'FAILED');
+   const location = res.headers.get('Location')
+   console.log(location ? 'PASS' : 'FAILED')
+}
+
+async function getDashboard(token: string) {
+   const res = await r('/_/v1/dashboard/stats', {
+      method: 'GET',
+      headers: b(token),
+   })
+
+   console.log(22, res)
 }
 
 async function main() {
    // 创建阶段
-   const cred = await loginToAdmin();
-   const clientId = await createClient(cred.accessToken, cred.userId);
+   const cred = await loginToAdmin()
+   const clientId = await createClient(cred.accessToken, cred.userId)
 
    // 授权阶段
-   const code = await authorizeClient(clientId, cred.accessToken);
-   const token = await tokenFromCode(clientId, code);
-   await verifyIdToken(token.idToken);
+   const code = await authorizeClient(clientId, cred.accessToken)
+   const token = await tokenFromCode(clientId, code)
+   await verifyIdToken(token.idToken)
 
    // 刷新阶段
-   const ntoken = await refreshToken(clientId, token.refreshToken);
+   const ntoken = await refreshToken(clientId, token.refreshToken)
 
    // 获取用户信息
-   await getUserInfo(ntoken.accessToken);
+   await getUserInfo(ntoken.accessToken)
+
+   await getDashboard(cred.accessToken)
 
    // 清理阶段
-   await logout(ntoken.accessToken);
+   // await logout(ntoken.accessToken);
 
    // 删除客户端
-   await removeClient(cred.accessToken, clientId);
+   await removeClient(cred.accessToken, clientId)
 }
 
-main();
+main()

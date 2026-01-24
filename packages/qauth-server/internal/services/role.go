@@ -232,7 +232,7 @@ func (s *RoleService) AssignRolesToUserByCode(userID string, roleCodes []string)
 		})
 	}
 
-	if err := s.db.Create(&userRoles).Error; err != nil {
+	if err := s.db.FirstOrCreate(&userRoles).Error; err != nil {
 		return err
 	}
 

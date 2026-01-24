@@ -64,6 +64,26 @@ func (s *GormClientStore) GetByID(ctx context.Context, id string) (oauth2.Client
 	}, nil
 }
 
+// CustomAccessTokenGenerate 自定义令牌生成器
+type CustomAccessTokenGenerate struct {
+}
+
+func (g *CustomAccessTokenGenerate) Token(ctx context.Context, data *oauth2.GenerateBasic, isGenRefresh bool) (access, refresh string, err error) {
+	access, err = utilities.GenerateRandomString(32)
+	if isGenRefresh {
+		refresh, err = utilities.GenerateRandomString(32)
+	}
+
+	if err != nil {
+		return "", "", err
+	}
+
+	access = "atk:" + access
+	refresh = "rtk:" + refresh
+
+	return access, refresh, err
+}
+
 // NewOAuthService 创建新的 OAuth2 服务
 func NewOAuthService(
 	db *gorm.DB,
@@ -81,12 +101,15 @@ func NewOAuthService(
 		Addr:     cfg.Redis.Addr,
 		Password: cfg.Redis.Password,
 		DB:       cfg.Redis.DB,
-	})
+	}, "oauth2_token:")
 
 	// 创建 OAuth2 管理器
 	manager := manage.NewDefaultManager()
 	manager.MapTokenStorage(tokenStore)
 	manager.MapClientStorage(clientStore)
+
+	// 使用自定义的令牌生成器
+	manager.MapAccessGenerate(&CustomAccessTokenGenerate{})
 
 	// 配置授权码模式
 	manager.SetAuthorizeCodeTokenCfg(&manage.Config{

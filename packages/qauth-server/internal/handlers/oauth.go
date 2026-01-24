@@ -234,6 +234,9 @@ func (h *OAuthHandler) Authorize(c *gin.Context) {
 		c.Error(app_error.ErrBadRequest)
 	}
 
+	// 增加今日授权计数器
+	h.cacheService.IncrKey("todays-authcount")
+
 	// 根据响应类型修改重定向位置以支持隐式授权模式
 	h.modifyRedirectLocation(c, isValid, rt)
 }
@@ -457,7 +460,6 @@ func (h *OAuthHandler) UserInfo(c *gin.Context) {
 		return
 	}
 
-	utilities.GetLogger().Info("[" + token + "]")
 	info, err := h.oauthService.GetTokenInfo(token)
 	if err != nil {
 		response.HandlerError(c, app_error.ErrInvalidAccessToken)

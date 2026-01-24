@@ -98,3 +98,12 @@ func (s *UserService) UpdateUser(user *models.Users) error {
 func (s *UserService) DeleteUser(userID string) error {
 	return s.db.Delete(&models.Users{}, "id = ?", userID).Error
 }
+
+// UserCount 返回所有用户的数量
+func (s *UserService) UserCount() (int64, error) {
+	var count int64
+	if err := s.db.Model(&models.Users{}).Count(&count).Error; err != nil {
+		return -1, err
+	}
+	return count, nil
+}
