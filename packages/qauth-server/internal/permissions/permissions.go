@@ -57,3 +57,23 @@ const (
 	// 更新权限
 	PermissionUpdate = "permission_update"
 )
+
+// 用户管理相关权限
+const (
+	// 创建用户权限
+	UserCreate = "user_create"
+	// 删除用户权限
+	UserDelete = "user_delete"
+	// 查看用户权限
+	UserView = "user_view"
+	// 查看用户列表权限
+	UserList = "user_list"
+	// 更新用户权限
+	UserUpdate = "user_update"
+	// 为用户分配角色权限
+	UserAssignRoles = "user_assign_roles"
+	// 从用户撤销角色权限
+	UserRevokeRoles = "user_revoke_roles"
+	// 重置用户密码权限
+	UserResetPassword = "user_reset_password"
+)

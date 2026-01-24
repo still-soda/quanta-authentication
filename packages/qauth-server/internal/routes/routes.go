@@ -16,6 +16,7 @@ type RegisterRouterHandlers struct {
 	OIDCHandler       *_handlers.OIDCHandler
 	RoleHandler       *_handlers.RoleHandler
 	PermissionHandler *_handlers.PermissionHandler
+	UserHandler       *_handlers.UserHandler
 
 	DashboardHandler *business.DashboardHandler
 	AuditHandler     *business.AuditHandler
@@ -158,6 +159,23 @@ func RegisterRoutes(r *gin.Engine, handlers *RegisterRouterHandlers) {
 				auditGroup.GET("/stats", handlers.AuditHandler.GetAuditStats)
 				auditGroup.GET("/top-clients", handlers.AuditHandler.GetTopClients)
 				auditGroup.GET("/export", handlers.AuditHandler.ExportAuditLogs)
+			}
+
+			// 用户管理路由
+			// /system/v1/users
+			userGroup := authRequiredGroup.Group("/users")
+			{
+				userGroup.GET("", handlers.UserHandler.ListUsers)
+				userGroup.POST("", handlers.UserHandler.CreateUser)
+				userGroup.GET("/stats", handlers.UserHandler.GetUserStatusCounts)
+				userGroup.GET("/:id", handlers.UserHandler.GetUser)
+				userGroup.PUT("/:id", handlers.UserHandler.UpdateUser)
+				userGroup.DELETE("/:id", handlers.UserHandler.DeleteUser)
+				userGroup.GET("/:id/roles", handlers.UserHandler.GetUserRoles)
+				userGroup.PUT("/:id/roles", handlers.UserHandler.SetUserRoles)
+				userGroup.POST("/:id/roles/assign", handlers.UserHandler.AssignRolesToUser)
+				userGroup.POST("/:id/roles/revoke", handlers.UserHandler.RevokeRolesFromUser)
+				userGroup.POST("/:id/reset-password", handlers.UserHandler.ResetUserPassword)
 			}
 		}
 	}

@@ -261,8 +261,12 @@ func (h *OAuthHandler) Authorize(c *gin.Context) {
 			userName = user.Name
 		}
 	}
+	var operatorID *string
+	if userID != "" {
+		operatorID = &userID
+	}
 	h.auditService.Log(&services.AuditContext{
-		OperatorID:   userID,
+		OperatorID:   operatorID,
 		OperatorName: userName,
 		IP:           c.ClientIP(),
 		UserAgent:    c.GetHeader("User-Agent"),

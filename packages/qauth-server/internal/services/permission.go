@@ -144,7 +144,7 @@ func VerifyPermissions(c *gin.Context, roleService *RoleService, codes []string)
 		return app_error.ErrInternalServerError
 	}
 
-	hasPermission, err := roleService.RoleHasPermissions(userRole.ID, codes)
+	hasPermission, err := roleService.RoleHasPermissions(userRole.BaseModelWithUUID.ID, codes)
 	if err != nil {
 		utilities.GetLogger().Error("Check role permissions error", "error", err)
 		response.HandlerError(c, app_error.ErrInternalServerError)

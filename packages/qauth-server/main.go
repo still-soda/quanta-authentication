@@ -112,6 +112,7 @@ func main() {
 	oidcHandler := handlers.NewOIDCHandler(oidcService, userService)
 	roleHandler := handlers.NewRoleHandler(roleService, permissionService, auditService)
 	permissionHandler := handlers.NewPermissionHandler(roleService, permissionService, auditService)
+	userHandler := handlers.NewUserHandler(userService, roleService, auditService)
 	dashboardHandler := business.NewDashboardHandler(userService, counterService, cacheService)
 	auditHandler := business.NewAuditHandler(auditService, roleService)
 
@@ -124,6 +125,7 @@ func main() {
 		OIDCHandler:       oidcHandler,
 		RoleHandler:       roleHandler,
 		PermissionHandler: permissionHandler,
+		UserHandler:       userHandler,
 		DashboardHandler:  dashboardHandler,
 		AuditHandler:      auditHandler,
 	})

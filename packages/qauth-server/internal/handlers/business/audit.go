@@ -85,7 +85,7 @@ func (h *AuditHandler) GetRecentActivities(c *gin.Context) {
 		return
 	}
 
-	limit := 10
+	limit := 5
 	logs, err := h.auditService.GetRecentActivities(limit)
 	if err != nil {
 		response.HandlerError(c, app_error.ErrFailedToGetAuditLogs)
@@ -113,8 +113,8 @@ func (h *AuditHandler) GetRecentActivities(c *gin.Context) {
 		if log.Operator.ID != "" {
 			if log.Operator.Avatar != nil && log.Operator.Avatar.File != nil {
 				activity["avatar"] = "/uploads/" + log.Operator.Avatar.File.StorageKey
-			} else {
-				activity["avatar"] = "https://api.dicebear.com/7.x/avataaars/svg?seed=" + log.OperatorID
+			} else if log.OperatorID != nil {
+				activity["avatar"] = "https://api.dicebear.com/7.x/avataaars/svg?seed=" + *log.OperatorID
 			}
 		}
 

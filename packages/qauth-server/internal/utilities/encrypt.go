@@ -12,6 +12,18 @@ func ParseInt(s string) (int, error) {
 	return strconv.Atoi(s)
 }
 
+// ParseIntParam 解析字符串为整数，如果失败则返回默认值
+func ParseIntParam(s string, defaultVal int) int {
+	if s == "" {
+		return defaultVal
+	}
+	val, err := strconv.Atoi(s)
+	if err != nil {
+		return defaultVal
+	}
+	return val
+}
+
 // GenerateSalt 生成指定长度的随机盐值
 func GenerateSalt(length int) (string, error) {
 	b := make([]byte, length)

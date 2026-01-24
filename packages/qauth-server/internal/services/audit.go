@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"qauth-server/internal/models"
 	"qauth-server/internal/utilities"
+	"qauth-server/pkg/jwt"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -27,7 +28,7 @@ func NewAuditService(db *gorm.DB, userService *UserService) *AuditService {
 
 // AuditContext 审计上下文信息
 type AuditContext struct {
-	OperatorID   string
+	OperatorID   *string
 	OperatorName string
 	IP           string
 	UserAgent    string
@@ -59,11 +60,12 @@ func (s *AuditService) ExtractAuditContext(c *gin.Context) *AuditContext {
 	}
 
 	// 尝试从上下文中获取用户信息
-	if userID, exists := c.Get("userID"); exists {
-		ctx.OperatorID = userID.(string)
+	if userInfo, exists := c.Get("userInfo"); exists {
+		userInfo := userInfo.(*jwt.UserJWTClaims)
+		ctx.OperatorID = &userInfo.UserID
 
 		// 获取用户名
-		if user, err := s.userService.GetUserByID(ctx.OperatorID, false); err == nil {
+		if user, err := s.userService.GetUserByID(userInfo.UserID, false); err == nil {
 			ctx.OperatorName = user.Name
 		}
 	}
@@ -142,8 +144,13 @@ func (s *AuditService) LogLogin(c *gin.Context, userID, userName, loginType stri
 		status = models.AuditStatusError
 	}
 
+	var operatorID *string
+	if userID != "" {
+		operatorID = &userID
+	}
+
 	ctx := &AuditContext{
-		OperatorID:   userID,
+		OperatorID:   operatorID,
 		OperatorName: userName,
 		IP:           c.ClientIP(),
 		UserAgent:    c.GetHeader("User-Agent"),
@@ -178,8 +185,13 @@ func (s *AuditService) LogOAuthAuthorize(c *gin.Context, userID, userName string
 		clientIDStr = *clientID
 	}
 
+	var operatorID *string
+	if userID != "" {
+		operatorID = &userID
+	}
+
 	ctx := &AuditContext{
-		OperatorID:   userID,
+		OperatorID:   operatorID,
 		OperatorName: userName,
 		IP:           c.ClientIP(),
 		UserAgent:    c.GetHeader("User-Agent"),

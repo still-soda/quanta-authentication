@@ -71,7 +71,7 @@ const (
 // AuditLog 审计日志模型
 type AuditLog struct {
 	ID           string         `gorm:"type:uuid;default:gen_random_uuid();primaryKey" json:"id"`
-	OperatorID   string         `gorm:"type:uuid;index" json:"operator_id"`
+	OperatorID   *string        `gorm:"type:uuid;index" json:"operator_id,omitempty"`
 	OperatorName string         `gorm:"size:100" json:"operator_name"`
 	Module       AuditModule    `gorm:"size:50;not null;index" json:"module"`
 	Action       AuditAction    `gorm:"size:50;not null;index" json:"action"`

@@ -78,8 +78,9 @@ func (h *AuthHandler) Register(c *gin.Context) {
 	}
 
 	// 记录注册成功的审计日志
+	userID := user.ID
 	h.auditService.Log(&services.AuditContext{
-		OperatorID:   user.ID,
+		OperatorID:   &userID,
 		OperatorName: user.Name,
 		IP:           c.ClientIP(),
 		UserAgent:    c.GetHeader("User-Agent"),
@@ -191,8 +192,9 @@ func (h *AuthHandler) RefreshToken(c *gin.Context) {
 	}
 
 	// 记录令牌刷新
+	userIDStr := userInfo.UserID
 	h.auditService.Log(&services.AuditContext{
-		OperatorID: userInfo.UserID,
+		OperatorID: &userIDStr,
 		IP:         c.ClientIP(),
 		UserAgent:  c.GetHeader("User-Agent"),
 	}, &services.AuditEntry{
