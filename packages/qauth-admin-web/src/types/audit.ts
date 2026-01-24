@@ -35,7 +35,39 @@ export type AuditAction =
 // 审计状态枚举
 export type AuditStatus = 'SUCCESS' | 'WARNING' | 'ERROR'
 
-// 审计日志
+// 后端返回的审计日志数据（snake_case）
+export interface AuditLogBackend {
+   id: string
+   operator_id: string
+   operator_name: string
+   module: string
+   action: string
+   target_id: string
+   target_type?: string
+   target_name?: string
+   detail: Record<string, unknown>
+   ip: string
+   user_agent?: string
+   location?: string
+   status: AuditStatus
+   error_message?: string
+   duration_ms: number
+   client_id?: string
+   session_id?: string
+   request_id?: string
+   created_at: string
+   operator?: {
+      id: string
+      username: string
+      avatar?: {
+         file?: {
+            storage_key: string
+         }
+      }
+   }
+}
+
+// 审计日志（前端格式，camelCase）
 export interface AuditLog {
    id: string
    operatorId: string
@@ -47,9 +79,12 @@ export interface AuditLog {
    targetName?: string
    detail: Record<string, unknown>
    ip: string
+   userAgent?: string
+   location?: string
    time: string
    durationMs: number
    status: Status
+   errorMessage?: string
 }
 
 // 审计日志查询过滤器
@@ -68,10 +103,14 @@ export interface AuditLogFilter {
 
 // 审计日志响应
 export interface AuditLogResponse {
-   items: AuditLog[]
-   total: number
-   page: number
-   page_size: number
+   code: number
+   msg: string
+   data: {
+      items: AuditLogBackend[]
+      total: number
+      page: number
+      page_size: number
+   }
 }
 
 // 审计活动

@@ -108,7 +108,6 @@ func (h *DashboardHandler) GetDashboardStats(c *gin.Context) {
 	}
 
 	// 组装响应数据
-	realtimeActiveCnt = realtimeActiveCnt - 1 // 减去缓存中的空 key
 	activeTrendData := make([]int64, 0)
 	for _, cnt := range maxActiveTrend {
 		activeTrendData = append(activeTrendData, cnt.Count)

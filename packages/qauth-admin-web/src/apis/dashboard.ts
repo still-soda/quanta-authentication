@@ -109,52 +109,6 @@ export async function getDashboardStats(): Promise<DashboardStats> {
 }
 
 /**
- * 获取认证趋势数据
- * 从审计统计 API 获取数据
- */
-export async function getAuthTrendData(): Promise<AuthTrendData> {
-   try {
-      const response = await httpClient.get<{ code: number; data: AuditStatsResponse }>(
-         '/_/v1/audit/stats'
-      )
-      const actionStats = response.data.data.action_stats
-
-      // 将操作类型统计转换为趋势图表数据
-      const actionLabels: string[] = []
-      const actionData: number[] = []
-
-      // 定义操作类型的中文映射
-      const actionNameMap: Record<string, string> = {
-         LOGIN: '登录',
-         LOGOUT: '登出',
-         REGISTER: '注册',
-         OAUTH_AUTHORIZE: 'OAuth授权',
-         TOKEN_REFRESH: '令牌刷新',
-         PASSWORD_RESET: '密码重置',
-         PASSWORD_CHANGE: '密码修改',
-      }
-
-      for (const [action, count] of Object.entries(actionStats)) {
-         if (count > 0) {
-            actionLabels.push(actionNameMap[action] || action)
-            actionData.push(count)
-         }
-      }
-
-      return {
-         labels: actionLabels.length > 0 ? actionLabels : ['暂无数据'],
-         data: actionData.length > 0 ? actionData : [0],
-      }
-   } catch (error) {
-      // 如果 API 调用失败，返回默认数据
-      return mockResponse({
-         labels: ['周一', '周二', '周三', '周四', '周五', '周六', '周日'],
-         data: [0, 0, 0, 0, 0, 0, 0],
-      })
-   }
-}
-
-/**
  * 获取用户分布数据
  * 从审计统计 API 获取数据
  */
