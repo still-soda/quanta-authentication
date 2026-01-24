@@ -1,171 +1,125 @@
 /**
  * Users API - 用户管理相关接口
  */
-import { mockResponse } from './index';
-import type { User, UserFormData } from '@/types';
+import { httpClient } from './index'
+import type {
+   User,
+   CreateUserFormData,
+   UpdateUserFormData,
+   ListUsersParams,
+   ListUsersResult,
+   UserStatusCounts,
+} from '@/types'
+import type { Role } from '@/types/role'
 
 /**
- * 获取用户列表
+ * 获取用户列表（带分页）
  */
-export async function getUsers(): Promise<User[]> {
-  return mockResponse([
-    {
-      id: 1,
-      name: '张伟',
-      email: 'zhang.wei@example.com',
-      avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=zhang',
-      role: '管理员',
-      status: 'active',
-      lastLogin: '2026-01-23 10:30',
-      createdAt: '2024-06-15',
-    },
-    {
-      id: 2,
-      name: '李明',
-      email: 'li.ming@example.com',
-      avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=li',
-      role: '开发者',
-      status: 'active',
-      lastLogin: '2026-01-22 18:45',
-      createdAt: '2024-08-22',
-    },
-    {
-      id: 3,
-      name: '王芳',
-      email: 'wang.fang@example.com',
-      avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=wang',
-      role: '普通用户',
-      status: 'inactive',
-      lastLogin: '2026-01-10 09:15',
-      createdAt: '2024-09-03',
-    },
-    {
-      id: 4,
-      name: '陈红',
-      email: 'chen.hong@example.com',
-      avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=chen',
-      role: '普通用户',
-      status: 'active',
-      lastLogin: '2026-01-23 08:20',
-      createdAt: '2024-11-18',
-    },
-    {
-      id: 5,
-      name: '赵阳',
-      email: 'zhao.yang@example.com',
-      avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=zhao',
-      role: '开发者',
-      status: 'locked',
-      lastLogin: '2026-01-05 14:30',
-      createdAt: '2025-01-02',
-    },
-    {
-      id: 6,
-      name: '刘洋',
-      email: 'liu.yang@example.com',
-      avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=liu',
-      role: '普通用户',
-      status: 'active',
-      lastLogin: '2026-01-21 16:45',
-      createdAt: '2025-03-10',
-    },
-    {
-      id: 7,
-      name: '孙静',
-      email: 'sun.jing@example.com',
-      avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=sun',
-      role: '管理员',
-      status: 'active',
-      lastLogin: '2026-01-23 11:00',
-      createdAt: '2024-05-20',
-    },
-    {
-      id: 8,
-      name: '周杰',
-      email: 'zhou.jie@example.com',
-      avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=zhou',
-      role: '开发者',
-      status: 'pending',
-      lastLogin: '-',
-      createdAt: '2026-01-20',
-    },
-  ]);
+export async function getUsers(params: ListUsersParams = {}): Promise<ListUsersResult> {
+   const response = await httpClient.get('/_/v1/users', { params })
+   return response.data.data
 }
 
 /**
  * 获取单个用户
  */
-export async function getUser(id: number): Promise<User | null> {
-  const users = await getUsers();
-  return users.find(u => u.id === id) || null;
+export async function getUser(id: string): Promise<User> {
+   const response = await httpClient.get(`/_/v1/users/${id}`)
+   return response.data.data
 }
 
 /**
  * 创建用户
  */
-export async function createUser(data: UserFormData): Promise<User> {
-  return mockResponse({
-    id: Date.now(),
-    name: data.name,
-    email: data.email,
-    avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${Date.now()}`,
-    role: data.role,
-    status: data.status ? 'active' : 'inactive',
-    lastLogin: '-',
-    createdAt: new Date().toISOString().split('T')[0],
-  });
+export async function createUser(data: CreateUserFormData): Promise<User> {
+   const response = await httpClient.post('/_/v1/users', data)
+   return response.data.data
 }
 
 /**
  * 更新用户
  */
-export async function updateUser(id: number, data: Partial<UserFormData>): Promise<User> {
-  const user = await getUser(id);
-  if (!user) throw new Error('User not found');
-  
-  return mockResponse({
-    ...user,
-    ...data,
-    status: data.status !== undefined ? (data.status ? 'active' : 'inactive') : user.status,
-  });
+export async function updateUser(id: string, data: UpdateUserFormData): Promise<User> {
+   const response = await httpClient.put(`/_/v1/users/${id}`, data)
+   return response.data.data
 }
 
 /**
  * 删除用户
  */
-export async function deleteUser(id: number): Promise<void> {
-  return mockResponse(undefined);
+export async function deleteUser(id: string): Promise<void> {
+   await httpClient.delete(`/_/v1/users/${id}`)
+}
+
+/**
+ * 获取用户角色
+ */
+export async function getUserRoles(userId: string): Promise<Role[]> {
+   const response = await httpClient.get(`/_/v1/users/${userId}/roles`)
+   return response.data.data || []
+}
+
+/**
+ * 设置用户角色（替换现有角色）
+ */
+export async function setUserRoles(userId: string, roleIds: string[]): Promise<Role[]> {
+   const response = await httpClient.put(`/_/v1/users/${userId}/roles`, {
+      role_ids: roleIds,
+   })
+   return response.data.data || []
+}
+
+/**
+ * 为用户分配角色（追加）
+ */
+export async function assignRolesToUser(userId: string, roleIds: string[]): Promise<Role[]> {
+   const response = await httpClient.post(`/_/v1/users/${userId}/roles/assign`, {
+      role_ids: roleIds,
+   })
+   return response.data.data || []
+}
+
+/**
+ * 从用户撤销角色
+ */
+export async function revokeRolesFromUser(userId: string, roleIds: string[]): Promise<Role[]> {
+   const response = await httpClient.post(`/_/v1/users/${userId}/roles/revoke`, {
+      role_ids: roleIds,
+   })
+   return response.data.data || []
 }
 
 /**
  * 重置用户密码
  */
-export async function resetUserPassword(id: number): Promise<{ success: boolean }> {
-  return mockResponse({ success: true });
+export async function resetUserPassword(
+   userId: string,
+   newPassword?: string
+): Promise<{ success: boolean; new_password?: string }> {
+   const response = await httpClient.post(`/_/v1/users/${userId}/reset-password`, {
+      new_password: newPassword,
+   })
+   return response.data.data
 }
 
 /**
- * 禁用用户
+ * 获取用户状态统计
  */
-export async function disableUser(id: number): Promise<User> {
-  const user = await getUser(id);
-  if (!user) throw new Error('User not found');
-  
-  return mockResponse({
-    ...user,
-    status: 'inactive',
-  });
+export async function getUserStatusCounts(): Promise<UserStatusCounts> {
+   const response = await httpClient.get('/_/v1/users/stats')
+   return response.data.data || {}
 }
 
 /**
- * 启用用户
+ * 禁用用户（更改状态为 LOCKED）
  */
-export async function enableUser(id: number): Promise<User> {
-  const user = await getUser(id);
-  if (!user) throw new Error('User not found');
-  
-  return mockResponse({
-    ...user,
-    status: 'active',
-  });
+export async function disableUser(id: string): Promise<User> {
+   return updateUser(id, { status: 'LOCKED' })
+}
+
+/**
+ * 启用用户（更改状态为 ACTIVE）
+ */
+export async function enableUser(id: string): Promise<User> {
+   return updateUser(id, { status: 'ACTIVE' })
 }

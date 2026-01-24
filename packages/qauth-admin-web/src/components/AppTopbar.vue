@@ -70,6 +70,7 @@ const notifications = ref([
 const unreadCount = computed(() => notifications.value.filter(n => n.unread).length)
 
 const handleLogout = () => {
+   localStorage.clear()
    router.replace('/auth/login')
 }
 

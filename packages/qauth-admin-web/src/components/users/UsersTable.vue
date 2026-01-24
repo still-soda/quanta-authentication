@@ -1,34 +1,39 @@
 <script setup lang="ts">
-import { ref } from 'vue';
-import Card from 'primevue/card';
-import Button from 'primevue/button';
-import DataTable from 'primevue/datatable';
-import Column from 'primevue/column';
-import InputText from 'primevue/inputtext';
-import Tag from 'primevue/tag';
-import Avatar from 'primevue/avatar';
-import Menu from 'primevue/menu';
-import type { User } from './UserCell.vue';
+import { ref } from 'vue'
+import Card from 'primevue/card'
+import Button from 'primevue/button'
+import DataTable from 'primevue/datatable'
+import Column from 'primevue/column'
+import InputText from 'primevue/inputtext'
+import Tag from 'primevue/tag'
+import Avatar from 'primevue/avatar'
+import Menu from 'primevue/menu'
+import type { User, UserStatus } from '@/types'
+import { UserStatusNames, UserStatusSeverity } from '@/types'
 
 const props = defineProps<{
-   users: User[];
-   selectedUsers: User[];
-}>();
+   users: User[]
+   selectedUsers: User[]
+   loading?: boolean
+}>()
 
 const emit = defineEmits<{
-   (e: 'update:selectedUsers', value: User[]): void;
-   (e: 'edit', user: User): void;
-   (e: 'delete', user: User): void;
-   (e: 'resetPassword', user: User): void;
-   (e: 'disable', user: User): void;
-}>();
+   (e: 'update:selectedUsers', value: User[]): void
+   (e: 'edit', user: User): void
+   (e: 'delete', user: User): void
+   (e: 'resetPassword', user: User): void
+   (e: 'disable', user: User): void
+   (e: 'enable', user: User): void
+   (e: 'manageRoles', user: User): void
+   (e: 'search', value: string): void
+}>()
 
 const filters = ref({
    global: { value: null, matchMode: 'contains' },
-});
+})
 
-const actionMenu = ref();
-const currentUser = ref<User | null>(null);
+const actionMenu = ref()
+const currentUser = ref<User | null>(null)
 
 const actionMenuItems = ref([
    {
@@ -37,16 +42,27 @@ const actionMenuItems = ref([
       command: () => currentUser.value && emit('edit', currentUser.value),
    },
    {
+      label: '管理角色',
+      icon: 'pi pi-shield',
+      command: () => currentUser.value && emit('manageRoles', currentUser.value),
+   },
+   {
       label: '重置密码',
       icon: 'pi pi-refresh',
-      command: () =>
-         currentUser.value && emit('resetPassword', currentUser.value),
+      command: () => currentUser.value && emit('resetPassword', currentUser.value),
    },
    { separator: true },
    {
       label: '禁用',
       icon: 'pi pi-ban',
+      visible: () => currentUser.value?.status === 'ACTIVE',
       command: () => currentUser.value && emit('disable', currentUser.value),
+   },
+   {
+      label: '启用',
+      icon: 'pi pi-check',
+      visible: () => currentUser.value?.status !== 'ACTIVE',
+      command: () => currentUser.value && emit('enable', currentUser.value),
    },
    {
       label: '删除',
@@ -54,64 +70,80 @@ const actionMenuItems = ref([
       class: 'text-red-500',
       command: () => currentUser.value && emit('delete', currentUser.value),
    },
-]);
+])
 
-const getStatusSeverity = (status: string) => {
-   const map: Record<
-      string,
-      'success' | 'warn' | 'danger' | 'info' | 'secondary'
-   > = {
-      active: 'success',
-      inactive: 'secondary',
-      locked: 'danger',
-      pending: 'warn',
-   };
-   return map[status] || 'info';
-};
+const getStatusSeverity = (status: UserStatus) => {
+   return UserStatusSeverity[status] || 'secondary'
+}
 
-const getStatusLabel = (status: string) => {
-   const map: Record<string, string> = {
-      active: '正常',
-      inactive: '未激活',
-      locked: '已锁定',
-      pending: '待审核',
-   };
-   return map[status] || status;
-};
+const getStatusLabel = (status: UserStatus) => {
+   return UserStatusNames[status] || status
+}
 
-const getRoleSeverity = (role: string) => {
-   const map: Record<string, 'danger' | 'warn' | 'info'> = {
-      管理员: 'danger',
-      开发者: 'warn',
-      普通用户: 'info',
-   };
-   return map[role] || 'info';
-};
+const getRoleSeverity = (roleName: string) => {
+   // 系统管理员角色显示为红色
+   if (roleName.includes('超级管理员') || roleName.includes('super')) {
+      return 'danger'
+   }
+   if (roleName.includes('管理员') || roleName.includes('admin')) {
+      return 'warn'
+   }
+   return 'info'
+}
 
 const openActionMenu = (event: Event, user: User) => {
-   currentUser.value = user;
-   actionMenu.value.toggle(event);
-};
+   currentUser.value = user
+   actionMenu.value.toggle(event)
+}
 
 const onSelectionChange = (selection: User[]) => {
-   emit('update:selectedUsers', selection);
-};
+   emit('update:selectedUsers', selection)
+}
+
+const formatDateTime = (dateStr?: string) => {
+   if (!dateStr) return '-'
+   const date = new Date(dateStr)
+   return date.toLocaleString('zh-CN', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+   })
+}
+
+const formatDate = (dateStr?: string) => {
+   if (!dateStr) return '-'
+   const date = new Date(dateStr)
+   return date.toLocaleDateString('zh-CN')
+}
+
+// 生成头像 URL
+const getAvatarUrl = (user: User) => {
+   if (user.avatar_id) {
+      return `/uploads/${user.avatar_id}`
+   }
+   return `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.id}`
+}
+
+const handleSearch = () => {
+   emit('search', filters.value.global.value || '')
+}
 </script>
 
 <template>
-   <Card
-      class="rounded-2xl border border-surface-100 dark:border-surface-800">
+   <Card class="rounded-2xl border border-surface-100 dark:border-surface-800">
       <template #content>
          <!-- Toolbar -->
-         <div
-            class="flex justify-between items-center mb-4 flex-wrap gap-4">
+         <div class="flex justify-between items-center mb-4 flex-wrap gap-4">
             <div class="relative flex items-center">
-               <i
-                  class="pi pi-search absolute left-3.5 text-surface-400 text-sm"></i>
+               <i class="pi pi-search absolute left-3.5 text-surface-400 text-sm"></i>
                <InputText
                   v-model="filters['global'].value"
-                  placeholder="搜索用户..."
-                  class="pl-10 min-w-72 h-10 rounded-[10px] max-md:min-w-full" />
+                  placeholder="搜索用户（姓名、邮箱、学号）..."
+                  class="pl-10 min-w-80 h-10 rounded-2xl max-md:min-w-full"
+                  @keyup.enter="handleSearch"
+               />
             </div>
             <div>
                <Button
@@ -119,7 +151,8 @@ const onSelectionChange = (selection: User[]) => {
                   :label="`已选择 ${selectedUsers.length} 项`"
                   icon="pi pi-trash"
                   severity="danger"
-                  outlined />
+                  outlined
+               />
             </div>
          </div>
 
@@ -130,29 +163,22 @@ const onSelectionChange = (selection: User[]) => {
             v-model:filters="filters"
             :value="users"
             :rows="10"
-            :paginator="true"
-            :rowsPerPageOptions="[5, 10, 20, 50]"
+            :paginator="false"
             dataKey="id"
-            :globalFilterFields="['name', 'email', 'role']"
+            :globalFilterFields="['name', 'email', 'student_id']"
             class="text-sm"
-            stripedRows>
+            :loading="loading"
+            stripedRows
+         >
             <Column selectionMode="multiple" headerStyle="width: 3rem"></Column>
 
-            <Column
-               field="name"
-               header="用户"
-               sortable
-               style="min-width: 14rem">
+            <Column field="name" header="用户" sortable style="min-width: 14rem">
                <template #body="{ data }">
                   <div class="flex items-center gap-3.5">
-                     <Avatar
-                        :image="data.avatar"
-                        shape="circle"
-                        size="normal" />
+                     <Avatar :image="getAvatarUrl(data)" shape="circle" size="normal" />
                      <div class="flex flex-col gap-0.5">
-                        <span
-                           class="font-semibold text-surface-900 dark:text-surface-100">
-                           {{ data.name }}
+                        <span class="font-semibold text-surface-900 dark:text-surface-100">
+                           {{ data.display_name || data.name }}
                         </span>
                         <span class="text-[0.8125rem] text-surface-500">
                            {{ data.email }}
@@ -162,19 +188,39 @@ const onSelectionChange = (selection: User[]) => {
                </template>
             </Column>
 
-            <Column field="role" header="角色" sortable style="min-width: 8rem">
+            <Column field="student_id" header="学号" sortable style="min-width: 8rem">
                <template #body="{ data }">
-                  <Tag :severity="getRoleSeverity(data.role)" rounded>
-                     {{ data.role }}
-                  </Tag>
+                  <span class="font-mono text-surface-600 dark:text-surface-400">
+                     {{ data.student_id }}
+                  </span>
                </template>
             </Column>
 
-            <Column
-               field="status"
-               header="状态"
-               sortable
-               style="min-width: 8rem">
+            <Column field="roles" header="角色" style="min-width: 10rem">
+               <template #body="{ data }">
+                  <div class="flex flex-wrap gap-1">
+                     <Tag
+                        v-for="roleName in data.role_names?.slice(0, 2)"
+                        :key="roleName"
+                        :severity="getRoleSeverity(roleName)"
+                        rounded
+                     >
+                        {{ roleName }}
+                     </Tag>
+                     <Tag v-if="data.role_names?.length > 2" severity="secondary" rounded>
+                        +{{ data.role_names.length - 2 }}
+                     </Tag>
+                     <span
+                        v-if="!data.role_names?.length"
+                        class="text-surface-400 text-[0.8125rem]"
+                     >
+                        未分配
+                     </span>
+                  </div>
+               </template>
+            </Column>
+
+            <Column field="status" header="状态" sortable style="min-width: 6rem">
                <template #body="{ data }">
                   <Tag :severity="getStatusSeverity(data.status)">
                      {{ getStatusLabel(data.status) }}
@@ -182,26 +228,18 @@ const onSelectionChange = (selection: User[]) => {
                </template>
             </Column>
 
-            <Column
-               field="lastLogin"
-               header="最后登录"
-               sortable
-               style="min-width: 10rem">
+            <Column field="last_login_at" header="最后登录" sortable style="min-width: 10rem">
                <template #body="{ data }">
                   <span class="text-surface-500 text-[0.8125rem]">
-                     {{ data.lastLogin }}
+                     {{ formatDateTime(data.last_login_at) }}
                   </span>
                </template>
             </Column>
 
-            <Column
-               field="createdAt"
-               header="创建时间"
-               sortable
-               style="min-width: 8rem">
+            <Column field="created_at" header="创建时间" sortable style="min-width: 8rem">
                <template #body="{ data }">
                   <span class="text-surface-500 text-[0.8125rem]">
-                     {{ data.createdAt }}
+                     {{ formatDate(data.created_at) }}
                   </span>
                </template>
             </Column>
@@ -213,13 +251,13 @@ const onSelectionChange = (selection: User[]) => {
                      text
                      rounded
                      severity="secondary"
-                     @click="openActionMenu($event, data)" />
+                     @click="openActionMenu($event, data)"
+                  />
                </template>
             </Column>
 
             <template #empty>
-               <div
-                  class="flex flex-col items-center justify-center p-12 text-surface-400">
+               <div class="flex flex-col items-center justify-center p-12 text-surface-400">
                   <i class="pi pi-users text-5xl mb-4"></i>
                   <p>暂无用户数据</p>
                </div>
