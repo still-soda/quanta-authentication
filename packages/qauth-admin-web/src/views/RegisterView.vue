@@ -2,78 +2,63 @@
 import { ref, computed, reactive } from 'vue'
 import { useRouter } from 'vue-router'
 import InputText from 'primevue/inputtext'
-import Textarea from 'primevue/textarea'
-import Select from 'primevue/select'
 import Button from 'primevue/button'
 import { useToast } from 'primevue/usetoast'
+import { submitRegister } from '@/apis/auth'
 
 const router = useRouter()
 const toast = useToast()
 
-// Form state
+// Form state - 适配服务端注册接口
 const formData = reactive({
-   username: '',
+   studentId: '',
+   name: '',
    email: '',
-   fullName: '',
-   department: '',
-   phone: '',
-   purpose: '',
+   password: '',
+   confirmPassword: '',
 })
 
 const isLoading = ref(false)
 const isSubmitted = ref(false)
-const currentStep = ref(1)
-
-// Department options
-const departments = [
-   { label: '技术部', value: 'tech' },
-   { label: '产品部', value: 'product' },
-   { label: '运营部', value: 'operations' },
-   { label: '市场部', value: 'marketing' },
-   { label: '人力资源', value: 'hr' },
-   { label: '财务部', value: 'finance' },
-   { label: '其他', value: 'other' },
-]
+const submittedData = reactive({
+   studentId: '',
+   name: '',
+   email: '',
+})
 
 // Validation
+const isStudentIdValid = computed(() => {
+   // 学号不为空且长度合理
+   return formData.studentId.trim().length >= 5 && formData.studentId.trim().length <= 20
+})
+
 const isEmailValid = computed(() => {
    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
    return emailRegex.test(formData.email)
 })
 
-const isUsernameValid = computed(() => {
-   const usernameRegex = /^[a-zA-Z0-9_]{3,20}$/
-   return usernameRegex.test(formData.username)
+const isNameValid = computed(() => {
+   return formData.name.trim().length >= 2
 })
 
-const isPhoneValid = computed(() => {
-   if (!formData.phone) return true // Optional field
-   const phoneRegex = /^1[3-9]\d{9}$/
-   return phoneRegex.test(formData.phone)
+const isPasswordValid = computed(() => {
+   // 密码至少6位
+   return formData.password.length >= 6
 })
 
-const isStep1Valid = computed(() => {
-   return isUsernameValid.value && isEmailValid.value && formData.fullName.trim().length >= 2
+const isConfirmPasswordValid = computed(() => {
+   return formData.confirmPassword === formData.password && formData.confirmPassword.length > 0
 })
 
-const isStep2Valid = computed(() => {
-   return formData.department && isPhoneValid.value && formData.purpose.trim().length >= 20
+const isFormValid = computed(() => {
+   return (
+      isStudentIdValid.value &&
+      isEmailValid.value &&
+      isNameValid.value &&
+      isPasswordValid.value &&
+      isConfirmPasswordValid.value
+   )
 })
-
-const isFormValid = computed(() => isStep1Valid.value && isStep2Valid.value)
-
-// Handle step navigation
-const nextStep = () => {
-   if (currentStep.value === 1 && isStep1Valid.value) {
-      currentStep.value = 2
-   }
-}
-
-const prevStep = () => {
-   if (currentStep.value === 2) {
-      currentStep.value = 1
-   }
-}
 
 // Handle submit
 const handleSubmit = async () => {
@@ -90,21 +75,36 @@ const handleSubmit = async () => {
    isLoading.value = true
 
    try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 2000))
-
-      isSubmitted.value = true
-      toast.add({
-         severity: 'success',
-         summary: '申请已提交',
-         detail: '您的注册申请已成功提交，请等待管理员审核',
-         life: 4000,
+      // 调用注册 API
+      const response = await submitRegister({
+         student_id: formData.studentId.trim(),
+         password: formData.password,
+         email: formData.email.trim(),
+         name: formData.name.trim(),
       })
-   } catch {
+
+      if (response.success) {
+         // 保存提交的数据用于显示
+         submittedData.studentId = formData.studentId
+         submittedData.name = formData.name
+         submittedData.email = formData.email
+
+         isSubmitted.value = true
+         toast.add({
+            severity: 'success',
+            summary: '注册成功',
+            detail: response.message || '您的账户已创建成功，请前往登录',
+            life: 4000,
+         })
+      } else {
+         throw new Error(response.message || '注册失败')
+      }
+   } catch (error: unknown) {
+      const err = error as { message?: string }
       toast.add({
          severity: 'error',
-         summary: '提交失败',
-         detail: '申请提交失败，请稍后重试',
+         summary: '注册失败',
+         detail: err.message || '注册失败，请稍后重试',
          life: 3000,
       })
    } finally {
@@ -126,37 +126,39 @@ const goToLogin = () => router.push('/auth/login')
                <div
                   class="inline-flex items-center justify-center w-20 h-20 rounded-full bg-linear-to-br from-green-400/20 to-green-600/20 border border-green-500/30"
                >
-                  <i class="pi pi-send text-4xl text-green-400 animate-bounce-in"></i>
+                  <i class="pi pi-check-circle text-4xl text-green-400 animate-bounce-in"></i>
                </div>
             </div>
 
-            <h2 class="text-xl font-semibold text-white mb-3">注册申请已提交</h2>
+            <h2 class="text-xl font-semibold text-white mb-3">注册成功</h2>
             <p class="text-sm text-white/50 mb-6 leading-relaxed">
-               感谢您的申请！管理员将在 <span class="text-primary-400">1-3 个工作日</span> 内<br />
-               审核您的注册请求，审核结果将通过邮件通知您。
+               您的账户已成功创建！<br />
+               请使用学号和密码登录系统。
             </p>
 
-            <!-- Application summary -->
+            <!-- Registration summary -->
             <div class="p-4 rounded-xl bg-white/3 border border-white/10 mb-6 text-left">
-               <p class="text-xs text-white/40 mb-3 uppercase tracking-wider">申请摘要</p>
+               <p class="text-xs text-white/40 mb-3 uppercase tracking-wider">账户信息</p>
                <div class="space-y-2">
                   <div class="flex justify-between items-center">
-                     <span class="text-sm text-white/50">用户名</span>
-                     <span class="text-sm text-white font-medium">{{ formData.username }}</span>
-                  </div>
-                  <div class="flex justify-between items-center">
-                     <span class="text-sm text-white/50">邮箱</span>
-                     <span class="text-sm text-white font-medium">{{ formData.email }}</span>
+                     <span class="text-sm text-white/50">学号</span>
+                     <span class="text-sm text-white font-medium">{{
+                        submittedData.studentId
+                     }}</span>
                   </div>
                   <div class="flex justify-between items-center">
                      <span class="text-sm text-white/50">姓名</span>
-                     <span class="text-sm text-white font-medium">{{ formData.fullName }}</span>
+                     <span class="text-sm text-white font-medium">{{ submittedData.name }}</span>
+                  </div>
+                  <div class="flex justify-between items-center">
+                     <span class="text-sm text-white/50">邮箱</span>
+                     <span class="text-sm text-white font-medium">{{ submittedData.email }}</span>
                   </div>
                </div>
             </div>
 
             <Button
-               label="返回登录"
+               label="前往登录"
                class="auth-button w-full cursor-pointer"
                severity="contrast"
                @click="goToLogin"
@@ -176,239 +178,154 @@ const goToLogin = () => router.push('/auth/login')
                <i class="pi pi-arrow-left text-xs"></i>
                返回登录
             </button>
-            <h2 class="text-xl font-semibold text-white mb-2">申请注册</h2>
-            <p class="text-sm text-white/50">填写以下信息申请账户，管理员将审核您的申请</p>
-         </div>
-
-         <!-- Progress steps -->
-         <div class="flex items-center gap-3 mb-6">
-            <div
-               class="flex items-center gap-2 px-3 py-1.5 rounded-full transition-all"
-               :class="
-                  currentStep >= 1
-                     ? 'bg-primary-500/20 text-primary-400'
-                     : 'bg-white/5 text-white/40'
-               "
-            >
-               <span
-                  class="w-5 h-5 rounded-full flex items-center justify-center text-xs font-medium"
-                  :class="
-                     currentStep >= 1 ? 'bg-primary-500 text-white' : 'bg-white/10 text-white/50'
-                  "
-               >
-                  {{ currentStep > 1 ? '✓' : '1' }}
-               </span>
-               <span class="text-xs font-medium">基本信息</span>
-            </div>
-            <div class="flex-1 h-px bg-white/10"></div>
-            <div
-               class="flex items-center gap-2 px-3 py-1.5 rounded-full transition-all"
-               :class="
-                  currentStep >= 2
-                     ? 'bg-primary-500/20 text-primary-400'
-                     : 'bg-white/5 text-white/40'
-               "
-            >
-               <span
-                  class="w-5 h-5 rounded-full flex items-center justify-center text-xs font-medium"
-                  :class="
-                     currentStep >= 2 ? 'bg-primary-500 text-white' : 'bg-white/10 text-white/50'
-                  "
-               >
-                  2
-               </span>
-               <span class="text-xs font-medium">详细信息</span>
-            </div>
+            <h2 class="text-xl font-semibold text-white mb-2">注册账户</h2>
+            <p class="text-sm text-white/50">填写以下信息创建您的账户</p>
          </div>
 
          <!-- Form -->
          <form @submit.prevent="handleSubmit" class="space-y-5">
-            <!-- Step 1: Basic Info -->
-            <template v-if="currentStep === 1">
-               <!-- Username field -->
-               <div class="form-field">
-                  <label class="form-label">
-                     <i class="pi pi-user mr-2 opacity-60"></i>
-                     用户名
-                     <span class="text-red-400 ml-1">*</span>
-                  </label>
-                  <div class="input-wrapper">
-                     <InputText
-                        v-model="formData.username"
-                        placeholder="3-20位字母、数字或下划线"
-                        class="auth-input"
-                        :disabled="isLoading"
-                        :invalid="formData.username.length > 0 && !isUsernameValid"
-                        autocomplete="username"
-                     />
-                  </div>
-                  <p
-                     v-if="formData.username.length > 0 && !isUsernameValid"
-                     class="text-xs text-red-400 mt-1"
-                  >
-                     用户名需为3-20位字母、数字或下划线
-                  </p>
+            <!-- Student ID field -->
+            <div class="form-field">
+               <label class="form-label">
+                  <i class="pi pi-id-card mr-2 opacity-60"></i>
+                  学号
+                  <span class="text-red-400 ml-1">*</span>
+               </label>
+               <div class="input-wrapper">
+                  <InputText
+                     v-model="formData.studentId"
+                     placeholder="请输入您的学号"
+                     class="auth-input"
+                     :disabled="isLoading"
+                     :invalid="formData.studentId.length > 0 && !isStudentIdValid"
+                     autocomplete="username"
+                  />
                </div>
+               <p
+                  v-if="formData.studentId.length > 0 && !isStudentIdValid"
+                  class="text-xs text-red-400 mt-1"
+               >
+                  学号需为5-20位
+               </p>
+            </div>
 
-               <!-- Email field -->
-               <div class="form-field">
-                  <label class="form-label">
-                     <i class="pi pi-envelope mr-2 opacity-60"></i>
-                     联系邮箱
-                     <span class="text-red-400 ml-1">*</span>
-                  </label>
-                  <div class="input-wrapper">
-                     <InputText
-                        v-model="formData.email"
-                        placeholder="用于接收审核结果和系统通知"
-                        class="auth-input"
-                        :disabled="isLoading"
-                        :invalid="formData.email.length > 0 && !isEmailValid"
-                        autocomplete="email"
-                     />
-                  </div>
-                  <p
-                     v-if="formData.email.length > 0 && !isEmailValid"
-                     class="text-xs text-red-400 mt-1"
-                  >
-                     请输入有效的邮箱地址
-                  </p>
+            <!-- Name field -->
+            <div class="form-field">
+               <label class="form-label">
+                  <i class="pi pi-user mr-2 opacity-60"></i>
+                  姓名
+                  <span class="text-red-400 ml-1">*</span>
+               </label>
+               <div class="input-wrapper">
+                  <InputText
+                     v-model="formData.name"
+                     placeholder="请输入您的真实姓名"
+                     class="auth-input"
+                     :disabled="isLoading"
+                     autocomplete="name"
+                  />
                </div>
+            </div>
 
-               <!-- Full name field -->
-               <div class="form-field">
-                  <label class="form-label">
-                     <i class="pi pi-id-card mr-2 opacity-60"></i>
-                     真实姓名
-                     <span class="text-red-400 ml-1">*</span>
-                  </label>
-                  <div class="input-wrapper">
-                     <InputText
-                        v-model="formData.fullName"
-                        placeholder="请输入您的真实姓名"
-                        class="auth-input"
-                        :disabled="isLoading"
-                        autocomplete="name"
-                     />
-                  </div>
+            <!-- Email field -->
+            <div class="form-field">
+               <label class="form-label">
+                  <i class="pi pi-envelope mr-2 opacity-60"></i>
+                  邮箱
+                  <span class="text-red-400 ml-1">*</span>
+               </label>
+               <div class="input-wrapper">
+                  <InputText
+                     v-model="formData.email"
+                     placeholder="用于接收系统通知"
+                     class="auth-input"
+                     :disabled="isLoading"
+                     :invalid="formData.email.length > 0 && !isEmailValid"
+                     autocomplete="email"
+                  />
                </div>
+               <p
+                  v-if="formData.email.length > 0 && !isEmailValid"
+                  class="text-xs text-red-400 mt-1"
+               >
+                  请输入有效的邮箱地址
+               </p>
+            </div>
 
-               <!-- Next button -->
-               <Button
-                  type="button"
-                  label="下一步"
-                  icon="pi pi-arrow-right"
-                  iconPos="right"
-                  :disabled="!isStep1Valid"
-                  class="auth-button w-full"
-                  severity="contrast"
-                  @click="nextStep"
-               />
-            </template>
-
-            <!-- Step 2: Additional Info -->
-            <template v-if="currentStep === 2">
-               <!-- Department field -->
-               <div class="form-field">
-                  <label class="form-label">
-                     <i class="pi pi-building mr-2 opacity-60"></i>
-                     所属部门
-                     <span class="text-red-400 ml-1">*</span>
-                  </label>
-                  <div class="input-wrapper">
-                     <Select
-                        v-model="formData.department"
-                        :options="departments"
-                        optionLabel="label"
-                        optionValue="value"
-                        placeholder="请选择您的部门"
-                        class="auth-select w-full"
-                        :disabled="isLoading"
-                     />
-                  </div>
+            <!-- Password field -->
+            <div class="form-field">
+               <label class="form-label">
+                  <i class="pi pi-lock mr-2 opacity-60"></i>
+                  密码
+                  <span class="text-red-400 ml-1">*</span>
+               </label>
+               <div class="input-wrapper">
+                  <InputText
+                     v-model="formData.password"
+                     type="password"
+                     placeholder="请设置密码（至少6位）"
+                     class="auth-input"
+                     :disabled="isLoading"
+                     :invalid="formData.password.length > 0 && !isPasswordValid"
+                     autocomplete="new-password"
+                  />
                </div>
+               <p
+                  v-if="formData.password.length > 0 && !isPasswordValid"
+                  class="text-xs text-red-400 mt-1"
+               >
+                  密码至少6位
+               </p>
+            </div>
 
-               <!-- Phone field -->
-               <div class="form-field">
-                  <label class="form-label">
-                     <i class="pi pi-phone mr-2 opacity-60"></i>
-                     联系电话
-                     <span class="text-white/30 ml-1 text-xs">（选填）</span>
-                  </label>
-                  <div class="input-wrapper">
-                     <InputText
-                        v-model="formData.phone"
-                        placeholder="请输入您的手机号码"
-                        class="auth-input"
-                        :disabled="isLoading"
-                        :invalid="formData.phone.length > 0 && !isPhoneValid"
-                        autocomplete="tel"
-                     />
-                  </div>
-                  <p
-                     v-if="formData.phone.length > 0 && !isPhoneValid"
-                     class="text-xs text-red-400 mt-1"
-                  >
-                     请输入有效的手机号码
-                  </p>
+            <!-- Confirm Password field -->
+            <div class="form-field">
+               <label class="form-label">
+                  <i class="pi pi-lock mr-2 opacity-60"></i>
+                  确认密码
+                  <span class="text-red-400 ml-1">*</span>
+               </label>
+               <div class="input-wrapper">
+                  <InputText
+                     v-model="formData.confirmPassword"
+                     type="password"
+                     placeholder="请再次输入密码"
+                     class="auth-input"
+                     :disabled="isLoading"
+                     :invalid="formData.confirmPassword.length > 0 && !isConfirmPasswordValid"
+                     autocomplete="new-password"
+                  />
                </div>
+               <p
+                  v-if="formData.confirmPassword.length > 0 && !isConfirmPasswordValid"
+                  class="text-xs text-red-400 mt-1"
+               >
+                  两次输入的密码不一致
+               </p>
+            </div>
 
-               <!-- Purpose field -->
-               <div class="form-field">
-                  <label class="form-label">
-                     <i class="pi pi-file-edit mr-2 opacity-60"></i>
-                     申请目的
-                     <span class="text-red-400 ml-1">*</span>
-                  </label>
-                  <div class="input-wrapper">
-                     <Textarea
-                        v-model="formData.purpose"
-                        placeholder="请详细说明您申请账户的目的，包括您的工作职责、需要使用的系统功能等（至少20个字符）"
-                        class="auth-textarea"
-                        :disabled="isLoading"
-                        rows="4"
-                        autoResize
-                     />
-                  </div>
-                  <p class="text-xs text-white/30 mt-1">
-                     {{ formData.purpose.length }}/20 最少字符
-                  </p>
-               </div>
-
-               <!-- Info box -->
-               <div class="p-4 rounded-xl bg-primary-500/10 border border-primary-500/20">
-                  <div class="flex gap-3">
-                     <i class="pi pi-info-circle text-primary-400 mt-0.5 shrink-0"></i>
-                     <div class="text-xs text-white/60 leading-relaxed">
-                        <p class="font-medium text-white/80 mb-1">审核说明</p>
-                        <p>
-                           注册申请将由管理员人工审核。请确保您提供的信息真实有效，以便我们快速处理您的申请。
-                        </p>
-                     </div>
-                  </div>
-               </div>
-
-               <!-- Buttons -->
+            <!-- Info box -->
+            <div class="p-4 rounded-xl bg-primary-500/10 border border-primary-500/20">
                <div class="flex gap-3">
-                  <Button
-                     type="button"
-                     label="上一步"
-                     icon="pi pi-arrow-left"
-                     severity="secondary"
-                     outlined
-                     class="auth-button-secondary flex-1"
-                     @click="prevStep"
-                  />
-                  <Button
-                     type="submit"
-                     :label="isLoading ? '提交中...' : '提交申请'"
-                     :loading="isLoading"
-                     :disabled="!isStep2Valid || isLoading"
-                     class="auth-button flex-1"
-                     severity="contrast"
-                  />
+                  <i class="pi pi-info-circle text-primary-400 mt-0.5 shrink-0"></i>
+                  <div class="text-xs text-white/60 leading-relaxed">
+                     <p class="font-medium text-white/80 mb-1">注册说明</p>
+                     <p>
+                        请确保您提供的学号和邮箱真实有效。注册成功后，您可以立即使用学号和密码登录系统。
+                     </p>
+                  </div>
                </div>
-            </template>
+            </div>
+
+            <!-- Submit button -->
+            <Button
+               type="submit"
+               :label="isLoading ? '注册中...' : '立即注册'"
+               :loading="isLoading"
+               :disabled="!isFormValid || isLoading"
+               class="auth-button w-full"
+               severity="contrast"
+            />
          </form>
 
          <!-- Login link -->

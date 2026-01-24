@@ -5,15 +5,18 @@ import InputText from 'primevue/inputtext'
 import Textarea from 'primevue/textarea'
 import Button from 'primevue/button'
 import { useToast } from 'primevue/usetoast'
+import { submitForgotPassword } from '@/apis/auth'
 
 const router = useRouter()
 const toast = useToast()
 
 // Form state
 const email = ref('')
+const studentId = ref('')
 const reason = ref('')
 const isLoading = ref(false)
 const isSubmitted = ref(false)
+const submittedEmail = ref('')
 
 // Email validation
 const isEmailValid = computed(() => {
@@ -21,8 +24,13 @@ const isEmailValid = computed(() => {
    return emailRegex.test(email.value)
 })
 
+// Student ID validation
+const isStudentIdValid = computed(() => {
+   return studentId.value.trim().length > 0
+})
+
 const isFormValid = computed(() => {
-   return isEmailValid.value && reason.value.trim().length >= 10
+   return isEmailValid.value && isStudentIdValid.value && reason.value.trim().length >= 10
 })
 
 // Handle submit
@@ -31,7 +39,7 @@ const handleSubmit = async () => {
       toast.add({
          severity: 'warn',
          summary: '表单验证',
-         detail: '请填写有效的邮箱地址和详细的申请原因（至少10个字符）',
+         detail: '请填写完整的信息（邮箱、学号和详细的申请原因）',
          life: 3000,
       })
       return
@@ -40,21 +48,31 @@ const handleSubmit = async () => {
    isLoading.value = true
 
    try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1500))
-
-      isSubmitted.value = true
-      toast.add({
-         severity: 'success',
-         summary: '申请已提交',
-         detail: '密码重置申请已发送，管理员将会审核您的申请',
-         life: 4000,
+      // 调用找回密码申请 API
+      const response = await submitForgotPassword({
+         email: email.value.trim(),
+         student_id: studentId.value.trim(),
+         reason: reason.value.trim(),
       })
-   } catch {
+
+      if (response.success) {
+         submittedEmail.value = email.value
+         isSubmitted.value = true
+         toast.add({
+            severity: 'success',
+            summary: '申请已提交',
+            detail: response.message || '密码重置申请已发送，管理员将会审核您的申请',
+            life: 4000,
+         })
+      } else {
+         throw new Error(response.message || '提交失败')
+      }
+   } catch (error: unknown) {
+      const err = error as { message?: string }
       toast.add({
          severity: 'error',
          summary: '提交失败',
-         detail: '申请提交失败，请稍后重试',
+         detail: err.message || '申请提交失败，请稍后重试',
          life: 3000,
       })
    } finally {
@@ -67,6 +85,7 @@ const goToLogin = () => router.push('/auth/login')
 const submitAnother = () => {
    isSubmitted.value = false
    email.value = ''
+   studentId.value = ''
    reason.value = ''
 }
 </script>
@@ -94,7 +113,7 @@ const submitAnother = () => {
 
             <div class="p-4 rounded-xl bg-white/3 border border-white/10 mb-6">
                <p class="text-xs text-white/40 mb-1">申请邮箱</p>
-               <p class="text-sm text-white font-medium">{{ email }}</p>
+               <p class="text-sm text-white font-medium">{{ submittedEmail }}</p>
             </div>
 
             <div class="space-y-3">
@@ -136,6 +155,24 @@ const submitAnother = () => {
 
          <!-- Form -->
          <form @submit.prevent="handleSubmit" class="space-y-5">
+            <!-- Student ID field -->
+            <div class="form-field">
+               <label class="form-label">
+                  <i class="pi pi-id-card mr-2 opacity-60"></i>
+                  学号
+                  <span class="text-red-400 ml-1">*</span>
+               </label>
+               <div class="input-wrapper">
+                  <InputText
+                     v-model="studentId"
+                     placeholder="请输入您的学号"
+                     class="auth-input"
+                     :disabled="isLoading"
+                     autocomplete="username"
+                  />
+               </div>
+            </div>
+
             <!-- Email field -->
             <div class="form-field">
                <label class="form-label">

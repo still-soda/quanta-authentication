@@ -32,12 +32,21 @@ const getStatusSeverity = (status: string) => {
             class="flex items-center justify-between text-base font-semibold text-surface-900 dark:text-surface-100"
          >
             <span>最近活动</span>
-            <Button label="查看全部" text size="small" />
+            <RouterLink to="/audit">
+               <Button label="查看全部" text size="small" />
+            </RouterLink>
          </div>
       </template>
       <template #content>
          <div v-if="isLoading" class="flex items-center justify-center py-12">
             <i class="pi pi-spin pi-spinner text-2xl text-surface-400"></i>
+         </div>
+         <div
+            v-else-if="!recentActivities || recentActivities.length === 0"
+            class="flex flex-col items-center justify-center py-12 text-surface-400"
+         >
+            <i class="pi pi-history text-3xl mb-2"></i>
+            <span class="text-sm">暂无活动记录</span>
          </div>
          <DataTable
             v-else

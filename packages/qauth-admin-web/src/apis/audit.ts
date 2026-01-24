@@ -1,198 +1,141 @@
 /**
  * Audit API - 审计日志相关接口
  */
-import { mockResponse } from './index';
-import type { AuditLog } from '@/types';
-
-export interface AuditLogFilter {
-  search?: string;
-  module?: string | null;
-  action?: string | null;
-  dateRange?: [Date, Date] | null;
-  page?: number;
-  pageSize?: number;
-}
-
-export interface AuditLogResponse {
-  data: AuditLog[];
-  total: number;
-}
+import { httpClient } from './index'
+import type {
+   AuditLog,
+   AuditModule,
+   AuditAction,
+   AuditStatus,
+   AuditLogFilter,
+   AuditLogResponse,
+   AuditActivity,
+   AuditStats,
+   TopClient,
+   Status,
+} from '@/types'
 
 /**
  * 获取审计日志列表
  */
 export async function getAuditLogs(filter?: AuditLogFilter): Promise<AuditLogResponse> {
-  const allLogs: AuditLog[] = [
-    {
-      id: '1',
-      operatorId: 'u1',
-      operatorName: '张伟',
-      operatorAvatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=zhang',
-      module: '用户管理',
-      action: '创建用户',
-      targetId: 'u15',
-      targetName: '新用户 - 李四',
-      detail: { email: 'lisi@example.com', role: '普通用户' },
-      ip: '192.168.1.100',
-      time: '2026-01-23 14:30:25',
-      durationMs: 125,
-      status: 'success',
-    },
-    {
-      id: '2',
-      operatorId: 'u1',
-      operatorName: '张伟',
-      operatorAvatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=zhang',
-      module: 'OAuth应用',
-      action: '重置密钥',
-      targetId: 'app3',
-      targetName: '内部管理系统',
-      detail: { reason: '安全检查' },
-      ip: '192.168.1.100',
-      time: '2026-01-23 14:15:00',
-      durationMs: 89,
-      status: 'success',
-    },
-    {
-      id: '3',
-      operatorId: 'u2',
-      operatorName: '李明',
-      operatorAvatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=li',
-      module: '角色权限',
-      action: '修改权限',
-      targetId: 'role2',
-      targetName: '开发者角色',
-      detail: { added: ['oauth:create'], removed: [] },
-      ip: '10.0.0.55',
-      time: '2026-01-23 13:45:12',
-      durationMs: 234,
-      status: 'success',
-    },
-    {
-      id: '4',
-      operatorId: 'u3',
-      operatorName: '王芳',
-      operatorAvatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=wang',
-      module: '用户管理',
-      action: '禁用用户',
-      targetId: 'u8',
-      targetName: '异常账户 - 测试',
-      detail: { reason: '违规操作' },
-      ip: '192.168.2.88',
-      time: '2026-01-23 12:20:45',
-      durationMs: 67,
-      status: 'warning',
-    },
-    {
-      id: '5',
-      operatorId: 'u1',
-      operatorName: '张伟',
-      operatorAvatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=zhang',
-      module: '系统设置',
-      action: '修改配置',
-      targetId: 'config',
-      targetName: '登录安全策略',
-      detail: { maxAttempts: 5, lockDuration: 30 },
-      ip: '192.168.1.100',
-      time: '2026-01-23 11:00:00',
-      durationMs: 156,
-      status: 'success',
-    },
-    {
-      id: '6',
-      operatorId: 'u4',
-      operatorName: '陈红',
-      operatorAvatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=chen',
-      module: 'OAuth应用',
-      action: '创建应用',
-      targetId: 'app12',
-      targetName: '新财务系统',
-      detail: { type: 'web', redirectUri: 'https://finance.example.com/callback' },
-      ip: '172.16.0.22',
-      time: '2026-01-23 10:30:18',
-      durationMs: 312,
-      status: 'success',
-    },
-    {
-      id: '7',
-      operatorId: 'u2',
-      operatorName: '李明',
-      operatorAvatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=li',
-      module: '用户管理',
-      action: '删除用户',
-      targetId: 'u99',
-      targetName: '已离职 - 张三',
-      detail: { reason: '离职清退' },
-      ip: '10.0.0.55',
-      time: '2026-01-22 18:45:30',
-      durationMs: 198,
-      status: 'error',
-    },
-    {
-      id: '8',
-      operatorId: 'u5',
-      operatorName: '赵阳',
-      operatorAvatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=zhaoyang',
-      module: '认证登录',
-      action: '登录失败',
-      targetId: 'u5',
-      targetName: '赵阳',
-      detail: { error: '密码错误', attempts: 3 },
-      ip: '203.0.113.45',
-      time: '2026-01-22 16:20:00',
-      durationMs: 45,
-      status: 'error',
-    },
-    {
-      id: '9',
-      operatorId: 'u1',
-      operatorName: '张伟',
-      operatorAvatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=zhang',
-      module: '角色权限',
-      action: '创建角色',
-      targetId: 'role8',
-      targetName: '访客角色',
-      detail: { permissions: ['read:basic'] },
-      ip: '192.168.1.100',
-      time: '2026-01-22 14:10:22',
-      durationMs: 178,
-      status: 'success',
-    },
-    {
-      id: '10',
-      operatorId: 'u3',
-      operatorName: '王芳',
-      operatorAvatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=wang',
-      module: '数据导出',
-      action: '导出用户列表',
-      targetId: 'export1',
-      targetName: '用户数据导出',
-      detail: { format: 'xlsx', count: 1024 },
-      ip: '192.168.2.88',
-      time: '2026-01-22 11:30:00',
-      durationMs: 2456,
-      status: 'success',
-    },
-  ];
+   const params = new URLSearchParams()
+   if (filter) {
+      Object.entries(filter).forEach(([key, value]) => {
+         if (value !== undefined && value !== null && value !== '') {
+            params.append(key, String(value))
+         }
+      })
+   }
 
-  return mockResponse({
-    data: allLogs,
-    total: allLogs.length,
-  });
+   const response = await httpClient.get<AuditLogResponse>(`/_/v1/audit/logs?${params.toString()}`)
+   return response.data
 }
 
 /**
  * 获取单条审计日志详情
  */
-export async function getAuditLogDetail(id: string): Promise<AuditLog | null> {
-  const { data } = await getAuditLogs();
-  return data.find(log => log.id === id) || null;
+export async function getAuditLogDetail(id: string): Promise<AuditLog> {
+   const response = await httpClient.get<AuditLog>(`/_/v1/audit/logs/${id}`)
+   return response.data
+}
+
+/**
+ * 获取审计活动列表
+ */
+export async function getAuditActivities(): Promise<AuditActivity[]> {
+   const response = await httpClient.get<AuditActivity[]>('/_/v1/audit/activities')
+   return response.data
+}
+
+/**
+ * 获取审计统计数据
+ */
+export async function getAuditStats(): Promise<AuditStats> {
+   const response = await httpClient.get<AuditStats>('/_/v1/audit/stats')
+   return response.data
+}
+
+/**
+ * 获取热门客户端
+ */
+export async function getTopClients(): Promise<TopClient[]> {
+   const response = await httpClient.get<TopClient[]>('/_/v1/audit/top-clients')
+   return response.data
 }
 
 /**
  * 导出审计日志
  */
 export async function exportAuditLogs(filter?: AuditLogFilter): Promise<Blob> {
-  // 模拟导出，返回空 Blob
-  return mockResponse(new Blob([''], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }));
+   const params = new URLSearchParams()
+   if (filter) {
+      Object.entries(filter).forEach(([key, value]) => {
+         if (value !== undefined && value !== null && value !== '') {
+            params.append(key, String(value))
+         }
+      })
+   }
+
+   const response = await httpClient.get(`/_/v1/audit/export?${params.toString()}`, {
+      responseType: 'blob',
+   })
+   return response.data
+}
+
+// 辅助函数：将后端状态映射为前端状态
+export function mapAuditStatus(status: AuditStatus): Status {
+   switch (status) {
+      case 'SUCCESS':
+         return 'success'
+      case 'WARNING':
+         return 'warning'
+      case 'ERROR':
+         return 'error'
+      default:
+         return 'success'
+   }
+}
+
+// 辅助函数：获取模块显示名称
+export function getModuleDisplayName(module: AuditModule): string {
+   const moduleNames: Record<AuditModule, string> = {
+      AUTH: '认证登录',
+      OAUTH: 'OAuth授权',
+      USER: '用户管理',
+      ROLE: '角色管理',
+      PERMISSION: '权限管理',
+      CLIENT: '客户端管理',
+      SYSTEM: '系统管理',
+   }
+   return moduleNames[module] || module
+}
+
+// 辅助函数：获取操作显示名称
+export function getActionDisplayName(action: AuditAction): string {
+   const actionNames: Record<AuditAction, string> = {
+      LOGIN: '登录',
+      LOGOUT: '登出',
+      REGISTER: '注册',
+      PASSWORD_RESET: '密码重置',
+      PASSWORD_CHANGE: '密码修改',
+      TOKEN_REFRESH: '令牌刷新',
+      OAUTH_AUTHORIZE: 'OAuth授权',
+      OAUTH_TOKEN: 'OAuth令牌',
+      OAUTH_REVOKE: 'OAuth撤销',
+      CLIENT_CREATE: '创建客户端',
+      CLIENT_UPDATE: '更新客户端',
+      CLIENT_DELETE: '删除客户端',
+      ROLE_CREATE: '创建角色',
+      ROLE_UPDATE: '更新角色',
+      ROLE_DELETE: '删除角色',
+      PERMISSION_GRANT: '授予权限',
+      PERMISSION_REVOKE: '撤销权限',
+      USER_CREATE: '创建用户',
+      USER_UPDATE: '更新用户',
+      USER_DELETE: '删除用户',
+      KEY_ROTATION: '密钥轮换',
+      SETTINGS_CHANGE: '设置变更',
+   }
+   return actionNames[action] || action
 }

@@ -5,12 +5,15 @@ import InputText from 'primevue/inputtext'
 import Checkbox from 'primevue/checkbox'
 import Button from 'primevue/button'
 import { useToast } from 'primevue/usetoast'
+import { login } from '@/apis/auth'
+import { useAuthStore } from '@/stores/auth'
 
 const router = useRouter()
 const toast = useToast()
+const authStore = useAuthStore()
 
 // Form state
-const username = ref('')
+const studentId = ref('')
 const password = ref('')
 const rememberMe = ref(false)
 const isLoading = ref(false)
@@ -18,7 +21,7 @@ const showPassword = ref(false)
 
 // Validation
 const isFormValid = computed(() => {
-   return username.value.trim().length > 0 && password.value.length >= 6
+   return studentId.value.trim().length > 0 && password.value.length >= 6
 })
 
 // Handle login
@@ -27,7 +30,7 @@ const handleLogin = async () => {
       toast.add({
          severity: 'warn',
          summary: '表单验证',
-         detail: '请填写正确的用户名和密码',
+         detail: '请填写正确的学号和密码',
          life: 3000,
       })
       return
@@ -36,25 +39,39 @@ const handleLogin = async () => {
    isLoading.value = true
 
    try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1500))
+      // 调用登录 API
+      const response = await login({
+         student_id: studentId.value.trim(),
+         password: password.value,
+      })
 
-      // Mock successful login
+      // 保存认证信息到 store
+      authStore.setAuth(
+         {
+            accessToken: response.access_token,
+            refreshToken: response.refresh_token,
+         },
+         response.user
+      )
+
       toast.add({
          severity: 'success',
          summary: '登录成功',
-         detail: '欢迎回来！正在跳转...',
+         detail: `欢迎回来，${response.user.name || response.user.student_id}！`,
          life: 2000,
       })
 
       setTimeout(() => {
          router.replace('/')
       }, 500)
-   } catch {
+   } catch (error: unknown) {
+      const err = error as { response?: { data?: { message?: string } }; message?: string }
+      const message = err.response?.data?.message || err.message || '用户名或密码错误，请重试'
+
       toast.add({
          severity: 'error',
          summary: '登录失败',
-         detail: '用户名或密码错误，请重试',
+         detail: message,
          life: 3000,
       })
       isLoading.value = false
@@ -76,16 +93,16 @@ const goToForgotPassword = () => router.push('/auth/forgot-password')
 
       <!-- Login Form -->
       <form @submit.prevent="handleLogin" class="space-y-5">
-         <!-- Username field -->
+         <!-- Student ID field -->
          <div class="form-field">
             <label class="form-label">
-               <i class="pi pi-user mr-2 opacity-60"></i>
-               用户名 / 邮箱
+               <i class="pi pi-id-card mr-2 opacity-60"></i>
+               学号
             </label>
             <div class="input-wrapper">
                <InputText
-                  v-model="username"
-                  placeholder="请输入用户名或邮箱"
+                  v-model="studentId"
+                  placeholder="请输入学号"
                   class="auth-input"
                   :disabled="isLoading"
                   autocomplete="username"

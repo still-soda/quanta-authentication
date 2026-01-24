@@ -1,46 +1,48 @@
 <script setup lang="ts">
-import { useQuery } from '@tanstack/vue-query';
-import Card from 'primevue/card';
-import Button from 'primevue/button';
-import ProgressBar from 'primevue/progressbar';
-import { getTopApps } from '@/apis/dashboard';
+import { useQuery } from '@tanstack/vue-query'
+import Card from 'primevue/card'
+import Button from 'primevue/button'
+import ProgressBar from 'primevue/progressbar'
+import { getTopApps } from '@/apis/dashboard'
 
 // 获取热门应用数据
 const { data: topApps, isLoading } = useQuery({
    queryKey: ['dashboard', 'topApps'],
    queryFn: getTopApps,
-});
+})
 </script>
 
 <template>
-   <Card
-      class="rounded-2xl border border-surface-100 dark:border-surface-800">
+   <Card class="rounded-2xl border border-surface-100 dark:border-surface-800">
       <template #title>
          <div
-            class="flex items-center justify-between text-base font-semibold text-surface-900 dark:text-surface-100">
+            class="flex items-center justify-between text-base font-semibold text-surface-900 dark:text-surface-100"
+         >
             <span>热门应用</span>
             <Button label="管理" text size="small" icon="pi pi-cog" />
          </div>
       </template>
       <template #content>
-         <div
-            v-if="isLoading"
-            class="flex items-center justify-center py-12">
+         <div v-if="isLoading" class="flex items-center justify-center py-12">
             <i class="pi pi-spin pi-spinner text-2xl text-surface-400"></i>
          </div>
+         <div
+            v-else-if="!topApps || topApps.length === 0"
+            class="flex flex-col items-center justify-center py-12 text-surface-400"
+         >
+            <i class="pi pi-inbox text-3xl mb-2"></i>
+            <span class="text-sm">暂无应用数据</span>
+         </div>
          <div v-else class="flex flex-col gap-5">
-            <div
-               v-for="app in topApps"
-               :key="app.name"
-               class="flex flex-col gap-3">
+            <div v-for="app in topApps" :key="app.name" class="flex flex-col gap-3">
                <div class="flex items-center gap-3">
                   <div
-                     class="w-10 h-10 flex items-center justify-center bg-primary-50 dark:bg-[rgba(251,146,60,0.15)] text-primary-600 dark:text-primary-400 rounded-2xl">
+                     class="w-10 h-10 flex items-center justify-center bg-primary-50 dark:bg-[rgba(251,146,60,0.15)] text-primary-600 dark:text-primary-400 rounded-2xl"
+                  >
                      <i class="pi pi-box"></i>
                   </div>
                   <div class="flex flex-col gap-0.5">
-                     <span
-                        class="font-semibold text-surface-900 dark:text-surface-100 text-sm">
+                     <span class="font-semibold text-surface-900 dark:text-surface-100 text-sm">
                         {{ app.name }}
                      </span>
                      <span class="text-xs text-surface-500">
@@ -52,9 +54,11 @@ const { data: topApps, isLoading } = useQuery({
                   <ProgressBar
                      :value="app.percentage"
                      :showValue="false"
-                     class="flex-1 h-2 rounded-full [&_.p-progressbar-value]:rounded-full" />
+                     class="flex-1 h-2 rounded-full [&_.p-progressbar-value]:rounded-full"
+                  />
                   <span
-                     class="text-xs font-semibold text-surface-600 dark:text-surface-400 min-w-10 text-right">
+                     class="text-xs font-semibold text-surface-600 dark:text-surface-400 min-w-10 text-right"
+                  >
                      {{ app.percentage }}%
                   </span>
                </div>
