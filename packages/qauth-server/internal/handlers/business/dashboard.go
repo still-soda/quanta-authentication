@@ -14,17 +14,20 @@ type DashboardHandler struct {
 	userService    *services.UserService
 	counterService *services.CounterService
 	cacheService   *services.CacheService
+	oauthService   *services.OAuthService
 }
 
 func NewDashboardHandler(
 	userService *services.UserService,
 	counterService *services.CounterService,
 	cacheService *services.CacheService,
+	oauthService *services.OAuthService,
 ) *DashboardHandler {
 	return &DashboardHandler{
 		userService:    userService,
 		counterService: counterService,
 		cacheService:   cacheService,
+		oauthService:   oauthService,
 	}
 }
 
@@ -79,7 +82,7 @@ func (h *DashboardHandler) GetDashboardStats(c *gin.Context) {
 		response.HandlerError(c, app_error.ErrInternalServerError)
 		return
 	}
-	oauthAppCnt, err := h.cacheService.GetKeyValueAsInt64("weekly-oauthapp-count")
+	oauthAppCnt, err := h.oauthService.CountClients()
 	if err != nil {
 		utilities.GetLogger().Error("failed to get weekly oauth app count", "error", err.Error())
 		response.HandlerError(c, app_error.ErrInternalServerError)

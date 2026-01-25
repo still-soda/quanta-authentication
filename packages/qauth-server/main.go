@@ -90,7 +90,7 @@ func main() {
 	cronScheduler := cron.New(cron.WithSeconds())
 
 	// 创建定时任务
-	counterTask := tasks.NewCounterTask(counterService, cacheService, userService)
+	counterTask := tasks.NewCounterTask(counterService, cacheService, userService, oauthService)
 	cleanupCounterTask, err := counterTask.Register(cronScheduler)
 	if err != nil {
 		panic("failed to register counter task: " + err.Error())
@@ -113,7 +113,7 @@ func main() {
 	roleHandler := handlers.NewRoleHandler(roleService, permissionService, auditService)
 	permissionHandler := handlers.NewPermissionHandler(roleService, permissionService, auditService)
 	userHandler := handlers.NewUserHandler(userService, roleService, auditService)
-	dashboardHandler := business.NewDashboardHandler(userService, counterService, cacheService)
+	dashboardHandler := business.NewDashboardHandler(userService, counterService, cacheService, oauthService)
 	auditHandler := business.NewAuditHandler(auditService, roleService)
 
 	// 注册路由

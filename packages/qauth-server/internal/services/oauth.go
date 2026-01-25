@@ -185,8 +185,8 @@ func NewOAuthService(
 }
 
 // GetConfig 获取 OAuth 配置
-func (s *OAuthService) GetConfig() *config.OAuthConfig {
-	return &s.cfg.OAuth
+func (s *OAuthService) GetConfig() *config.Config {
+	return s.cfg
 }
 
 // userAuthorizationHandler 用户授权处理器（授权码模式）
@@ -399,6 +399,77 @@ func (s *OAuthService) CreateClient(name, domain, secret string, isPublic bool, 
 	return client, nil
 }
 
+// CreateClientParams 创建客户端参数
+type CreateClientParams struct {
+	Name         string
+	Description  string
+	Domain       string
+	RedirectURIs []string
+	Scopes       []string
+	GrantTypes   []string
+	Status       models.ClientStatus
+	Trusted      bool
+	Logo         string
+	Icon         string
+	IconBg       string
+	Secret       string
+	IsPublic     bool
+	UserID       string
+}
+
+// CreateClientFull 创建完整的 OAuth2 客户端
+func (s *OAuthService) CreateClientFull(params *CreateClientParams) (*models.OAuth2Client, error) {
+	// 设置默认值
+	if params.Status == "" {
+		params.Status = models.ClientStatusDevelopment
+	}
+	if params.Icon == "" {
+		params.Icon = "pi pi-box"
+	}
+	if params.IconBg == "" {
+		params.IconBg = "linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)"
+	}
+	if len(params.GrantTypes) == 0 {
+		params.GrantTypes = []string{"authorization_code", "refresh_token"}
+	}
+	if len(params.Scopes) == 0 {
+		params.Scopes = []string{"openid", "profile"}
+	}
+
+	client := &models.OAuth2Client{
+		Name:         params.Name,
+		Description:  params.Description,
+		Domain:       params.Domain,
+		Secret:       params.Secret,
+		RedirectURIs: params.RedirectURIs,
+		Scopes:       params.Scopes,
+		GrantTypes:   params.GrantTypes,
+		Status:       params.Status,
+		Trusted:      params.Trusted,
+		Logo:         params.Logo,
+		Icon:         params.Icon,
+		IconBg:       params.IconBg,
+		Data: models.ClientData{
+			Domain: params.Domain,
+			Public: params.IsPublic,
+			UserID: params.UserID,
+		},
+	}
+
+	if err := s.db.Create(client).Error; err != nil {
+		return nil, err
+	}
+
+	// 更新 Data 中的 ID
+	client.Data.ID = client.ID
+	client.Data.Secret = params.Secret
+	if err := s.db.Save(client).Error; err != nil {
+		return nil, err
+	}
+
+	return client, nil
+}
+
 // GetClientByID 根据 ID 获取客户端
 func (s *OAuthService) GetClientByID(clientID string) (*models.OAuth2Client, error) {
 	var client models.OAuth2Client
@@ -406,6 +477,21 @@ func (s *OAuthService) GetClientByID(clientID string) (*models.OAuth2Client, err
 		return nil, err
 	}
 	return &client, nil
+}
+
+// UpdateClientParams 更新客户端参数
+type UpdateClientParams struct {
+	Name         *string
+	Description  *string
+	Domain       *string
+	RedirectURIs []string
+	Scopes       []string
+	GrantTypes   []string
+	Status       *models.ClientStatus
+	Trusted      *bool
+	Logo         *string
+	Icon         *string
+	IconBg       *string
 }
 
 // UpdateClient 更新客户端信息
@@ -418,9 +504,75 @@ func (s *OAuthService) UpdateClient(clientID string, name, domain string) error 
 		}).Error
 }
 
+// UpdateClientFull 更新完整的客户端信息
+func (s *OAuthService) UpdateClientFull(clientID string, params *UpdateClientParams) error {
+	updates := make(map[string]interface{})
+
+	if params.Name != nil {
+		updates["name"] = *params.Name
+	}
+	if params.Description != nil {
+		updates["description"] = *params.Description
+	}
+	if params.Domain != nil {
+		updates["domain"] = *params.Domain
+	}
+	if params.RedirectURIs != nil {
+		updates["redirect_uris"] = models.StringArray(params.RedirectURIs)
+	}
+	if params.Scopes != nil {
+		updates["scopes"] = models.StringArray(params.Scopes)
+	}
+	if params.GrantTypes != nil {
+		updates["grant_types"] = models.StringArray(params.GrantTypes)
+	}
+	if params.Status != nil {
+		updates["status"] = *params.Status
+	}
+	if params.Trusted != nil {
+		updates["trusted"] = *params.Trusted
+	}
+	if params.Logo != nil {
+		updates["logo"] = *params.Logo
+	}
+	if params.Icon != nil {
+		updates["icon"] = *params.Icon
+	}
+	if params.IconBg != nil {
+		updates["icon_bg"] = *params.IconBg
+	}
+
+	if len(updates) == 0 {
+		return nil
+	}
+
+	return s.db.Model(&models.OAuth2Client{}).
+		Where("id = ?", clientID).
+		Updates(updates).Error
+}
+
 // DeleteClient 删除客户端
 func (s *OAuthService) DeleteClient(clientID string) error {
 	return s.db.Delete(&models.OAuth2Client{}, "id = ?", clientID).Error
+}
+
+// ListClientsParams 列出客户端参数
+type ListClientsParams struct {
+	Page     int
+	PageSize int
+	Search   string
+	Status   string
+	SortBy   string
+	SortDesc bool
+}
+
+// CountClients 计算客户端数量
+func (s *OAuthService) CountClients() (int64, error) {
+	var count int64
+	if err := s.db.Model(&models.OAuth2Client{}).Count(&count).Error; err != nil {
+		return 0, err
+	}
+	return count, nil
 }
 
 // ListClients 获取客户端列表
@@ -438,6 +590,96 @@ func (s *OAuthService) ListClients(page, pageSize int) ([]models.OAuth2Client, i
 	}
 
 	return clients, total, nil
+}
+
+// ListClientsFull 获取客户端列表（支持更多查询参数）
+func (s *OAuthService) ListClientsFull(params *ListClientsParams) ([]models.OAuth2Client, int64, error) {
+	var clients []models.OAuth2Client
+	var total int64
+
+	query := s.db.Model(&models.OAuth2Client{})
+
+	// 搜索条件
+	if params.Search != "" {
+		searchTerm := "%" + params.Search + "%"
+		query = query.Where("name ILIKE ? OR description ILIKE ? OR id::text ILIKE ?", searchTerm, searchTerm, searchTerm)
+	}
+
+	// 状态过滤
+	if params.Status != "" {
+		query = query.Where("status = ?", params.Status)
+	}
+
+	// 计算总数
+	if err := query.Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+
+	// 排序
+	orderClause := "created_at DESC"
+	if params.SortBy != "" {
+		order := "ASC"
+		if params.SortDesc {
+			order = "DESC"
+		}
+		orderClause = params.SortBy + " " + order
+	}
+	query = query.Order(orderClause)
+
+	// 分页
+	offset := (params.Page - 1) * params.PageSize
+	if err := query.Offset(offset).Limit(params.PageSize).Find(&clients).Error; err != nil {
+		return nil, 0, err
+	}
+
+	return clients, total, nil
+}
+
+// RegenerateClientSecret 重新生成客户端密钥
+func (s *OAuthService) RegenerateClientSecret(clientID, newSecret string) error {
+	return s.db.Model(&models.OAuth2Client{}).
+		Where("id = ?", clientID).
+		Update("secret", newSecret).Error
+}
+
+// IncrementClientRequestCount 增加客户端请求计数
+func (s *OAuthService) IncrementClientRequestCount(clientID string) error {
+	return s.db.Model(&models.OAuth2Client{}).
+		Where("id = ?", clientID).
+		Updates(map[string]interface{}{
+			"request_count": gorm.Expr("request_count + 1"),
+			"last_used_at":  time.Now(),
+		}).Error
+}
+
+// GetClientStats 获取客户端统计数据
+func (s *OAuthService) GetClientStats() (map[string]int64, error) {
+	stats := make(map[string]int64)
+
+	// 总客户端数
+	var total int64
+	if err := s.db.Model(&models.OAuth2Client{}).Count(&total).Error; err != nil {
+		return nil, err
+	}
+	stats["total"] = total
+
+	// 各状态客户端数
+	var statusCounts []struct {
+		Status models.ClientStatus
+		Count  int64
+	}
+	if err := s.db.Model(&models.OAuth2Client{}).
+		Select("status, COUNT(*) as count").
+		Group("status").
+		Find(&statusCounts).Error; err != nil {
+		return nil, err
+	}
+
+	for _, sc := range statusCounts {
+		stats[string(sc.Status)] = sc.Count
+	}
+
+	return stats, nil
 }
 
 // RevokeToken 撤销令牌

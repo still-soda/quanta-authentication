@@ -12,17 +12,20 @@ type CounterTask struct {
 	cacheService   *services.CacheService
 	counterService *services.CounterService
 	userService    *services.UserService
+	authService    *services.OAuthService
 }
 
 func NewCounterTask(
 	counterService *services.CounterService,
 	cacheService *services.CacheService,
 	userService *services.UserService,
+	oauthService *services.OAuthService,
 ) *CounterTask {
 	return &CounterTask{
 		counterService: counterService,
 		cacheService:   cacheService,
 		userService:    userService,
+		authService:    oauthService,
 	}
 }
 
@@ -63,7 +66,7 @@ func (t *CounterTask) SaveAuthUserCount() {
 
 // 保存每周注册的 OAuth 应用数量到计数器
 func (t *CounterTask) SaveWeeklyOAuthAppCount() {
-	oauthAppCnt, err := t.cacheService.GetKeyValueAsInt64("weekly-oauthapp-count")
+	oauthAppCnt, err := t.authService.CountClients()
 	if err != nil {
 		utilities.GetLogger().Error("failed to save weekly oauth app count", "error", err.Error(), "cnt", oauthAppCnt)
 		return

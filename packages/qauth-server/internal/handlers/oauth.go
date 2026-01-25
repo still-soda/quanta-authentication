@@ -137,7 +137,7 @@ func (h *OAuthHandler) AuthorizePage(c *gin.Context) {
 	h.cacheService.SetKeyValue("authorize-"+authorizeID, jsonStr, 120)
 
 	// 重定向到授权页面
-	authorizePageUrl := h.oauthService.GetConfig().AuthorizePageURL + "?aid=" + authorizeID
+	authorizePageUrl := h.oauthService.GetConfig().OAuth.AuthorizePageURL + "?aid=" + authorizeID
 	c.Redirect(302, authorizePageUrl)
 }
 
@@ -236,7 +236,7 @@ func (h *OAuthHandler) Authorize(c *gin.Context) {
 
 	// 处理授权请求
 	rt := c.Request.URL.Query().Get("response_type")
-	arts := h.oauthService.GetConfig().AllowedResponseTypes
+	arts := h.oauthService.GetConfig().OAuth.AllowedResponseTypes
 	isValid := slices.Contains(arts, config.ResponseType(rt))
 
 	// 根据响应类型修改请求以支持隐式授权模式
@@ -417,11 +417,18 @@ func (h *OAuthHandler) CreateClient(c *gin.Context) {
 	}
 
 	var req struct {
-		Name     string `json:"name" binding:"required"`
-		Domain   string `json:"domain" binding:"required"`
-		Secret   string `json:"secret" binding:"required"`
-		IsPublic bool   `json:"is_public"`
-		UserID   string `json:"user_id"`
+		Name         string   `json:"name" binding:"required"`
+		Description  string   `json:"description"`
+		Domain       string   `json:"domain" binding:"required"`
+		RedirectURIs []string `json:"redirect_uris"`
+		Scopes       []string `json:"scopes"`
+		GrantTypes   []string `json:"grant_types"`
+		Status       string   `json:"status"`
+		Trusted      bool     `json:"trusted"`
+		Logo         string   `json:"logo"`
+		Icon         string   `json:"icon"`
+		IconBg       string   `json:"icon_bg"`
+		IsPublic     bool     `json:"is_public"`
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -429,7 +436,36 @@ func (h *OAuthHandler) CreateClient(c *gin.Context) {
 		return
 	}
 
-	client, err := h.oauthService.CreateClient(req.Name, req.Domain, req.Secret, req.IsPublic, req.UserID)
+	// 生成安全的客户端密钥
+	secret, err := utilities.GenerateRandomString(32)
+	if err != nil {
+		utilities.GetLogger().Error("Generate client secret error", "error", err)
+		response.HandlerError(c, app_error.ErrInternalServerError)
+		return
+	}
+
+	// 获取当前用户 ID
+	userID := ""
+	if userInfo, exists := c.Get("userInfo"); exists {
+		userID = userInfo.(*jwt.UserJWTClaims).UserID
+	}
+
+	client, err := h.oauthService.CreateClientFull(&services.CreateClientParams{
+		Name:         req.Name,
+		Description:  req.Description,
+		Domain:       req.Domain,
+		RedirectURIs: req.RedirectURIs,
+		Scopes:       req.Scopes,
+		GrantTypes:   req.GrantTypes,
+		Status:       models.ClientStatus(req.Status),
+		Trusted:      req.Trusted,
+		Logo:         req.Logo,
+		Icon:         req.Icon,
+		IconBg:       req.IconBg,
+		Secret:       secret,
+		IsPublic:     req.IsPublic,
+		UserID:       userID,
+	})
 	if err != nil {
 		utilities.GetLogger().Error("Create OAuth client error", "error", err)
 		h.auditService.LogWithGinContext(c, &services.AuditEntry{
@@ -454,9 +490,14 @@ func (h *OAuthHandler) CreateClient(c *gin.Context) {
 		TargetName: client.Name,
 		Detail: &models.AuditLogDetail{
 			NewValue: map[string]any{
-				"name":      client.Name,
-				"domain":    client.Domain,
-				"is_public": req.IsPublic,
+				"name":          client.Name,
+				"description":   client.Description,
+				"domain":        client.Domain,
+				"redirect_uris": client.RedirectURIs,
+				"scopes":        client.Scopes,
+				"grant_types":   client.GrantTypes,
+				"status":        client.Status,
+				"trusted":       client.Trusted,
 			},
 		},
 		Status:     models.AuditStatusSuccess,
@@ -464,9 +505,8 @@ func (h *OAuthHandler) CreateClient(c *gin.Context) {
 	})
 
 	response.HandlerSuccess(c, gin.H{
-		"client_id":     client.ID,
-		"client_name":   client.Name,
-		"client_domain": client.Domain,
+		"client":        client.ToResponse(),
+		"client_secret": secret,
 	})
 }
 
@@ -488,12 +528,7 @@ func (h *OAuthHandler) GetClient(c *gin.Context) {
 		return
 	}
 
-	response.HandlerSuccess(c, gin.H{
-		"client_id":     client.ID,
-		"client_name":   client.Name,
-		"client_domain": client.Domain,
-		"created_at":    client.CreatedAt,
-	})
+	response.HandlerSuccess(c, client.ToResponse())
 }
 
 // UpdateClient 更新客户端信息
@@ -511,8 +546,17 @@ func (h *OAuthHandler) UpdateClient(c *gin.Context) {
 	clientID := c.Param("id")
 
 	var req struct {
-		Name   string `json:"name" binding:"required"`
-		Domain string `json:"domain" binding:"required"`
+		Name         *string  `json:"name"`
+		Description  *string  `json:"description"`
+		Domain       *string  `json:"domain"`
+		RedirectURIs []string `json:"redirect_uris"`
+		Scopes       []string `json:"scopes"`
+		GrantTypes   []string `json:"grant_types"`
+		Status       *string  `json:"status"`
+		Trusted      *bool    `json:"trusted"`
+		Logo         *string  `json:"logo"`
+		Icon         *string  `json:"icon"`
+		IconBg       *string  `json:"icon_bg"`
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -523,7 +567,26 @@ func (h *OAuthHandler) UpdateClient(c *gin.Context) {
 	// 获取旧的客户端信息
 	oldClient, _ := h.oauthService.GetClientByID(clientID)
 
-	if err := h.oauthService.UpdateClient(clientID, req.Name, req.Domain); err != nil {
+	// 构建更新参数
+	params := &services.UpdateClientParams{
+		Name:         req.Name,
+		Description:  req.Description,
+		Domain:       req.Domain,
+		RedirectURIs: req.RedirectURIs,
+		Scopes:       req.Scopes,
+		GrantTypes:   req.GrantTypes,
+		Trusted:      req.Trusted,
+		Logo:         req.Logo,
+		Icon:         req.Icon,
+		IconBg:       req.IconBg,
+	}
+
+	if req.Status != nil {
+		status := models.ClientStatus(*req.Status)
+		params.Status = &status
+	}
+
+	if err := h.oauthService.UpdateClientFull(clientID, params); err != nil {
 		utilities.GetLogger().Error("Update OAuth client error", "error", err)
 		h.auditService.LogWithGinContext(c, &services.AuditEntry{
 			Module:       models.AuditModuleClient,
@@ -538,33 +601,85 @@ func (h *OAuthHandler) UpdateClient(c *gin.Context) {
 		return
 	}
 
+	// 获取更新后的客户端
+	updatedClient, _ := h.oauthService.GetClientByID(clientID)
+
+	// 记录变更字段
+	changedFields := []string{}
+	if req.Name != nil {
+		changedFields = append(changedFields, "name")
+	}
+	if req.Description != nil {
+		changedFields = append(changedFields, "description")
+	}
+	if req.Domain != nil {
+		changedFields = append(changedFields, "domain")
+	}
+	if req.RedirectURIs != nil {
+		changedFields = append(changedFields, "redirect_uris")
+	}
+	if req.Scopes != nil {
+		changedFields = append(changedFields, "scopes")
+	}
+	if req.GrantTypes != nil {
+		changedFields = append(changedFields, "grant_types")
+	}
+	if req.Status != nil {
+		changedFields = append(changedFields, "status")
+	}
+	if req.Trusted != nil {
+		changedFields = append(changedFields, "trusted")
+	}
+
 	// 记录客户端更新
 	var oldValue map[string]any
 	if oldClient != nil {
 		oldValue = map[string]any{
-			"name":   oldClient.Name,
-			"domain": oldClient.Domain,
+			"name":          oldClient.Name,
+			"description":   oldClient.Description,
+			"domain":        oldClient.Domain,
+			"redirect_uris": oldClient.RedirectURIs,
+			"scopes":        oldClient.Scopes,
+			"grant_types":   oldClient.GrantTypes,
+			"status":        oldClient.Status,
+			"trusted":       oldClient.Trusted,
 		}
 	}
+
+	targetName := ""
+	if updatedClient != nil {
+		targetName = updatedClient.Name
+	}
+
 	h.auditService.LogWithGinContext(c, &services.AuditEntry{
 		Module:     models.AuditModuleClient,
 		Action:     models.AuditActionClientUpdate,
 		TargetID:   clientID,
 		TargetType: "oauth_client",
-		TargetName: req.Name,
+		TargetName: targetName,
 		Detail: &models.AuditLogDetail{
 			OldValue: oldValue,
 			NewValue: map[string]any{
-				"name":   req.Name,
-				"domain": req.Domain,
+				"name":          req.Name,
+				"description":   req.Description,
+				"domain":        req.Domain,
+				"redirect_uris": req.RedirectURIs,
+				"scopes":        req.Scopes,
+				"grant_types":   req.GrantTypes,
+				"status":        req.Status,
+				"trusted":       req.Trusted,
 			},
-			ChangedFields: []string{"name", "domain"},
+			ChangedFields: changedFields,
 		},
 		Status:     models.AuditStatusSuccess,
 		DurationMs: time.Since(startTime).Milliseconds(),
 	})
 
-	response.HandlerSuccess(c, gin.H{"updated": true})
+	if updatedClient != nil {
+		response.HandlerSuccess(c, updatedClient.ToResponse())
+	} else {
+		response.HandlerSuccess(c, gin.H{"updated": true})
+	}
 }
 
 // DeleteClient 删除客户端
@@ -584,8 +699,19 @@ func (h *OAuthHandler) DeleteClient(c *gin.Context) {
 	// 获取客户端信息用于审计
 	client, _ := h.oauthService.GetClientByID(clientID)
 	clientName := ""
+	var deletedClientData map[string]any
 	if client != nil {
 		clientName = client.Name
+		deletedClientData = map[string]any{
+			"name":          client.Name,
+			"description":   client.Description,
+			"domain":        client.Domain,
+			"redirect_uris": client.RedirectURIs,
+			"scopes":        client.Scopes,
+			"grant_types":   client.GrantTypes,
+			"status":        client.Status,
+			"trusted":       client.Trusted,
+		}
 	}
 
 	if err := h.oauthService.DeleteClient(clientID); err != nil {
@@ -611,6 +737,9 @@ func (h *OAuthHandler) DeleteClient(c *gin.Context) {
 		TargetID:   clientID,
 		TargetType: "oauth_client",
 		TargetName: clientName,
+		Detail: &models.AuditLogDetail{
+			OldValue: deletedClientData,
+		},
 		Status:     models.AuditStatusSuccess,
 		DurationMs: time.Since(startTime).Milliseconds(),
 	})
@@ -628,32 +757,184 @@ func (h *OAuthHandler) ListClients(c *gin.Context) {
 		return
 	}
 
-	page := 1
-	pageSize := 10
-
-	if p := c.Query("page"); p != "" {
-		if val, err := utilities.ParseInt(p); err == nil && val > 0 {
-			page = val
-		}
-	}
-	if ps := c.Query("page_size"); ps != "" {
-		if val, err := utilities.ParseInt(ps); err == nil && val > 0 && val <= 100 {
-			pageSize = val
-		}
+	// 解析查询参数
+	params := &services.ListClientsParams{
+		Page:     utilities.ParseIntParam(c.Query("page"), 1),
+		PageSize: utilities.ParseIntParam(c.Query("page_size"), 10),
+		Search:   c.Query("search"),
+		Status:   c.Query("status"),
+		SortBy:   c.Query("sort_by"),
+		SortDesc: c.Query("sort_desc") == "true",
 	}
 
-	clients, total, err := h.oauthService.ListClients(page, pageSize)
+	// 限制 page_size 最大值
+	if params.PageSize > 100 {
+		params.PageSize = 100
+	}
+
+	clients, total, err := h.oauthService.ListClientsFull(params)
 	if err != nil {
 		utilities.GetLogger().Error("List OAuth clients error", "error", err)
 		response.HandlerError(c, app_error.ErrInternalServerError)
 		return
 	}
 
+	// 转换为响应格式
+	items := make([]*models.OAuth2ClientResponse, len(clients))
+	for i, client := range clients {
+		items[i] = client.ToResponse()
+	}
+
 	response.HandlerSuccess(c, gin.H{
-		"items": clients,
+		"items": items,
 		"total": total,
-		"page":  page,
-		"size":  pageSize,
+		"page":  params.Page,
+		"size":  params.PageSize,
+	})
+}
+
+// RegenerateSecret 重新生成客户端密钥
+// POST /oauth/clients/:id/regenerate-secret
+func (h *OAuthHandler) RegenerateSecret(c *gin.Context) {
+	startTime := time.Now()
+
+	if err := services.VerifyPermissions(c, h.roleService, []string{
+		permissions.OAuthClientUpdate,
+	}); err != nil {
+		response.HandlerError(c, err)
+		return
+	}
+
+	clientID := c.Param("id")
+
+	// 获取客户端信息
+	client, err := h.oauthService.GetClientByID(clientID)
+	if err != nil {
+		response.HandlerError(c, app_error.ErrNotFound)
+		return
+	}
+
+	// 生成新的密钥
+	newSecret, err := utilities.GenerateRandomString(32)
+	if err != nil {
+		utilities.GetLogger().Error("Generate client secret error", "error", err)
+		response.HandlerError(c, app_error.ErrInternalServerError)
+		return
+	}
+
+	// 更新密钥
+	if err := h.oauthService.RegenerateClientSecret(clientID, newSecret); err != nil {
+		utilities.GetLogger().Error("Regenerate client secret error", "error", err)
+		h.auditService.LogWithGinContext(c, &services.AuditEntry{
+			Module:       models.AuditModuleClient,
+			Action:       models.AuditActionClientUpdate,
+			TargetID:     clientID,
+			TargetType:   "oauth_client",
+			TargetName:   client.Name,
+			Status:       models.AuditStatusError,
+			ErrorMessage: err.Error(),
+			DurationMs:   time.Since(startTime).Milliseconds(),
+		})
+		response.HandlerError(c, app_error.ErrInternalServerError)
+		return
+	}
+
+	// 记录密钥重新生成
+	h.auditService.LogWithGinContext(c, &services.AuditEntry{
+		Module:     models.AuditModuleClient,
+		Action:     models.AuditActionClientUpdate,
+		TargetID:   clientID,
+		TargetType: "oauth_client",
+		TargetName: client.Name,
+		Detail: &models.AuditLogDetail{
+			ChangedFields: []string{"secret"},
+			Metadata: map[string]any{
+				"action": "regenerate_secret",
+			},
+		},
+		Status:     models.AuditStatusSuccess,
+		DurationMs: time.Since(startTime).Milliseconds(),
+	})
+
+	response.HandlerSuccess(c, gin.H{
+		"secret": newSecret,
+	})
+}
+
+// GetClientStats 获取客户端统计
+// GET /oauth/clients/stats
+func (h *OAuthHandler) GetClientStats(c *gin.Context) {
+	if err := services.VerifyPermissions(c, h.roleService, []string{
+		permissions.OAuthClientList,
+	}); err != nil {
+		response.HandlerError(c, err)
+		return
+	}
+
+	stats, err := h.oauthService.GetClientStats()
+	if err != nil {
+		utilities.GetLogger().Error("Get client stats error", "error", err)
+		response.HandlerError(c, app_error.ErrInternalServerError)
+		return
+	}
+
+	response.HandlerSuccess(c, stats)
+}
+
+// GetClientOptions 获取创建/编辑客户端时的可选配置项
+// GET /oauth/clients/options
+func (h *OAuthHandler) GetClientOptions(c *gin.Context) {
+	if err := services.VerifyPermissions(c, h.roleService, []string{
+		permissions.OAuthClientList,
+	}); err != nil {
+		response.HandlerError(c, err)
+		return
+	}
+
+	oauthConfig := h.oauthService.GetConfig()
+
+	// 构建授权范围选项
+	scopeOptions := make([]map[string]string, 0, len(oauthConfig.OAuth.ScopeSupported))
+	scopeLabels := map[config.Scope]string{
+		config.ScopeOpenID:  "OpenID",
+		config.ScopeProfile: "Profile",
+		config.ScopeEmail:   "Email",
+		config.ScopeRoles:   "Roles",
+	}
+	for _, scope := range oauthConfig.OAuth.ScopeSupported {
+		label := scopeLabels[scope]
+		if label == "" {
+			label = string(scope)
+		}
+		scopeOptions = append(scopeOptions, map[string]string{
+			"label": label,
+			"value": string(scope),
+		})
+	}
+
+	// 构建授权类型选项
+	grantTypeOptions := make([]map[string]string, 0, len(oauthConfig.OAuth.GrantTypesSupported))
+	grantTypeLabels := map[config.GrantType]string{
+		config.GrantTypeAuthorizationCode: "授权码",
+		config.GrantTypeRefreshToken:      "刷新令牌",
+		config.GrantTypeClientCredentials: "客户端凭证",
+		config.GrantTypePassword:          "密码模式",
+		config.GrantTypeImplicit:          "隐式授权",
+	}
+	for _, grantType := range oauthConfig.OAuth.GrantTypesSupported {
+		label := grantTypeLabels[grantType]
+		if label == "" {
+			label = string(grantType)
+		}
+		grantTypeOptions = append(grantTypeOptions, map[string]string{
+			"label": label,
+			"value": string(grantType),
+		})
+	}
+
+	response.HandlerSuccess(c, gin.H{
+		"scopes":      scopeOptions,
+		"grant_types": grantTypeOptions,
 	})
 }
 

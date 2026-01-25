@@ -92,10 +92,13 @@ func RegisterRoutes(r *gin.Engine, handlers *RegisterRouterHandlers) {
 				clientGroup.Use(middleware.Auth())
 
 				clientGroup.GET("", oauthHandler.ListClients)
+				clientGroup.GET("/stats", oauthHandler.GetClientStats)
+				clientGroup.GET("/options", oauthHandler.GetClientOptions)
 				clientGroup.POST("", oauthHandler.CreateClient)
 				clientGroup.GET("/:id", oauthHandler.GetClient)
 				clientGroup.PUT("/:id", oauthHandler.UpdateClient)
 				clientGroup.DELETE("/:id", oauthHandler.DeleteClient)
+				clientGroup.POST("/:id/regenerate-secret", oauthHandler.RegenerateSecret)
 			}
 
 			// JWKS 密钥管理
