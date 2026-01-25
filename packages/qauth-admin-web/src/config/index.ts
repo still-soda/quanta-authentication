@@ -222,10 +222,27 @@ export const OAUTH_SCOPE_OPTIONS = [
    { label: 'OpenID', value: 'openid' },
    { label: 'Profile', value: 'profile' },
    { label: 'Email', value: 'email' },
+   { label: 'Roles', value: 'roles' },
    { label: 'Admin', value: 'admin' },
    { label: 'Read Users', value: 'read:users' },
    { label: 'Write Users', value: 'write:users' },
    { label: 'Offline Access', value: 'offline_access' },
+] as const
+
+// OAuth Grant Type 选项
+export const OAUTH_GRANT_TYPE_OPTIONS = [
+   { label: '授权码', value: 'authorization_code' },
+   { label: '刷新令牌', value: 'refresh_token' },
+   { label: '客户端凭证', value: 'client_credentials' },
+   { label: '密码模式', value: 'password' },
+   { label: '隐式授权', value: 'implicit' },
+] as const
+
+// OAuth 状态选项
+export const OAUTH_STATUS_OPTIONS = [
+   { label: '开发中', value: 'development' },
+   { label: '生产环境', value: 'active' },
+   { label: '已弃用', value: 'deprecated' },
 ] as const
 
 // 设置分组
