@@ -13,6 +13,7 @@ services:
     environment:
       - DATABASE_URL=postgresql://${POSTGRES_USER:-user}:${POSTGRES_PASSWORD:-password}@database:5432/${POSTGRES_DB:-qauth}?sslmode=disable
       - SECRET_KEY=${SECRET_KEY:-your_secret_key_here}
+      - REDIS_ADDR=cache:6379
     depends_on:
       database:
         condition: service_healthy
@@ -25,7 +26,7 @@ services:
       context: ../packages/qauth-admin-web/
       dockerfile: ../../docker/admin-web.Dockerfile
       args:
-        - VITE_API_URL=http://server:8080
+        - VITE_API_BASE_URL=/api
     restart: unless-stopped
     networks:
       - qauth-network
@@ -45,11 +46,7 @@ services:
     volumes:
       - db_data:/var/lib/postgresql/data
     healthcheck:
-      test:
-        [
-          "CMD-SHELL",
-          "pg_isready -U ${POSTGRES_USER:-user} -d ${POSTGRES_DB:-qauth}",
-        ]
+      test: [ "CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-user} -d ${POSTGRES_DB:-qauth}" ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -64,7 +61,7 @@ services:
     ports:
       - "16379:6379"
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: [ "CMD", "redis-cli", "ping" ]
       interval: 10s
       timeout: 5s
       retries: 5
