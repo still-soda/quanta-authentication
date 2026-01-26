@@ -77,3 +77,45 @@ const (
 	// 重置用户密码权限
 	UserResetPassword = "user_reset_password"
 )
+
+// 应用组权限管理相关权限
+const (
+	// 查看应用组权限
+	AppGroupPermissionView = "app_group_permission_view"
+	// 创建应用组权限
+	AppGroupPermissionCreate = "app_group_permission_create"
+	// 更新应用组权限
+	AppGroupPermissionUpdate = "APP_GROUP_PERMISSION_UPDATE"
+	// 删除应用组权限
+	AppGroupPermissionDelete = "app_group_permission_delete"
+)
+
+// 应用组角色管理相关权限
+const (
+	// 查看应用组角色
+	AppGroupRoleView = "app_group_role_view"
+	// 创建应用组角色
+	AppGroupRoleCreate = "APP_GROUP_ROLE_CREATE"
+	// 更新应用组角色
+	AppGroupRoleUpdate = "APP_GROUP_ROLE_UPDATE"
+	// 删除应用组角色
+	AppGroupRoleDelete = "APP_GROUP_ROLE_DELETE"
+	// 为应用组角色分配权限
+	AppGroupRoleAssignPermissions = "APP_GROUP_ROLE_ASSIGN_PERMISSIONS"
+	// 从应用组角色撤销权限
+	AppGroupRoleRevokePermissions = "app_group_role_revoke_permissions"
+	// 为用户分配应用组角色
+	AppGroupRoleAssignToUser = "app_group_role_assign_to_user"
+	// 从用户撤销应用组角色
+	AppGroupRoleRevokeFromUser = "app_group_role_revoke_from_user"
+)
+
+// 应用组管理员相关权限
+const (
+	// 查看应用组管理员
+	AppGroupAdminView = "app_group_admin_view"
+	// 添加应用组管理员
+	AppGroupAdminCreate = "app_group_admin_create"
+	// 移除应用组管理员
+	AppGroupAdminDelete = "app_group_admin_delete"
+)

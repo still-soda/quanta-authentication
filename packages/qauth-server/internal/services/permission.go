@@ -45,6 +45,70 @@ func (s *PermissionService) GetAllPermissions() ([]models.Permissions, error) {
 	return permissions, nil
 }
 
+// ListPermissionsParams 权限列表查询参数
+type ListPermissionsParams struct {
+	Page     int
+	PageSize int
+	Search   string
+	Resource string
+}
+
+// ListPermissionsResult 权限列表查询结果
+type ListPermissionsResult struct {
+	Items    []models.Permissions `json:"items"`
+	Total    int64                `json:"total"`
+	Page     int                  `json:"page"`
+	PageSize int                  `json:"page_size"`
+}
+
+// ListPermissions 获取权限列表（带分页）
+func (s *PermissionService) ListPermissions(params ListPermissionsParams) (*ListPermissionsResult, error) {
+	var permissions []models.Permissions
+	var total int64
+
+	db := s.db.Model(&models.Permissions{})
+
+	// 搜索过滤
+	if params.Search != "" {
+		search := "%" + params.Search + "%"
+		db = db.Where("code LIKE ? OR description LIKE ? OR resource LIKE ?", search, search, search)
+	}
+
+	// 资源过滤
+	if params.Resource != "" {
+		db = db.Where("resource = ?", params.Resource)
+	}
+
+	// 计算总数
+	if err := db.Count(&total).Error; err != nil {
+		return nil, err
+	}
+
+	// 设置默认分页参数
+	if params.Page <= 0 {
+		params.Page = 1
+	}
+	if params.PageSize <= 0 {
+		params.PageSize = 15
+	}
+	if params.PageSize > 100 {
+		params.PageSize = 100
+	}
+
+	// 分页查询
+	offset := (params.Page - 1) * params.PageSize
+	if err := db.Offset(offset).Limit(params.PageSize).Order("created_at DESC").Find(&permissions).Error; err != nil {
+		return nil, err
+	}
+
+	return &ListPermissionsResult{
+		Items:    permissions,
+		Total:    total,
+		Page:     params.Page,
+		PageSize: params.PageSize,
+	}, nil
+}
+
 // GetPermissionByID 根据权限 ID 获取权限信息
 func (s *PermissionService) GetPermissionByID(permissionID string) (*models.Permissions, error) {
 	var permission models.Permissions

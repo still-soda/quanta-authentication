@@ -75,5 +75,11 @@ func AutoMigrate(db *gorm.DB) error {
 		&models.ErrorRecord{},
 		&models.Counters{},
 		&models.AuditLog{},
+		// 应用组权限相关表
+		&models.AppGroupPermission{},
+		&models.AppGroupRole{},
+		&models.AppGroupRolesPermissions{},
+		&models.AppGroupUsersRoles{},
+		&models.AppGroupAdmin{},
 	)
 }

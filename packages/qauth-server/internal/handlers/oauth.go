@@ -20,12 +20,13 @@ import (
 
 // OAuthHandler OAuth2 处理器
 type OAuthHandler struct {
-	oauthService *services.OAuthService
-	roleService  *services.RoleService
-	userService  *services.UserService
-	oidcService  *services.OIDCService
-	cacheService *services.CacheService
-	auditService *services.AuditService
+	oauthService    *services.OAuthService
+	roleService     *services.RoleService
+	userService     *services.UserService
+	oidcService     *services.OIDCService
+	cacheService    *services.CacheService
+	auditService    *services.AuditService
+	appGroupService *services.AppGroupService
 }
 
 // NewOAuthHandler 创建新的 OAuth2 处理器
@@ -36,14 +37,16 @@ func NewOAuthHandler(
 	oidcService *services.OIDCService,
 	cacheService *services.CacheService,
 	auditService *services.AuditService,
+	appGroupService *services.AppGroupService,
 ) *OAuthHandler {
 	return &OAuthHandler{
-		oauthService: oauthService,
-		roleService:  roleService,
-		userService:  userService,
-		oidcService:  oidcService,
-		cacheService: cacheService,
-		auditService: auditService,
+		oauthService:    oauthService,
+		roleService:     roleService,
+		userService:     userService,
+		oidcService:     oidcService,
+		cacheService:    cacheService,
+		auditService:    auditService,
+		appGroupService: appGroupService,
 	}
 }
 
@@ -479,6 +482,14 @@ func (h *OAuthHandler) CreateClient(c *gin.Context) {
 		})
 		response.HandlerError(c, app_error.ErrInternalServerError)
 		return
+	}
+
+	// 初始化应用组管理员（将创建者设为 owner）
+	if h.appGroupService != nil && userID != "" {
+		if err := h.appGroupService.InitializeAppGroupAdmins(client.ID, userID); err != nil {
+			utilities.GetLogger().Error("Initialize app group admins error", "error", err, "clientID", client.ID)
+			// 不因此失败整个创建流程，只记录警告
+		}
 	}
 
 	// 记录客户端创建成功

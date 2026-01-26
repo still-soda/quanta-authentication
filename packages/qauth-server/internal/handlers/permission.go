@@ -39,15 +39,34 @@ func (h *PermissionHandler) GetPermissions(c *gin.Context) {
 		return
 	}
 
-	// 获取所有权限
-	perms, err := h.permissionService.GetAllPermissions()
+	// 获取查询参数
+	var params services.ListPermissionsParams
+	params.Page = utilities.ParseIntParam(c.Query("page"), 1)
+	params.PageSize = utilities.ParseIntParam(c.Query("page_size"), 15)
+	params.Search = c.Query("search")
+	params.Resource = c.Query("resource")
+
+	// 如果明确请求所有数据（用于兼容），则返回所有权限
+	if c.Query("all") == "true" {
+		perms, err := h.permissionService.GetAllPermissions()
+		if err != nil {
+			utilities.GetLogger().Error("failed to get permissions", "error", err.Error())
+			response.HandlerError(c, app_error.ErrInternalServerError)
+			return
+		}
+		response.HandlerSuccess(c, perms)
+		return
+	}
+
+	// 分页查询
+	result, err := h.permissionService.ListPermissions(params)
 	if err != nil {
-		utilities.GetLogger().Error("failed to get permissions", "error", err.Error())
+		utilities.GetLogger().Error("failed to list permissions", "error", err.Error())
 		response.HandlerError(c, app_error.ErrInternalServerError)
 		return
 	}
 
-	response.HandlerSuccess(c, perms)
+	response.HandlerSuccess(c, result)
 }
 
 // GetPermissionsGrouped 获取按资源分组的权限

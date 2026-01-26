@@ -17,6 +17,7 @@ type RegisterRouterHandlers struct {
 	RoleHandler       *_handlers.RoleHandler
 	PermissionHandler *_handlers.PermissionHandler
 	UserHandler       *_handlers.UserHandler
+	AppGroupHandler   *_handlers.AppGroupHandler
 
 	DashboardHandler *business.DashboardHandler
 	AuditHandler     *business.AuditHandler
@@ -99,6 +100,34 @@ func RegisterRoutes(r *gin.Engine, handlers *RegisterRouterHandlers) {
 				clientGroup.PUT("/:id", oauthHandler.UpdateClient)
 				clientGroup.DELETE("/:id", oauthHandler.DeleteClient)
 				clientGroup.POST("/:id/regenerate-secret", oauthHandler.RegenerateSecret)
+
+				// 应用组管理员管理
+				clientGroup.GET("/:id/admins", handlers.AppGroupHandler.GetAppGroupAdmins)
+				clientGroup.POST("/:id/admins", handlers.AppGroupHandler.AddAppGroupAdmin)
+				clientGroup.DELETE("/:id/admins/:user_id", handlers.AppGroupHandler.RemoveAppGroupAdmin)
+
+				// 应用组权限管理
+				clientGroup.GET("/:id/permissions", handlers.AppGroupHandler.GetAppGroupPermissions)
+				clientGroup.GET("/:id/permissions/grouped", handlers.AppGroupHandler.GetAppGroupPermissionsGrouped)
+				clientGroup.POST("/:id/permissions", handlers.AppGroupHandler.CreateAppGroupPermission)
+				clientGroup.PUT("/:id/permissions/:permission_id", handlers.AppGroupHandler.UpdateAppGroupPermission)
+				clientGroup.DELETE("/:id/permissions/:permission_id", handlers.AppGroupHandler.DeleteAppGroupPermission)
+
+				// 应用组角色管理
+				clientGroup.GET("/:id/roles", handlers.AppGroupHandler.GetAppGroupRoles)
+				clientGroup.POST("/:id/roles", handlers.AppGroupHandler.CreateAppGroupRole)
+				clientGroup.GET("/:id/roles/:role_id", handlers.AppGroupHandler.GetAppGroupRole)
+				clientGroup.PUT("/:id/roles/:role_id", handlers.AppGroupHandler.UpdateAppGroupRole)
+				clientGroup.DELETE("/:id/roles/:role_id", handlers.AppGroupHandler.DeleteAppGroupRole)
+				clientGroup.GET("/:id/roles/:role_id/permissions", handlers.AppGroupHandler.GetAppGroupRolePermissions)
+				clientGroup.PUT("/:id/roles/:role_id/permissions", handlers.AppGroupHandler.SetAppGroupRolePermissions)
+				clientGroup.GET("/:id/roles/:role_id/users", handlers.AppGroupHandler.GetAppGroupRoleUsers)
+				clientGroup.POST("/:id/roles/:role_id/users", handlers.AppGroupHandler.AssignAppGroupRoleToUser)
+				clientGroup.DELETE("/:id/roles/:role_id/users/:user_id", handlers.AppGroupHandler.RevokeAppGroupRoleFromUser)
+
+				// 应用组用户权限查询
+				clientGroup.GET("/:id/users/:user_id/roles", handlers.AppGroupHandler.GetUserAppGroupRoles)
+				clientGroup.GET("/:id/users/:user_id/permissions", handlers.AppGroupHandler.GetUserAppGroupPermissions)
 			}
 
 			// JWKS 密钥管理

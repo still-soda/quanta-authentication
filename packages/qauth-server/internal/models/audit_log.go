@@ -44,6 +44,24 @@ const (
 	// 系统管理相关操作
 	AuditActionKeyRotation    AuditAction = "KEY_ROTATION"
 	AuditActionSettingsChange AuditAction = "SETTINGS_CHANGE"
+
+	// 应用组角色管理相关操作
+	AuditActionAppGroupRoleCreate            AuditAction = "APP_GROUP_ROLE_CREATE"
+	AuditActionAppGroupRoleUpdate            AuditAction = "APP_GROUP_ROLE_UPDATE"
+	AuditActionAppGroupRoleDelete            AuditAction = "APP_GROUP_ROLE_DELETE"
+	AuditActionAppGroupRoleAssignPermissions AuditAction = "APP_GROUP_ROLE_ASSIGN_PERMISSIONS"
+	AuditActionAppGroupRoleRevokePermissions AuditAction = "APP_GROUP_ROLE_REVOKE_PERMISSIONS"
+	AuditActionAppGroupUserAssignRoles       AuditAction = "APP_GROUP_USER_ASSIGN_ROLES"
+	AuditActionAppGroupUserRevokeRoles       AuditAction = "APP_GROUP_USER_REVOKE_ROLES"
+
+	// 应用组管理员相关操作
+	AuditActionAppGroupAdminAdd    AuditAction = "APP_GROUP_ADMIN_ADD"
+	AuditActionAppGroupAdminRemove AuditAction = "APP_GROUP_ADMIN_REMOVE"
+
+	// 应用组权限相关操作
+	AuditActionAppGroupPermissionCreate AuditAction = "APP_GROUP_PERMISSION_CREATE"
+	AuditActionAppGroupPermissionUpdate AuditAction = "APP_GROUP_PERMISSION_UPDATE"
+	AuditActionAppGroupPermissionDelete AuditAction = "APP_GROUP_PERMISSION_DELETE"
 )
 
 // AuditModule 审计模块

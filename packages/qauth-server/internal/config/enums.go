@@ -12,10 +12,11 @@ const (
 type Scope string
 
 const (
-	ScopeOpenID  Scope = "openid"
-	ScopeProfile Scope = "profile"
-	ScopeEmail   Scope = "email"
-	ScopeRoles   Scope = "roles"
+	ScopeOpenID      Scope = "openid"
+	ScopeProfile     Scope = "profile"
+	ScopeEmail       Scope = "email"
+	ScopeRoles       Scope = "roles"
+	ScopePermissions Scope = "permissions" // 获取用户在应用组的权限
 )
 
 type ResponseMode string
@@ -84,6 +85,10 @@ const (
 
 	// roles
 	ClaimRoles Claim = "roles"
+
+	// permissions (应用组权限)
+	ClaimAppGroupRoles       Claim = "app_group_roles"
+	ClaimAppGroupPermissions Claim = "app_group_permissions"
 )
 
 type Counter string

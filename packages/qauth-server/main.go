@@ -77,6 +77,10 @@ func main() {
 	oauthService := services.NewOAuthService(db, cfg, jwksManager, userService)
 	counterService := services.NewCounterService(db)
 	auditService := services.NewAuditService(db, userService)
+	appGroupService := services.NewAppGroupService(db, userService)
+
+	// 设置 OAuthService 的 AppGroupService（延迟注入以避免循环依赖）
+	oauthService.SetAppGroupService(appGroupService)
 
 	// OIDC 服务
 	issuer := "http://localhost:" + cfg.Server.Port
@@ -108,11 +112,12 @@ func main() {
 	healthHandler := handlers.NewHealthHandler()
 	fileHandler := handlers.NewFileHandler(fileService)
 	authHandler := handlers.NewAuthHandler(userService, roleService, auditService)
-	oauthHandler := handlers.NewOAuthHandler(oauthService, roleService, userService, oidcService, cacheService, auditService)
+	oauthHandler := handlers.NewOAuthHandler(oauthService, roleService, userService, oidcService, cacheService, auditService, appGroupService)
 	oidcHandler := handlers.NewOIDCHandler(oidcService, userService)
 	roleHandler := handlers.NewRoleHandler(roleService, permissionService, auditService)
 	permissionHandler := handlers.NewPermissionHandler(roleService, permissionService, auditService)
 	userHandler := handlers.NewUserHandler(userService, roleService, auditService)
+	appGroupHandler := handlers.NewAppGroupHandler(appGroupService, oauthService, roleService, auditService)
 	dashboardHandler := business.NewDashboardHandler(userService, counterService, cacheService, oauthService)
 	auditHandler := business.NewAuditHandler(auditService, roleService)
 
@@ -126,6 +131,7 @@ func main() {
 		RoleHandler:       roleHandler,
 		PermissionHandler: permissionHandler,
 		UserHandler:       userHandler,
+		AppGroupHandler:   appGroupHandler,
 		DashboardHandler:  dashboardHandler,
 		AuditHandler:      auditHandler,
 	})

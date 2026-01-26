@@ -114,6 +114,80 @@ func (s *RoleService) GetAllRolesWithStats() ([]RoleWithStats, error) {
 	return result, nil
 }
 
+// ListRolesParams 角色列表查询参数
+type ListRolesParams struct {
+	Page     int
+	PageSize int
+	Search   string
+}
+
+// ListRolesResult 角色列表查询结果
+type ListRolesResult struct {
+	Items    []RoleWithStats `json:"items"`
+	Total    int64           `json:"total"`
+	Page     int             `json:"page"`
+	PageSize int             `json:"page_size"`
+}
+
+// ListRolesWithStats 获取角色列表（带分页和统计信息）
+func (s *RoleService) ListRolesWithStats(params ListRolesParams) (*ListRolesResult, error) {
+	var roles []models.Roles
+	var total int64
+
+	db := s.db.Model(&models.Roles{})
+
+	// 搜索过滤
+	if params.Search != "" {
+		search := "%" + params.Search + "%"
+		db = db.Where("name LIKE ? OR code LIKE ?", search, search)
+	}
+
+	// 计算总数
+	if err := db.Count(&total).Error; err != nil {
+		return nil, err
+	}
+
+	// 设置默认分页参数
+	if params.Page <= 0 {
+		params.Page = 1
+	}
+	if params.PageSize <= 0 {
+		params.PageSize = 20
+	}
+	if params.PageSize > 100 {
+		params.PageSize = 100
+	}
+
+	// 分页查询
+	offset := (params.Page - 1) * params.PageSize
+	if err := db.Offset(offset).Limit(params.PageSize).Order("created_at DESC").Find(&roles).Error; err != nil {
+		return nil, err
+	}
+
+	// 添加统计信息
+	result := make([]RoleWithStats, len(roles))
+	for i, role := range roles {
+		var userCount int64
+		s.db.Model(&models.UsersRoles{}).Where("roles_id = ?", role.ID).Count(&userCount)
+
+		var permCount int64
+		s.db.Model(&models.RolesPermissions{}).Where("roles_id = ?", role.ID).Count(&permCount)
+
+		result[i] = RoleWithStats{
+			Roles:           role,
+			UserCount:       userCount,
+			PermissionCount: permCount,
+		}
+	}
+
+	return &ListRolesResult{
+		Items:    result,
+		Total:    total,
+		Page:     params.Page,
+		PageSize: params.PageSize,
+	}, nil
+}
+
 // GetRoleWithStats 获取单个角色（带统计信息）
 func (s *RoleService) GetRoleWithStats(roleID string) (*RoleWithStats, error) {
 	var role models.Roles
@@ -143,10 +217,12 @@ func (s *RoleService) GetRoleByID(roleID string) (*models.Roles, error) {
 	return &role, nil
 }
 
-// GetUserRole 获取用户的角色信息
+// GetUserRole 获取用户的系统角色信息
 func (s *RoleService) GetUserRole(userID string) (*models.Roles, error) {
 	var userRole models.UsersRoles
-	if err := s.db.Preload("Role").First(&userRole, "users_id = ?", userID).Error; err != nil {
+	if err := s.db.Preload("Role", "is_system = ?", true).
+		First(&userRole, "users_id = ?", userID).
+		Error; err != nil {
 		return nil, err
 	}
 	return &userRole.Role, nil

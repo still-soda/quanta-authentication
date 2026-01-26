@@ -149,6 +149,7 @@ func (h *AuthHandler) Login(c *gin.Context) {
 
 	response.HandlerSuccess(c, gin.H{
 		"user":          user,
+		"role":          role.Code,
 		"access_token":  accessToken,
 		"refresh_token": refreshToken,
 	})

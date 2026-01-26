@@ -26,13 +26,19 @@ import (
 
 // OAuthService OAuth2 服务
 type OAuthService struct {
-	db          *gorm.DB
-	cfg         *config.Config
-	server      *server.Server
-	manager     *manage.Manager
-	clientStore *GormClientStore
-	jwksManager *jwks.JWKSManager
-	userService *UserService
+	db              *gorm.DB
+	cfg             *config.Config
+	server          *server.Server
+	manager         *manage.Manager
+	clientStore     *GormClientStore
+	jwksManager     *jwks.JWKSManager
+	userService     *UserService
+	appGroupService *AppGroupService
+}
+
+// SetAppGroupService 设置应用组服务（用于延迟注入以避免循环依赖）
+func (s *OAuthService) SetAppGroupService(appGroupService *AppGroupService) {
+	s.appGroupService = appGroupService
 }
 
 // GormClientStore 基于 GORM 的 OAuth2 客户端存储
@@ -296,6 +302,32 @@ func (s *OAuthService) extensionFieldsHandler(ti oauth2.TokenInfo) (fieldsValue 
 
 	if slices.Contains(scopes, string(config.ScopeRoles)) {
 		data[string(config.ClaimRoles)] = user.Roles
+	}
+
+	// 添加应用组权限（permissions scope）
+	if slices.Contains(scopes, string(config.ScopePermissions)) && s.appGroupService != nil {
+		clientID := ti.GetClientID()
+		userID := ti.GetUserID()
+
+		// 获取用户在该应用组的角色
+		appGroupRoles, err := s.appGroupService.GetUserAppGroupRoles(userID, clientID)
+		if err == nil && len(appGroupRoles) > 0 {
+			roleNames := make([]string, len(appGroupRoles))
+			for i, role := range appGroupRoles {
+				roleNames[i] = role.Code
+			}
+			data[string(config.ClaimAppGroupRoles)] = roleNames
+		}
+
+		// 获取用户在该应用组的权限
+		appGroupPermissions, err := s.appGroupService.GetUserAppGroupPermissions(userID, clientID)
+		if err == nil && len(appGroupPermissions) > 0 {
+			permCodes := make([]string, len(appGroupPermissions))
+			for i, perm := range appGroupPermissions {
+				permCodes[i] = perm.Code
+			}
+			data[string(config.ClaimAppGroupPermissions)] = permCodes
+		}
 	}
 
 	// 生成 ID Token

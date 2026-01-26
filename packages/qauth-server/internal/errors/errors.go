@@ -47,4 +47,6 @@ var (
 	ErrFailedToDeleteUser    = app_error.NewAppError(500, "failed to delete user")
 	ErrFailedToSetUserRoles  = app_error.NewAppError(500, "failed to set user roles")
 	ErrFailedToResetPassword = app_error.NewAppError(500, "failed to reset password")
+
+	ErrOAuthClientNotFound = app_error.NewAppError(404, "oauth client not found")
 )

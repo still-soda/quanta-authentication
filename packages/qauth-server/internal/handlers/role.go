@@ -48,15 +48,33 @@ func (h *RoleHandler) GetRoles(c *gin.Context) {
 		return
 	}
 
-	// 获取所有角色（带统计信息）
-	roles, err := h.roleService.GetAllRolesWithStats()
+	// 获取查询参数
+	var params services.ListRolesParams
+	params.Page = utilities.ParseIntParam(c.Query("page"), 1)
+	params.PageSize = utilities.ParseIntParam(c.Query("page_size"), 20)
+	params.Search = c.Query("search")
+
+	// 如果明确请求所有数据（用于兼容，如角色选择器），则返回所有角色
+	if c.Query("all") == "true" {
+		roles, err := h.roleService.GetAllRolesWithStats()
+		if err != nil {
+			utilities.GetLogger().Error("failed to get roles", "error", err.Error())
+			response.HandlerError(c, app_error.ErrFailedToGetRoles)
+			return
+		}
+		response.HandlerSuccess(c, roles)
+		return
+	}
+
+	// 分页查询
+	result, err := h.roleService.ListRolesWithStats(params)
 	if err != nil {
-		utilities.GetLogger().Error("failed to get roles", "error", err.Error())
+		utilities.GetLogger().Error("failed to list roles", "error", err.Error())
 		response.HandlerError(c, app_error.ErrFailedToGetRoles)
 		return
 	}
 
-	response.HandlerSuccess(c, roles)
+	response.HandlerSuccess(c, result)
 }
 
 // GetRole 处理获取单个角色请求
