@@ -9,6 +9,7 @@ import Menu from 'primevue/menu'
 import Badge from 'primevue/badge'
 import GlobalSearchDialog from '@/components/shared/GlobalSearchDialog.vue'
 import type { MenuItem } from 'primevue/menuitem'
+import { useAuthStore } from '@/stores/auth'
 
 const router = useRouter()
 const route = useRoute()
@@ -83,6 +84,8 @@ const toggleNotifications = (event: Event) => {
 }
 
 const sidebarWidth = computed(() => (sidebarStore.isCollapsed ? '5rem' : '17rem'))
+
+const authStore = useAuthStore()
 </script>
 
 <template>
@@ -197,12 +200,15 @@ const sidebarWidth = computed(() => (sidebarStore.isCollapsed ? '5rem' : '17rem'
             @click="toggleUserMenu"
          >
             <Avatar
-               image="https://api.dicebear.com/7.x/avataaars/svg?seed=admin"
+               :image="
+                  authStore.user?.avatar ??
+                  `https://api.dicebear.com/7.x/avataaars/svg?seed=${authStore.user?.id}`
+               "
                shape="circle"
                class="w-8! h-8! border-2! border-primary-200! dark:border-primary-700!"
             />
             <span class="text-sm font-medium text-surface-700 dark:text-surface-200 max-lg:hidden!">
-               管理员
+               {{ authStore.userName }}
             </span>
             <i class="pi pi-chevron-down text-xs text-surface-400"></i>
          </button>

@@ -25,6 +25,7 @@ export interface LoginRequest {
 // 登录响应（服务端返回格式）
 export interface LoginResponse {
    user: AuthUser
+   role: string
    access_token: string
    refresh_token: string
 }

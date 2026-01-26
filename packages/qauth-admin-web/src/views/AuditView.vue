@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, watchEffect } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { useQuery } from '@tanstack/vue-query'
 import Button from 'primevue/button'
 import DataTable from 'primevue/datatable'
@@ -11,15 +11,65 @@ import DatePicker from 'primevue/datepicker'
 import Dialog from 'primevue/dialog'
 import PageHeader from '@/components/shared/PageHeader.vue'
 import SimpleStatCard from '@/components/shared/SimpleStatCard.vue'
-import type { AuditLog, SimpleStatData, AuditLogBackend, Status } from '@/types'
+import type {
+   AuditLog,
+   SimpleStatData,
+   AuditLogBackend,
+   Status,
+   AuditAction,
+   AuditLogFilter,
+} from '@/types'
 import { AUDIT_MODULE_ICONS } from '@/config'
 import { getAuditLogs } from '@/apis/audit'
+import { actionNamesMapping } from '@/mappings/action'
+
+// 分页参数
+const page = ref(1)
+const pageSize = ref(10)
+
+// 筛选参数
+const filters = ref({
+   search: '',
+   module: null as string | null,
+   action: null as string | null,
+   dateRange: null as [Date, Date] | null,
+})
+
+// 构建查询参数
+const queryParams = computed<AuditLogFilter>(() => {
+   const params: AuditLogFilter = {
+      page: page.value,
+      page_size: pageSize.value,
+   }
+
+   if (filters.value.module) {
+      params.module = filters.value.module as any
+   }
+   if (filters.value.action) {
+      params.action = filters.value.action as any
+   }
+   if (filters.value.dateRange && filters.value.dateRange[0] && filters.value.dateRange[1]) {
+      params.start_time = filters.value.dateRange[0].toISOString()
+      params.end_time = filters.value.dateRange[1].toISOString()
+   }
+
+   return params
+})
 
 // 获取审计日志数据
 const { data: auditLogsData, isLoading } = useQuery({
-   queryKey: ['audit-logs'],
-   queryFn: () => getAuditLogs(),
+   queryKey: ['audit-logs', queryParams],
+   queryFn: () => getAuditLogs(queryParams.value),
 })
+
+// 监听 filters 变化,重置分页
+watch(
+   () => [filters.value.module, filters.value.action, filters.value.dateRange],
+   () => {
+      page.value = 1
+   },
+   { deep: true }
+)
 
 // 映射后端数据到前端格式
 const auditLogs = computed<AuditLog[]>(() => {
@@ -49,18 +99,7 @@ const auditLogs = computed<AuditLog[]>(() => {
    })
 })
 
-watchEffect(() => {
-   console.log('Original data:', auditLogsData.value)
-   console.log('Mapped logs:', auditLogs.value)
-})
-
-// 筛选状态
-const filters = ref({
-   search: '',
-   module: null as string | null,
-   action: null as string | null,
-   dateRange: null as [Date, Date] | null,
-})
+const total = computed(() => auditLogsData.value?.data?.total || 0)
 
 // 模块选项
 const moduleOptions = [
@@ -88,7 +127,7 @@ const actionOptions = [
    { label: '删除角色', value: 'ROLE_DELETE' },
 ]
 
-// 统计数据
+// 统计数据 (基于当前页)
 const stats = computed<SimpleStatData[]>(() => {
    const today = new Date()
    today.setHours(0, 0, 0, 0)
@@ -96,12 +135,8 @@ const stats = computed<SimpleStatData[]>(() => {
 
    return [
       {
-         title: '今日操作',
-         value: auditLogs.value.filter(log => {
-            const logDate = new Date(log.time)
-            logDate.setHours(0, 0, 0, 0)
-            return logDate.getTime() === todayTime
-         }).length,
+         title: '总记录数',
+         value: total.value,
          icon: 'pi pi-history',
          color: 'blue',
       },
@@ -126,28 +161,18 @@ const stats = computed<SimpleStatData[]>(() => {
    ]
 })
 
-// 过滤后的日志
+// 前端搜索过滤 (仅对当前页数据)
 const filteredLogs = computed(() => {
+   if (!filters.value.search) return auditLogs.value
+
+   const search = filters.value.search.toLowerCase()
    return auditLogs.value.filter(log => {
-      // 搜索过滤
-      if (filters.value.search) {
-         const search = filters.value.search.toLowerCase()
-         const matchesSearch =
-            log.operatorName.toLowerCase().includes(search) ||
-            log.targetName?.toLowerCase().includes(search) ||
-            log.action.toLowerCase().includes(search) ||
-            log.ip.includes(search)
-         if (!matchesSearch) return false
-      }
-      // 模块过滤
-      if (filters.value.module && log.module !== filters.value.module) {
-         return false
-      }
-      // 操作类型过滤
-      if (filters.value.action && log.action !== filters.value.action) {
-         return false
-      }
-      return true
+      return (
+         log.operatorName.toLowerCase().includes(search) ||
+         log.targetName?.toLowerCase().includes(search) ||
+         log.action.toLowerCase().includes(search) ||
+         log.ip.includes(search)
+      )
    })
 })
 
@@ -175,31 +200,7 @@ const MODULE_LABELS: Record<string, string> = {
 const getModuleLabel = (module: string) => MODULE_LABELS[module] || module
 
 // 操作中文名称映射
-const ACTION_LABELS: Record<string, string> = {
-   LOGIN: '登录',
-   LOGOUT: '登出',
-   REGISTER: '注册',
-   PASSWORD_RESET: '密码重置',
-   PASSWORD_CHANGE: '密码修改',
-   TOKEN_REFRESH: '令牌刷新',
-   OAUTH_AUTHORIZE: 'OAuth授权',
-   OAUTH_TOKEN: 'OAuth令牌',
-   OAUTH_REVOKE: 'OAuth撤销',
-   CLIENT_CREATE: '创建客户端',
-   CLIENT_UPDATE: '更新客户端',
-   CLIENT_DELETE: '删除客户端',
-   ROLE_CREATE: '创建角色',
-   ROLE_UPDATE: '更新角色',
-   ROLE_DELETE: '删除角色',
-   PERMISSION_GRANT: '授予权限',
-   PERMISSION_REVOKE: '撤销权限',
-   USER_CREATE: '创建用户',
-   USER_UPDATE: '更新用户',
-   USER_DELETE: '删除用户',
-   KEY_ROTATION: '密钥轮换',
-   SETTINGS_CHANGE: '设置变更',
-}
-const getActionLabel = (action: string) => ACTION_LABELS[action] || action
+const getActionLabel = (action: string) => actionNamesMapping[action as AuditAction] || action
 
 // 格式化时间显示
 const formatTime = (time: string) => {
@@ -225,6 +226,12 @@ const showDetail = (log: AuditLog) => {
 const exportLogs = () => console.log('Exporting logs...')
 const clearFilters = () => {
    filters.value = { search: '', module: null, action: null, dateRange: null }
+}
+
+// 分页事件处理
+const onPage = (event: any) => {
+   page.value = event.page + 1
+   pageSize.value = event.rows
 }
 </script>
 
@@ -315,9 +322,13 @@ const clearFilters = () => {
             v-else
             :value="filteredLogs"
             :paginator="true"
-            :rows="10"
+            :rows="pageSize"
+            :totalRecords="total"
+            :lazy="true"
+            @page="onPage"
             :rowsPerPageOptions="[10, 20, 50]"
-            paginatorTemplate="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink RowsPerPageDropdown"
+            paginatorTemplate="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink RowsPerPageDropdown CurrentPageReport"
+            currentPageReportTemplate="显示 {first} 到 {last} 条，共 {totalRecords} 条"
             responsiveLayout="scroll"
             :pt="{
                root: { class: 'border-none' },

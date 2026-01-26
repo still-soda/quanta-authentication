@@ -1,6 +1,7 @@
 /**
  * Audit API - 审计日志相关接口
  */
+import { actionNamesMapping } from '@/mappings/action'
 import { httpClient } from './index'
 import type {
    AuditLog,
@@ -113,29 +114,5 @@ export function getModuleDisplayName(module: AuditModule): string {
 
 // 辅助函数：获取操作显示名称
 export function getActionDisplayName(action: AuditAction): string {
-   const actionNames: Record<AuditAction, string> = {
-      LOGIN: '登录',
-      LOGOUT: '登出',
-      REGISTER: '注册',
-      PASSWORD_RESET: '密码重置',
-      PASSWORD_CHANGE: '密码修改',
-      TOKEN_REFRESH: '令牌刷新',
-      OAUTH_AUTHORIZE: 'OAuth授权',
-      OAUTH_TOKEN: 'OAuth令牌',
-      OAUTH_REVOKE: 'OAuth撤销',
-      CLIENT_CREATE: '创建客户端',
-      CLIENT_UPDATE: '更新客户端',
-      CLIENT_DELETE: '删除客户端',
-      ROLE_CREATE: '创建角色',
-      ROLE_UPDATE: '更新角色',
-      ROLE_DELETE: '删除角色',
-      PERMISSION_GRANT: '授予权限',
-      PERMISSION_REVOKE: '撤销权限',
-      USER_CREATE: '创建用户',
-      USER_UPDATE: '更新用户',
-      USER_DELETE: '删除用户',
-      KEY_ROTATION: '密钥轮换',
-      SETTINGS_CHANGE: '设置变更',
-   }
-   return actionNames[action] || action
+   return actionNamesMapping[action] || action
 }

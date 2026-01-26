@@ -51,7 +51,8 @@ const handleLogin = async () => {
             accessToken: response.access_token,
             refreshToken: response.refresh_token,
          },
-         response.user
+         response.user,
+         response.role
       )
 
       toast.add({

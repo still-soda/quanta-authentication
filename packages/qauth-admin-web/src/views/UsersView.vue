@@ -50,10 +50,7 @@ const queryParams = computed<ListUsersParams>(() => ({
 }))
 
 // 获取用户数据
-const {
-   data: usersResult,
-   isLoading: isLoadingUsers,
-} = useQuery({
+const { data: usersResult, isLoading: isLoadingUsers } = useQuery({
    queryKey: ['users', queryParams],
    queryFn: () => getUsers(queryParams.value),
 })
@@ -64,10 +61,10 @@ const { data: statusCounts, isLoading: isLoadingCounts } = useQuery({
    queryFn: getUserStatusCounts,
 })
 
-// 获取角色列表
+// 获取角色列表（用于角色选择器,获取所有）
 const { data: roles } = useQuery({
-   queryKey: ['roles'],
-   queryFn: getRoles,
+   queryKey: ['roles', 'all'],
+   queryFn: () => getRoles({ all: true }),
 })
 
 // 创建用户 mutation
@@ -402,7 +399,7 @@ watch([statusFilter], () => {
          :user="currentUser"
          :roles="roles || []"
          :loading="createUserMutation.isPending.value || updateUserMutation.isPending.value"
-         @create="(data) => createUserMutation.mutate(data)"
+         @create="data => createUserMutation.mutate(data)"
          @update="(id, data) => updateUserMutation.mutate({ id, data })"
       />
 

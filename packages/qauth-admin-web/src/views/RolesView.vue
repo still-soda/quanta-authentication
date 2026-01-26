@@ -24,20 +24,20 @@ import {
 const queryClient = useQueryClient()
 const toast = useToast()
 
-// 获取角色数据
+// 获取角色数据（获取所有）
 const {
    data: roles,
    isLoading: isLoadingRoles,
    error: rolesError,
 } = useQuery({
-   queryKey: ['roles'],
-   queryFn: getRoles,
+   queryKey: ['roles', 'all'],
+   queryFn: () => getRoles({ all: true }),
 })
 
-// 获取所有权限数据
+// 获取所有权限数据（用于权限配置,获取所有）
 const { data: allPermissions, isLoading: isLoadingPermissions } = useQuery({
-   queryKey: ['permissions'],
-   queryFn: getPermissions,
+   queryKey: ['permissions', 'all'],
+   queryFn: () => getPermissions({ all: true }),
 })
 
 // 状态管理

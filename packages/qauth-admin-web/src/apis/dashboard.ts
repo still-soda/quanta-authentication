@@ -1,6 +1,7 @@
 /**
  * Dashboard API - 仪表盘相关接口
  */
+import { actionNamesMapping } from '@/mappings/action'
 import { httpClient, mockResponse } from './index'
 import type {
    Activity,
@@ -13,6 +14,7 @@ import type {
    TopClientResponse,
    AuthTrendParams,
    AuthTrendResponse,
+   AuditAction,
 } from '@/types'
 
 /**
@@ -114,7 +116,7 @@ export async function getDashboardStats(): Promise<DashboardStats> {
 export interface RoleBasicInfo {
    code: string
    name: string
-   isSystem: boolean
+   is_system: boolean
 }
 
 /**
@@ -122,14 +124,16 @@ export interface RoleBasicInfo {
  */
 export async function getAllRoles(): Promise<RoleBasicInfo[]> {
    try {
-      const response = await httpClient.get<{ code: number; data: RoleBasicInfo[] }>('/_/v1/roles')
-      return response.data.data
+      const response = await httpClient.get<{ code: number; data: { items: RoleBasicInfo[] } }>(
+         '/_/v1/roles'
+      )
+      return response.data.data.items
    } catch {
       // 如果 API 调用失败，返回默认的系统内置角色
       return mockResponse([
-         { code: 'system_super_admin', name: '系统超级管理员', isSystem: true },
-         { code: 'system_admin', name: '系统管理员', isSystem: true },
-         { code: 'system_user', name: '系统普通用户', isSystem: true },
+         { code: 'system_super_admin', name: '系统超级管理员', is_system: true },
+         { code: 'system_admin', name: '系统管理员', is_system: true },
+         { code: 'system_user', name: '系统普通用户', is_system: true },
       ])
    }
 }
@@ -185,30 +189,7 @@ function formatRelativeTime(dateStr: string): string {
  * 映射操作类型到显示文本
  */
 function mapActionToDisplay(action: string): string {
-   const actionMap: Record<string, string> = {
-      LOGIN: '登录成功',
-      LOGIN_FAILED: '登录失败',
-      LOGOUT: '退出登录',
-      REGISTER: '新用户注册',
-      PASSWORD_RESET: '密码重置',
-      PASSWORD_CHANGE: '密码修改',
-      TOKEN_REFRESH: '令牌刷新',
-      OAUTH_AUTHORIZE: 'OAuth 授权',
-      OAUTH_TOKEN: 'OAuth 令牌',
-      OAUTH_REVOKE: 'OAuth 撤销',
-      CLIENT_CREATE: '创建客户端',
-      CLIENT_UPDATE: '更新客户端',
-      CLIENT_DELETE: '删除客户端',
-      ROLE_CREATE: '创建角色',
-      ROLE_UPDATE: '更新角色',
-      ROLE_DELETE: '删除角色',
-      PERMISSION_GRANT: '授予权限',
-      PERMISSION_REVOKE: '撤销权限',
-      USER_CREATE: '创建用户',
-      USER_UPDATE: '更新用户',
-      USER_DELETE: '删除用户',
-   }
-   return actionMap[action] || action
+   return actionNamesMapping[action as AuditAction] || action
 }
 
 /**

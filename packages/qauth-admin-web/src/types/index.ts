@@ -34,3 +34,6 @@ export * from './auth'
 
 // 系统设置类型
 export * from './settings'
+
+// 应用组权限类型
+export * from './app-group'

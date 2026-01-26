@@ -13,6 +13,7 @@ const emit = defineEmits<{
    (e: 'edit', app: OAuthApp): void
    (e: 'delete', app: OAuthApp): void
    (e: 'regenerateSecret', app: OAuthApp): void
+   (e: 'managePermissions', app: OAuthApp): void
 }>()
 
 const toast = useToast()
@@ -92,7 +93,7 @@ const copyToClipboard = async (text: string) => {
             <h3 class="text-lg font-semibold text-surface-900 dark:text-surface-100 m-0">
                {{ app.name }}
             </h3>
-            <p class="text-sm text-surface-500 m-0 leading-relaxed line-clamp-2 min-h-[2.5rem]">
+            <p class="text-sm text-surface-500 m-0 leading-relaxed line-clamp-2 min-h-10">
                {{ app.description || '暂无描述' }}
             </p>
 
@@ -151,7 +152,9 @@ const copyToClipboard = async (text: string) => {
             </div>
          </div>
 
-         <div class="flex gap-2 mt-4 pt-4 border-t border-surface-100 dark:border-surface-800">
+         <div
+            class="flex gap-2 mt-4 pt-4 border-t border-surface-100 whitespace-nowrap dark:border-surface-800"
+         >
             <Button
                icon="pi pi-eye"
                label="查看"
@@ -159,6 +162,15 @@ const copyToClipboard = async (text: string) => {
                outlined
                size="small"
                @click="emit('view', app)"
+            />
+            <Button
+               icon="pi pi-shield"
+               label="权限"
+               severity="secondary"
+               text
+               size="small"
+               @click="emit('managePermissions', app)"
+               v-tooltip.top="'管理应用组权限'"
             />
             <Button
                icon="pi pi-refresh"

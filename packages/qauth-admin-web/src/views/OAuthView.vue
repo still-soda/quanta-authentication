@@ -11,6 +11,7 @@ import OAuthAppCard from '@/components/oauth/OAuthAppCard.vue'
 import OAuthAppDialog from '@/components/oauth/OAuthAppDialog.vue'
 import SecretDialog from '@/components/oauth/SecretDialog.vue'
 import DeleteConfirmDialog from '@/components/shared/DeleteConfirmDialog.vue'
+import AppGroupPermissionDialog from '@/components/oauth/AppGroupPermissionDialog.vue'
 import ConfirmDialog from 'primevue/confirmdialog'
 import { useConfirm } from 'primevue/useconfirm'
 import type { OAuthApp, OAuthAppFormData, SimpleStatData, ListOAuthAppsParams } from '@/types'
@@ -147,6 +148,7 @@ const appDialog = ref(false)
 const secretDialog = ref(false)
 const viewDialog = ref(false)
 const deleteDialog = ref(false)
+const appGroupDialog = ref(false)
 const appToDelete = ref<OAuthApp | null>(null)
 const isEditing = ref(false)
 const searchQuery = ref('')
@@ -240,6 +242,11 @@ const regenerateSecret = (app: OAuthApp) => {
    })
 }
 
+const manageAppGroupPermissions = (app: OAuthApp) => {
+   selectedApp.value = app
+   appGroupDialog.value = true
+}
+
 const saveApp = (data: OAuthAppFormData) => {
    if (isEditing.value && selectedApp.value) {
       updateAppMutation.mutate({ id: selectedApp.value.id, data })
@@ -295,6 +302,7 @@ const saveApp = (data: OAuthAppFormData) => {
             @edit="editApp"
             @delete="confirmDeleteApp"
             @regenerateSecret="regenerateSecret"
+            @managePermissions="manageAppGroupPermissions"
          />
 
          <!-- Empty State -->
@@ -465,6 +473,9 @@ const saveApp = (data: OAuthAppFormData) => {
          title="删除 OAuth 应用"
          @confirm="handleDeleteConfirm"
       />
+
+      <!-- App Group Permission Dialog -->
+      <AppGroupPermissionDialog v-model:visible="appGroupDialog" :client="selectedApp" />
 
       <!-- Confirm Dialog -->
       <ConfirmDialog />

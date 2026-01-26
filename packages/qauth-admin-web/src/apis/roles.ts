@@ -6,10 +6,31 @@ import type { Role, RoleFormData, Permission, PermissionGroup } from '@/types'
 
 /**
  * 获取角色列表
+ * @param params 查询参数（可选）
  */
-export async function getRoles(): Promise<Role[]> {
-   const response = await httpClient.get('/_/v1/roles')
-   return response.data.data || []
+export async function getRoles(params?: {
+   page?: number
+   page_size?: number
+   search?: string
+   all?: boolean
+}): Promise<Role[]> {
+   // 如果明确请求所有数据或没有传入分页参数，则请求所有
+   if (params?.all === true || (!params?.page && !params?.page_size)) {
+      const response = await httpClient.get('/_/v1/roles', { params: { all: true } })
+      return response.data.data || []
+   }
+
+   // 否则使用分页
+   const response = await httpClient.get('/_/v1/roles', { params })
+   return response.data.data?.items || response.data.data || []
+}
+
+/**
+ * 获取角色列表（带分页）
+ */
+export async function listRoles(params: { page: number; page_size: number; search?: string }) {
+   const response = await httpClient.get('/_/v1/roles', { params })
+   return response.data.data
 }
 
 /**
@@ -67,10 +88,37 @@ export async function setRolePermissions(roleId: string, permissionCodes: string
 
 /**
  * 获取所有权限
+ * @param params 查询参数（可选）
  */
-export async function getPermissions(): Promise<Permission[]> {
-   const response = await httpClient.get('/_/v1/permissions')
-   return response.data.data || []
+export async function getPermissions(params?: {
+   page?: number
+   page_size?: number
+   search?: string
+   resource?: string
+   all?: boolean
+}): Promise<Permission[]> {
+   // 如果明确请求所有数据或没有传入分页参数，则请求所有
+   if (params?.all === true || (!params?.page && !params?.page_size)) {
+      const response = await httpClient.get('/_/v1/permissions', { params: { all: true } })
+      return response.data.data || []
+   }
+
+   // 否则使用分页
+   const response = await httpClient.get('/_/v1/permissions', { params })
+   return response.data.data?.items || response.data.data || []
+}
+
+/**
+ * 获取权限列表（带分页）
+ */
+export async function listPermissions(params: {
+   page: number
+   page_size: number
+   search?: string
+   resource?: string
+}) {
+   const response = await httpClient.get('/_/v1/permissions', { params })
+   return response.data.data
 }
 
 /**

@@ -73,32 +73,39 @@ const chartColors = computed(() => {
 
 const userDistChartData = computed(() => {
    if (!distData.value) return null
+
+   // 构建角色名称到代码的映射
    const roleNameToCodeMap: Record<string, string> = {}
    allRoles.value?.forEach(role => {
       roleNameToCodeMap[role.name] = role.code
    })
-   const labels = distData.value.labels.filter((_, index) => {
-      const roleCode = roleNameToCodeMap[distData.value!.labels[index]!]
-      return selectedRoleCodes.value.includes(roleCode ?? '')
-   })
-   const data = distData.value.data.filter((_, index) => {
-      const roleCode = roleNameToCodeMap[distData.value!.labels[index]!]
-      return selectedRoleCodes.value.includes(roleCode ?? '')
+
+   // 根据选中的角色代码过滤数据
+   const filteredIndices: number[] = []
+   distData.value.labels.forEach((label, index) => {
+      const roleCode = roleNameToCodeMap[label]
+      if (roleCode && selectedRoleCodes.value.includes(roleCode)) {
+         filteredIndices.push(index)
+      }
    })
 
-   if (labels.length === 0 || data.length === 0) {
+   if (filteredIndices.length === 0) {
       return {
          labels: ['暂无数据'],
          datasets: [{ data: [1], backgroundColor: ['#E5E7EB'], borderWidth: 0 }],
       }
    }
 
+   const labels = filteredIndices.map(i => distData.value!.labels[i]!)
+   const data = filteredIndices.map(i => distData.value!.data[i]!)
+   const colors = filteredIndices.map(i => distData.value!.colors?.[i] || chartColors.value[i])
+
    return {
-      labels: labels,
+      labels,
       datasets: [
          {
-            data: data,
-            backgroundColor: chartColors.value,
+            data,
+            backgroundColor: colors,
             borderWidth: 0,
          },
       ],
@@ -148,11 +155,11 @@ function isTempSelected(roleCode: string): boolean {
 
 // 分组角色：系统内置角色 vs 自定义角色
 const systemRoles = computed(() => {
-   return allRoles.value?.filter(r => r.isSystem) || []
+   return Array.isArray(allRoles.value) ? allRoles.value.filter(r => r.is_system) : []
 })
 
 const customRoles = computed(() => {
-   return allRoles.value?.filter(r => !r.isSystem) || []
+   return Array.isArray(allRoles.value) ? allRoles.value.filter(r => !r.is_system) : []
 })
 </script>
 

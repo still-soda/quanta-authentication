@@ -47,8 +47,8 @@ export async function updateProfile(data: ProfileUpdateData): Promise<ProfileDat
  */
 export async function getUserRoles(): Promise<UserRole[]> {
    return mockResponse([
-      { name: '超级管理员', code: 'super_admin', isSystem: true },
-      { name: '管理员', code: 'admin', isSystem: true },
+      { name: '超级管理员', code: 'super_admin', is_system: true },
+      { name: '管理员', code: 'admin', is_system: true },
    ])
 }
 

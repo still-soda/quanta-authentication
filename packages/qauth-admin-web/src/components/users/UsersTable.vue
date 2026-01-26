@@ -15,6 +15,8 @@ const props = defineProps<{
    users: User[]
    selectedUsers: User[]
    loading?: boolean
+   totalRecords?: number
+   rows?: number
 }>()
 
 const emit = defineEmits<{
@@ -26,6 +28,7 @@ const emit = defineEmits<{
    (e: 'enable', user: User): void
    (e: 'manageRoles', user: User): void
    (e: 'search', value: string): void
+   (e: 'page', event: any): void
 }>()
 
 const filters = ref({
@@ -162,8 +165,14 @@ const handleSearch = () => {
             @update:selection="onSelectionChange"
             v-model:filters="filters"
             :value="users"
-            :rows="10"
-            :paginator="false"
+            :rows="rows || 10"
+            :totalRecords="totalRecords"
+            :paginator="true"
+            :lazy="true"
+            @page="event => emit('page', event)"
+            :rowsPerPageOptions="[10, 20, 50]"
+            paginatorTemplate="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink RowsPerPageDropdown CurrentPageReport"
+            currentPageReportTemplate="显示 {first} 到 {last} 条，共 {totalRecords} 条"
             dataKey="id"
             :globalFilterFields="['name', 'email', 'student_id']"
             class="text-sm"

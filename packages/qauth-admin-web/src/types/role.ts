@@ -65,7 +65,7 @@ export interface RoleFormData {
 export interface UserRole {
    name: string
    code: string
-   isSystem: boolean
+   is_system: boolean
 }
 
 // 资源名称映射

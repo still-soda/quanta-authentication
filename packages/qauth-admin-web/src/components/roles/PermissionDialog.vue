@@ -152,11 +152,7 @@ const getPermissionChecked = (groupResource: string, permId: string) => {
                placeholder="搜索权限..."
                class="w-full"
                :disabled="isLoading"
-            >
-               <template #prefix>
-                  <i class="pi pi-search text-surface-400"></i>
-               </template>
-            </InputText>
+            />
          </div>
          <div class="flex items-center gap-3">
             <span class="text-sm text-surface-500 dark:text-surface-400">
@@ -207,6 +203,7 @@ const getPermissionChecked = (groupResource: string, permId: string) => {
                         :disabled="isLoading"
                         @update:modelValue="toggleGroupPermissions(group, $event as boolean)"
                         @click.stop
+                        binary
                      />
                   </div>
                </AccordionHeader>

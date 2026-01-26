@@ -6,11 +6,13 @@ import type { AuthUser } from '@/types'
 const ACCESS_TOKEN_KEY = 'access_token'
 const REFRESH_TOKEN_KEY = 'refresh_token'
 const USER_KEY = 'auth_user'
+const ROLE_KEY = 'user_role'
 
 export const useAuthStore = defineStore('auth', () => {
    // State
    const accessToken = ref<string | null>(localStorage.getItem(ACCESS_TOKEN_KEY))
    const refreshToken = ref<string | null>(localStorage.getItem(REFRESH_TOKEN_KEY))
+   const userRole = ref<string | null>(localStorage.getItem(ROLE_KEY))
    const user = ref<AuthUser | null>(
       (() => {
          const stored = localStorage.getItem(USER_KEY)
@@ -22,21 +24,27 @@ export const useAuthStore = defineStore('auth', () => {
 
    // Getters
    const isAuthenticated = computed(() => !!accessToken.value && !!user.value)
-   const userRole = computed(() => user.value?.role || null)
    const userName = computed(() => user.value?.name || user.value?.student_id || '')
 
    // Actions
    /**
     * 设置认证信息
     */
-   function setAuth(tokens: { accessToken: string; refreshToken: string }, userData: AuthUser) {
+   function setAuth(
+      tokens: { accessToken: string; refreshToken: string },
+      userData: AuthUser,
+      role: string
+   ) {
+      console.log(arguments)
       accessToken.value = tokens.accessToken
       refreshToken.value = tokens.refreshToken
       user.value = userData
+      userRole.value = role
 
       localStorage.setItem(ACCESS_TOKEN_KEY, tokens.accessToken)
       localStorage.setItem(REFRESH_TOKEN_KEY, tokens.refreshToken)
       localStorage.setItem(USER_KEY, JSON.stringify(userData))
+      localStorage.setItem(ROLE_KEY, role)
    }
 
    /**
@@ -57,10 +65,12 @@ export const useAuthStore = defineStore('auth', () => {
       accessToken.value = null
       refreshToken.value = null
       user.value = null
+      userRole.value = null
 
       localStorage.removeItem(ACCESS_TOKEN_KEY)
       localStorage.removeItem(REFRESH_TOKEN_KEY)
       localStorage.removeItem(USER_KEY)
+      localStorage.removeItem(ROLE_KEY)
    }
 
    /**

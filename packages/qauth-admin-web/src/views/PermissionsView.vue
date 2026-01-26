@@ -16,14 +16,14 @@ import { getPermissions, createPermission, updatePermission, deletePermission } 
 const queryClient = useQueryClient()
 const toast = useToast()
 
-// 获取权限数据
+// 获取权限数据（获取所有用于管理）
 const {
    data: permissions,
    isLoading,
    error,
 } = useQuery({
-   queryKey: ['permissions'],
-   queryFn: getPermissions,
+   queryKey: ['permissions', 'all'],
+   queryFn: () => getPermissions({ all: true }),
 })
 
 // 状态管理
