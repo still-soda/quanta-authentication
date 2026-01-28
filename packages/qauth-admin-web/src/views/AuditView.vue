@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
-import { useQuery } from '@tanstack/vue-query'
+import { useQuery, keepPreviousData } from '@tanstack/vue-query'
 import Button from 'primevue/button'
 import DataTable from 'primevue/datatable'
 import Column from 'primevue/column'
@@ -27,6 +27,10 @@ import { actionNamesMapping } from '@/mappings/action'
 const page = ref(1)
 const pageSize = ref(10)
 
+// 排序参数
+const sortField = ref<string | undefined>(undefined)
+const sortOrder = ref<1 | -1 | 0>(0)
+
 // 筛选参数
 const filters = ref({
    search: '',
@@ -52,14 +56,23 @@ const queryParams = computed<AuditLogFilter>(() => {
       params.start_time = filters.value.dateRange[0].toISOString()
       params.end_time = filters.value.dateRange[1].toISOString()
    }
+   if (sortField.value && sortOrder.value !== 0) {
+      params.sort_by = sortField.value
+      params.sort_desc = sortOrder.value === -1
+   }
 
    return params
 })
 
 // 获取审计日志数据
-const { data: auditLogsData, isLoading } = useQuery({
+const {
+   data: auditLogsData,
+   isLoading,
+   isFetching,
+} = useQuery({
    queryKey: ['audit-logs', queryParams],
    queryFn: () => getAuditLogs(queryParams.value),
+   placeholderData: keepPreviousData,
 })
 
 // 监听 filters 变化,重置分页
@@ -129,10 +142,6 @@ const actionOptions = [
 
 // 统计数据 (基于当前页)
 const stats = computed<SimpleStatData[]>(() => {
-   const today = new Date()
-   today.setHours(0, 0, 0, 0)
-   const todayTime = today.getTime()
-
    return [
       {
          title: '总记录数',
@@ -226,12 +235,21 @@ const showDetail = (log: AuditLog) => {
 const exportLogs = () => console.log('Exporting logs...')
 const clearFilters = () => {
    filters.value = { search: '', module: null, action: null, dateRange: null }
+   sortField.value = undefined
+   sortOrder.value = 0
 }
 
 // 分页事件处理
 const onPage = (event: any) => {
    page.value = event.page + 1
    pageSize.value = event.rows
+}
+
+// 排序事件处理
+const onSort = (event: any) => {
+   sortField.value = event.sortField
+   sortOrder.value = event.sortOrder
+   page.value = 1
 }
 </script>
 
@@ -315,17 +333,18 @@ const onPage = (event: any) => {
       <div
          class="bg-surface-0 dark:bg-surface-900 border border-surface-200 dark:border-surface-800 rounded-xl overflow-hidden"
       >
-         <div v-if="isLoading" class="flex items-center justify-center py-24">
-            <i class="pi pi-spin pi-spinner text-3xl text-surface-400"></i>
-         </div>
          <DataTable
-            v-else
+            :loading="isFetching"
             :value="filteredLogs"
             :paginator="true"
             :rows="pageSize"
             :totalRecords="total"
             :lazy="true"
+            :sortField="sortField"
+            :sortOrder="sortOrder"
+            removableSort
             @page="onPage"
+            @sort="onSort"
             :rowsPerPageOptions="[10, 20, 50]"
             paginatorTemplate="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink RowsPerPageDropdown CurrentPageReport"
             currentPageReportTemplate="显示 {first} 到 {last} 条，共 {totalRecords} 条"
@@ -347,7 +366,7 @@ const onPage = (event: any) => {
                </div>
             </template>
 
-            <Column header="操作者" style="min-width: 180px">
+            <Column field="operator_name" header="操作者" sortable style="min-width: 180px">
                <template #body="{ data }">
                   <div class="flex items-center gap-3">
                      <div
@@ -369,7 +388,7 @@ const onPage = (event: any) => {
                </template>
             </Column>
 
-            <Column header="模块" style="min-width: 120px">
+            <Column field="module" header="模块" sortable style="min-width: 120px">
                <template #body="{ data }">
                   <div class="flex items-center gap-2">
                      <i :class="getModuleIcon(data.module)" class="text-surface-500"></i>
@@ -380,7 +399,7 @@ const onPage = (event: any) => {
                </template>
             </Column>
 
-            <Column header="操作" style="min-width: 100px">
+            <Column field="action" header="操作" sortable style="min-width: 100px">
                <template #body="{ data }">
                   <span class="font-medium text-sm text-surface-900 dark:text-surface-100">
                      {{ getActionLabel(data.action) }}
@@ -388,7 +407,7 @@ const onPage = (event: any) => {
                </template>
             </Column>
 
-            <Column header="目标" style="min-width: 180px">
+            <Column field="target_name" header="目标" sortable style="min-width: 180px">
                <template #body="{ data }">
                   <span
                      v-if="data.targetName"
@@ -400,7 +419,7 @@ const onPage = (event: any) => {
                </template>
             </Column>
 
-            <Column header="状态" style="min-width: 90px">
+            <Column field="status" header="状态" sortable style="min-width: 90px">
                <template #body="{ data }">
                   <Tag
                      :severity="getStatusSeverity(data.status)"
@@ -412,7 +431,7 @@ const onPage = (event: any) => {
                </template>
             </Column>
 
-            <Column header="耗时" style="min-width: 80px">
+            <Column field="duration_ms" header="耗时" sortable style="min-width: 80px">
                <template #body="{ data }">
                   <span class="text-sm text-surface-500 tabular-nums">
                      {{ data.durationMs }}ms
@@ -420,7 +439,7 @@ const onPage = (event: any) => {
                </template>
             </Column>
 
-            <Column header="时间" style="min-width: 160px">
+            <Column field="created_at" header="时间" sortable style="min-width: 160px">
                <template #body="{ data }">
                   <span class="text-sm text-surface-500 tabular-nums">
                      {{ formatTime(data.time) }}

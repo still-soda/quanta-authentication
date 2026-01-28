@@ -17,6 +17,7 @@ import { useConfirm } from 'primevue/useconfirm'
 import type { OAuthApp, OAuthAppFormData, SimpleStatData, ListOAuthAppsParams } from '@/types'
 import {
    getOAuthApps,
+   getOAuthClientStats,
    createOAuthApp,
    updateOAuthApp,
    deleteOAuthApp,
@@ -36,23 +37,25 @@ const queryParams = ref<ListOAuthAppsParams>({
 })
 
 // 获取 OAuth 应用数据
-const {
-   data: appsData,
-   isLoading,
-   refetch,
-} = useQuery({
+const { data: appsData, isLoading } = useQuery({
    queryKey: ['oauth-apps', queryParams],
    queryFn: () => getOAuthApps(queryParams.value),
 })
 
 const apps = computed(() => appsData.value?.items || [])
-const total = computed(() => appsData.value?.total || 0)
+
+// 获取统计数据
+const { data: statsData } = useQuery({
+   queryKey: ['oauth-apps-stats'],
+   queryFn: getOAuthClientStats,
+})
 
 // 创建应用 mutation
 const createAppMutation = useMutation({
    mutationFn: createOAuthApp,
    onSuccess: data => {
       queryClient.invalidateQueries({ queryKey: ['oauth-apps'] })
+      queryClient.invalidateQueries({ queryKey: ['oauth-apps-stats'] })
       appDialog.value = false
       // 显示新创建的密钥
       newSecret.value = data.client_secret
@@ -80,6 +83,7 @@ const updateAppMutation = useMutation({
       updateOAuthApp(id, data),
    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['oauth-apps'] })
+      queryClient.invalidateQueries({ queryKey: ['oauth-apps-stats'] })
       appDialog.value = false
       toast.add({
          severity: 'success',
@@ -103,6 +107,7 @@ const deleteAppMutation = useMutation({
    mutationFn: deleteOAuthApp,
    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['oauth-apps'] })
+      queryClient.invalidateQueries({ queryKey: ['oauth-apps-stats'] })
       toast.add({
          severity: 'success',
          summary: '删除成功',
@@ -169,29 +174,29 @@ const filteredApps = computed(() => {
 })
 
 const stats = computed<SimpleStatData[]>(() => {
-   const appList = apps.value || []
+   const s = statsData.value || { total: 0, active: 0, development: 0, deprecated: 0 }
    return [
       {
          title: '总应用',
-         value: total.value,
+         value: s.total,
          icon: 'pi pi-th-large',
          color: 'blue',
       },
       {
          title: '生产环境',
-         value: appList.filter(a => a.status === 'active').length,
+         value: s.active,
          icon: 'pi pi-check-circle',
          color: 'green',
       },
       {
          title: '开发中',
-         value: appList.filter(a => a.status === 'development').length,
+         value: s.development,
          icon: 'pi pi-code',
          color: 'orange',
       },
       {
          title: '已弃用',
-         value: appList.filter(a => a.status === 'deprecated').length,
+         value: s.deprecated,
          icon: 'pi pi-history',
          color: 'gray',
       },

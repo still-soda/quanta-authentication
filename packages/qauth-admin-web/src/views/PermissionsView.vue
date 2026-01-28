@@ -1,30 +1,60 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/vue-query'
+import { ref, computed, watch } from 'vue'
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/vue-query'
 import { useToast } from 'primevue/usetoast'
+import { useDebounceFn } from '@vueuse/core'
 import Button from 'primevue/button'
-import DataTable from 'primevue/datatable'
+import DataTable, { type DataTableSortEvent } from 'primevue/datatable'
 import Column from 'primevue/column'
 import InputText from 'primevue/inputtext'
 import Tag from 'primevue/tag'
 import PageHeader from '@/components/shared/PageHeader.vue'
 import PermissionFormDialog from '@/components/permissions/PermissionFormDialog.vue'
 import DeletePermissionDialog from '@/components/permissions/DeletePermissionDialog.vue'
-import type { Permission, PermissionFormData, PermissionAction } from '@/types'
-import { getPermissions, createPermission, updatePermission, deletePermission } from '@/apis/roles'
+import type { Permission, PermissionFormData } from '@/types'
+import { listPermissions, createPermission, updatePermission, deletePermission } from '@/apis/roles'
 
 const queryClient = useQueryClient()
 const toast = useToast()
 
-// 获取权限数据（获取所有用于管理）
+// 分页、筛选和排序参数
+const page = ref(1)
+const pageSize = ref(15)
+const searchKeyword = ref('')
+const debouncedSearch = ref('')
+const sortField = ref<string | null>(null)
+const sortOrder = ref<number | null>(null)
+
+// 防抖搜索
+const updateDebouncedSearch = useDebounceFn((value: string) => {
+   debouncedSearch.value = value
+   page.value = 1 // 搜索时重置页码
+}, 300)
+
+watch(searchKeyword, updateDebouncedSearch)
+
+const queryParams = computed(() => ({
+   page: page.value,
+   page_size: pageSize.value,
+   search: debouncedSearch.value || undefined,
+   sort_field: sortField.value || undefined,
+   sort_order: sortOrder.value === 1 ? 'asc' : sortOrder.value === -1 ? 'desc' : undefined,
+}))
+
+// 获取权限数据
 const {
-   data: permissions,
+   data: permissionsData,
    isLoading,
+   isFetching,
    error,
 } = useQuery({
-   queryKey: ['permissions', 'all'],
-   queryFn: () => getPermissions({ all: true }),
+   queryKey: ['permissions', queryParams],
+   queryFn: () => listPermissions(queryParams.value as any),
+   placeholderData: keepPreviousData,
 })
+
+const permissions = computed(() => permissionsData.value?.items || [])
+const totalRecords = computed(() => permissionsData.value?.total || 0)
 
 // 状态管理
 const selectedPermission = ref<Permission | null>(null)
@@ -32,7 +62,6 @@ const formDialog = ref(false)
 const deleteDialog = ref(false)
 const isEditing = ref(false)
 const isDeleting = ref(false)
-const searchKeyword = ref('')
 
 // 资源名称映射
 const resourceNames: Record<string, string> = {
@@ -59,19 +88,18 @@ const actionSeverities: Record<number, string> = {
    4: 'danger',
 }
 
-// 过滤后的权限列表
-const filteredPermissions = computed(() => {
-   if (!permissions.value) return []
-   if (!searchKeyword.value.trim()) return permissions.value
+// 分页处理
+const handlePageChange = (event: { page: number; rows: number }) => {
+   page.value = event.page + 1
+   pageSize.value = event.rows
+}
 
-   const keyword = searchKeyword.value.toLowerCase()
-   return permissions.value.filter(
-      p =>
-         p.code.toLowerCase().includes(keyword) ||
-         p.description.toLowerCase().includes(keyword) ||
-         p.resource.toLowerCase().includes(keyword)
-   )
-})
+// 排序处理
+const handleSort = (event: DataTableSortEvent) => {
+   sortField.value = event.sortField as string
+   sortOrder.value = event.sortOrder as number
+   page.value = 1 // 排序时重置页码
+}
 
 // 创建权限 mutation
 const createMutation = useMutation({
@@ -224,12 +252,15 @@ const formatDate = (dateStr: string) => {
             />
          </div>
          <span class="text-sm text-surface-500 dark:text-surface-400">
-            共 {{ filteredPermissions.length }} 条权限
+            共 {{ totalRecords }} 条权限
          </span>
       </div>
 
-      <!-- Error State -->
-      <div v-if="error" class="flex flex-col items-center justify-center py-16 text-center">
+      <!-- Error State (only show if no data) -->
+      <div
+         v-if="error && !permissions.length"
+         class="flex flex-col items-center justify-center py-16 text-center"
+      >
          <i class="pi pi-exclamation-triangle text-5xl text-amber-500 mb-4"></i>
          <p class="text-lg text-surface-600 dark:text-surface-400 mb-4">加载权限数据失败</p>
          <Button
@@ -244,13 +275,21 @@ const formatDate = (dateStr: string) => {
       <!-- Data Table -->
       <DataTable
          v-else
-         :value="filteredPermissions"
-         :loading="isLoading"
-         paginator
-         :rows="15"
+         :value="permissions"
+         :loading="isFetching"
+         :lazy="true"
+         :paginator="true"
+         :rows="pageSize"
+         :totalRecords="totalRecords"
          :rowsPerPageOptions="[10, 15, 25, 50]"
+         :sortField="sortField!"
+         :sortOrder="sortOrder!"
          stripedRows
          removableSort
+         paginatorTemplate="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink RowsPerPageDropdown CurrentPageReport"
+         currentPageReportTemplate="显示 {first} 到 {last} 条，共 {totalRecords} 条"
+         @page="handlePageChange"
+         @sort="handleSort"
          class="rounded-xl border border-surface-100 dark:border-surface-800 overflow-hidden"
       >
          <template #empty>

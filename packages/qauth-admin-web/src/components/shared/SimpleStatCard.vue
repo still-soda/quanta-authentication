@@ -8,8 +8,8 @@ const props = defineProps<{ stat: SimpleStatData }>()
 
 const numericValue = computed(() => {
    if (typeof props.stat.value === 'number') return props.stat.value
-   console.log(props)
-   return parseFloat(props.stat.value.replace(/[^0-9.-]/g, '')) || 0
+   if (props.stat.value == null) return 0
+   return parseFloat(String(props.stat.value).replace(/[^0-9.-]/g, '')) || 0
 })
 
 const { formattedValue: animatedValue } = useAnimatedNumber(numericValue, {

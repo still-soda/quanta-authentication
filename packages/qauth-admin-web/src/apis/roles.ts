@@ -116,6 +116,8 @@ export async function listPermissions(params: {
    page_size: number
    search?: string
    resource?: string
+   sort_field?: string
+   sort_order?: 'asc' | 'desc'
 }) {
    const response = await httpClient.get('/_/v1/permissions', { params })
    return response.data.data

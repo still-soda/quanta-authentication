@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/vue-query'
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/vue-query'
 import { useToast } from 'primevue/usetoast'
 import { useConfirm } from 'primevue/useconfirm'
 import Button from 'primevue/button'
@@ -40,6 +40,8 @@ const page = ref(1)
 const pageSize = ref(10)
 const searchKeyword = ref('')
 const statusFilter = ref<UserStatus | '' | undefined>(undefined)
+const sortField = ref<string | undefined>(undefined)
+const sortOrder = ref<1 | -1 | 0>(0)
 
 // 查询参数
 const queryParams = computed<ListUsersParams>(() => ({
@@ -47,12 +49,19 @@ const queryParams = computed<ListUsersParams>(() => ({
    page_size: pageSize.value,
    search: searchKeyword.value || undefined,
    status: statusFilter.value,
+   sort_by: sortField.value || undefined,
+   sort_desc: sortOrder.value === -1 ? true : undefined,
 }))
 
 // 获取用户数据
-const { data: usersResult, isLoading: isLoadingUsers } = useQuery({
+const {
+   data: usersResult,
+   isLoading: isLoadingUsers,
+   isFetching: isFetchingUsers,
+} = useQuery({
    queryKey: ['users', queryParams],
    queryFn: () => getUsers(queryParams.value),
+   placeholderData: keepPreviousData,
 })
 
 // 获取用户状态统计
@@ -338,6 +347,15 @@ const handlePageChange = (event: { page: number; rows: number }) => {
    pageSize.value = event.rows
 }
 
+const handleSortChange = (event: {
+   sortField: string | undefined
+   sortOrder: 1 | -1 | 0 | null | undefined
+}) => {
+   sortField.value = event.sortField
+   sortOrder.value = event.sortOrder ?? 0
+   page.value = 1
+}
+
 // 监听筛选变化，重置页码
 watch([statusFilter], () => {
    page.value = 1
@@ -370,17 +388,13 @@ watch([statusFilter], () => {
          </template>
       </div>
 
-      <!-- Users Table -->
-      <div
-         v-if="isLoadingUsers"
-         class="h-96 bg-surface-100 dark:bg-surface-800 rounded-xl animate-pulse"
-      />
       <UsersTable
-         v-else
          :users="users"
-         :loading="isLoadingUsers"
+         :loading="isFetchingUsers"
          :total-records="totalRecords"
          :rows="pageSize"
+         :sortField="sortField"
+         :sortOrder="sortOrder"
          v-model:selectedUsers="selectedUsers"
          @edit="editUser"
          @delete="handleDelete"
@@ -390,6 +404,7 @@ watch([statusFilter], () => {
          @manageRoles="handleManageRoles"
          @search="handleSearch"
          @page="handlePageChange"
+         @sort="handleSortChange"
       />
 
       <!-- User Dialog -->

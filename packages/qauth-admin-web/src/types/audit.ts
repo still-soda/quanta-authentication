@@ -114,6 +114,8 @@ export interface AuditLogFilter {
    end_time?: string
    page?: number
    page_size?: number
+   sort_by?: string
+   sort_desc?: boolean
 }
 
 // 审计日志响应

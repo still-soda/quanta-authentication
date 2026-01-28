@@ -17,6 +17,8 @@ const props = defineProps<{
    loading?: boolean
    totalRecords?: number
    rows?: number
+   sortField?: string
+   sortOrder?: 1 | -1 | 0
 }>()
 
 const emit = defineEmits<{
@@ -29,6 +31,10 @@ const emit = defineEmits<{
    (e: 'manageRoles', user: User): void
    (e: 'search', value: string): void
    (e: 'page', event: any): void
+   (
+      e: 'sort',
+      event: { sortField: string | undefined; sortOrder: 1 | -1 | 0 | null | undefined }
+   ): void
 }>()
 
 const filters = ref({
@@ -169,7 +175,17 @@ const handleSearch = () => {
             :totalRecords="totalRecords"
             :paginator="true"
             :lazy="true"
+            :sortField="sortField"
+            :sortOrder="sortOrder"
+            removableSort
             @page="event => emit('page', event)"
+            @sort="
+               event =>
+                  emit('sort', {
+                     sortField: typeof event.sortField === 'string' ? event.sortField : undefined,
+                     sortOrder: event.sortOrder,
+                  })
+            "
             :rowsPerPageOptions="[10, 20, 50]"
             paginatorTemplate="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink RowsPerPageDropdown CurrentPageReport"
             currentPageReportTemplate="显示 {first} 到 {last} 条，共 {totalRecords} 条"
