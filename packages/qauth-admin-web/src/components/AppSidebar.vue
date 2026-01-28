@@ -148,7 +148,7 @@ watch(
             <ul class="list-none m-0 p-0 flex flex-col gap-1">
                <li v-for="item in menuItems" :key="item.label" class="relative group">
                   <button
-                     class="flex items-center gap-3.5 w-full py-3.5 px-4 border-none rounded-2xm bg-transparent text-surface-600 dark:text-surface-400 cursor-pointer transition-all duration-200 ease text-left text-[0.9375rem] font-medium hover:bg-surface-100 hover:text-surface-900 dark:hover:bg-surface-800 dark:hover:text-surface-100"
+                     class="flex items-center gap-3.5 w-full py-3.5 px-4 border-none rounded-2xl bg-transparent text-surface-600 dark:text-surface-400 cursor-pointer transition-all duration-200 ease text-left text-[0.9375rem] font-medium hover:bg-surface-100 hover:text-surface-900 dark:hover:bg-surface-800 dark:hover:text-surface-100"
                      :class="{
                         'justify-center! px-3.5!': sidebarStore.isCollapsed,
                         'bg-linear-to-br! from-primary-50! to-primary-100! text-primary-700! shadow-[0_2px_8px_rgba(249,115,22,0.12)]! dark:from-[rgba(251,146,60,0.15)]! dark:to-[rgba(251,146,60,0.1)]! dark:text-primary-400! dark:shadow-[0_2px_8px_rgba(251,146,60,0.15)]!':
@@ -191,7 +191,7 @@ watch(
                :class="{ 'justify-center! p-3!': sidebarStore.isCollapsed }"
             >
                <div
-                  class="shrink-0 w-10 h-10 rounded-2xm overflow-hidden bg-linear-to-br from-primary-200 to-primary-300 shadow-[0_2px_8px_rgba(0,0,0,0.08)]"
+                  class="shrink-0 w-10 h-10 rounded-xl overflow-hidden bg-linear-to-br from-primary-200 to-primary-300 shadow-[0_2px_8px_rgba(0,0,0,0.08)]"
                >
                   <img
                      :src="
