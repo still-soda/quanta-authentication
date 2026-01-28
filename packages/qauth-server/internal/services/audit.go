@@ -265,9 +265,30 @@ func (s *AuditService) QueryAuditLogs(query *models.AuditLogQuery) ([]models.Aud
 		query.PageSize = 100
 	}
 
+	// 排序
+	orderClause := "created_at DESC"
+	if query.SortBy != "" {
+		allowedSortFields := map[string]string{
+			"operator_name": "operator_name",
+			"module":        "module",
+			"action":        "action",
+			"target_name":   "target_name",
+			"status":        "status",
+			"duration_ms":   "duration_ms",
+			"created_at":    "created_at",
+		}
+		if field, ok := allowedSortFields[query.SortBy]; ok {
+			direction := "ASC"
+			if query.SortDesc {
+				direction = "DESC"
+			}
+			orderClause = field + " " + direction
+		}
+	}
+
 	offset := (query.Page - 1) * query.PageSize
 	if err := db.Preload("Operator").
-		Order("created_at DESC").
+		Order(orderClause).
 		Offset(offset).
 		Limit(query.PageSize).
 		Find(&logs).Error; err != nil {

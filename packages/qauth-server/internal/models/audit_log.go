@@ -151,4 +151,6 @@ type AuditLogQuery struct {
 	EndTime    *time.Time  `form:"end_time"`
 	Page       int         `form:"page"`
 	PageSize   int         `form:"page_size"`
+	SortBy     string      `form:"sort_by"`
+	SortDesc   bool        `form:"sort_desc"`
 }

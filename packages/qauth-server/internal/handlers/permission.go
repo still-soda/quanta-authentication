@@ -45,6 +45,8 @@ func (h *PermissionHandler) GetPermissions(c *gin.Context) {
 	params.PageSize = utilities.ParseIntParam(c.Query("page_size"), 15)
 	params.Search = c.Query("search")
 	params.Resource = c.Query("resource")
+	params.SortField = c.Query("sort_field")
+	params.SortOrder = c.Query("sort_order")
 
 	// 如果明确请求所有数据（用于兼容），则返回所有权限
 	if c.Query("all") == "true" {

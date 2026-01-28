@@ -47,10 +47,12 @@ func (s *PermissionService) GetAllPermissions() ([]models.Permissions, error) {
 
 // ListPermissionsParams 权限列表查询参数
 type ListPermissionsParams struct {
-	Page     int
-	PageSize int
-	Search   string
-	Resource string
+	Page      int
+	PageSize  int
+	Search    string
+	Resource  string
+	SortField string
+	SortOrder string // "asc" 或 "desc"
 }
 
 // ListPermissionsResult 权限列表查询结果
@@ -59,6 +61,14 @@ type ListPermissionsResult struct {
 	Total    int64                `json:"total"`
 	Page     int                  `json:"page"`
 	PageSize int                  `json:"page_size"`
+}
+
+// 权限表允许排序的字段白名单
+var permissionSortableFields = map[string]string{
+	"code":       "code",
+	"resource":   "resource",
+	"action":     "action",
+	"created_at": "created_at",
 }
 
 // ListPermissions 获取权限列表（带分页）
@@ -95,9 +105,22 @@ func (s *PermissionService) ListPermissions(params ListPermissionsParams) (*List
 		params.PageSize = 100
 	}
 
+	// 构建排序语句
+	orderClause := "created_at DESC" // 默认排序
+	if params.SortField != "" {
+		// 验证排序字段是否在白名单中，防止 SQL 注入
+		if dbField, ok := permissionSortableFields[params.SortField]; ok {
+			sortDirection := "ASC"
+			if params.SortOrder == "desc" {
+				sortDirection = "DESC"
+			}
+			orderClause = dbField + " " + sortDirection
+		}
+	}
+
 	// 分页查询
 	offset := (params.Page - 1) * params.PageSize
-	if err := db.Offset(offset).Limit(params.PageSize).Order("created_at DESC").Find(&permissions).Error; err != nil {
+	if err := db.Offset(offset).Limit(params.PageSize).Order(orderClause).Find(&permissions).Error; err != nil {
 		return nil, err
 	}
 
