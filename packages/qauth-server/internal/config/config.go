@@ -161,7 +161,7 @@ func New() *Config {
 		OAuth: OAuthConfig{
 			AuthorizePageURL:                  GetEnv("OAUTH_AUTH_CONSENT_PAGE_URL", "https://example.com/consent"),
 			AllowedResponseTypes:              []ResponseType{ResponseTypeCode, ResponseTypeIDToken},
-			ScopeSupported:                    []Scope{ScopeOpenID, ScopeProfile, ScopeEmail},
+			ScopeSupported:                    []Scope{ScopeOpenID, ScopeProfile, ScopeEmail, ScopePermissions},
 			ResponseModesSupported:            []ResponseMode{ResponseModeQuery, ResponseModeFragment, ResponseModeFormPost},
 			GrantTypesSupported:               []GrantType{GrantTypeAuthorizationCode, GrantTypeRefreshToken},
 			SubjectTypesSupported:             []SubjectType{SubjectTypePublic},

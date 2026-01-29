@@ -908,10 +908,11 @@ func (h *OAuthHandler) GetClientOptions(c *gin.Context) {
 	// 构建授权范围选项
 	scopeOptions := make([]map[string]string, 0, len(oauthConfig.OAuth.ScopeSupported))
 	scopeLabels := map[config.Scope]string{
-		config.ScopeOpenID:  "OpenID",
-		config.ScopeProfile: "Profile",
-		config.ScopeEmail:   "Email",
-		config.ScopeRoles:   "Roles",
+		config.ScopeOpenID:      "OpenID",
+		config.ScopeProfile:     "Profile",
+		config.ScopeEmail:       "Email",
+		config.ScopeRoles:       "Roles",
+		config.ScopePermissions: "Permissions",
 	}
 	for _, scope := range oauthConfig.OAuth.ScopeSupported {
 		label := scopeLabels[scope]

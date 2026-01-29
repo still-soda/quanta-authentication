@@ -38,4 +38,5 @@ export const actionNamesMapping: Record<AuditAction, string> = {
    APP_GROUP_PERMISSION_CREATE: '创建应用组权限',
    APP_GROUP_PERMISSION_UPDATE: '更新应用组权限',
    APP_GROUP_PERMISSION_DELETE: '删除应用组权限',
+   APP_GROUP_ROLE_PERMISSIONS_SET: '设置应用组角色权限',
 }

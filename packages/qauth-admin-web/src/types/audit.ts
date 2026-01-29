@@ -46,6 +46,7 @@ export type AuditAction =
    | 'APP_GROUP_PERMISSION_CREATE'
    | 'APP_GROUP_PERMISSION_UPDATE'
    | 'APP_GROUP_PERMISSION_DELETE'
+   | 'APP_GROUP_ROLE_PERMISSIONS_SET'
 
 // 审计状态枚举
 export type AuditStatus = 'SUCCESS' | 'WARNING' | 'ERROR'
