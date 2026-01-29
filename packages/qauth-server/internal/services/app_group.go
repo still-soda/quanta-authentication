@@ -6,6 +6,7 @@ import (
 	"qauth-server/internal/models"
 	"qauth-server/internal/providers"
 	"qauth-server/internal/repository"
+	"slices"
 
 	"gorm.io/gorm"
 )
@@ -133,10 +134,8 @@ func (s *AppGroupService) HasAppGroupAdminPermission(clientID, userID string, re
 	}
 
 	// 检查是否有需要的特定权限
-	for _, rt := range requiredTypes {
-		if adminType == rt {
-			return true, nil
-		}
+	if slices.Contains(requiredTypes, adminType) {
+		return true, nil
 	}
 
 	return false, nil
@@ -347,8 +346,15 @@ func (s *AppGroupService) GetAppGroupRoleWithStats(roleID string) (*AppGroupRole
 		return nil, err
 	}
 
-	userCount, _ := s.appGroupRoleRepo.CountUsers(role.ID)
-	permCount, _ := s.appGroupRoleRepo.CountPermissions(role.ID)
+	userCount, err := s.appGroupRoleRepo.CountUsers(role.ID)
+	if err != nil {
+		return nil, e.ErrFailedToCountRoleUsers.Wrap(err)
+	}
+
+	permCount, err := s.appGroupRoleRepo.CountPermissions(role.ID)
+	if err != nil {
+		return nil, e.ErrFailedToCountPermissions.Wrap(err)
+	}
 
 	return &AppGroupRoleWithStats{
 		AppGroupRole:    *role,

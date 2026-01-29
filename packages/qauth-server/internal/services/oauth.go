@@ -2,10 +2,11 @@ package services
 
 import (
 	"context"
-	"errors"
 	"net/http"
 	"qauth-server/internal/config"
+	app_error "qauth-server/internal/errors"
 	"qauth-server/internal/models"
+	"qauth-server/internal/repository"
 	"qauth-server/internal/utilities"
 	"qauth-server/pkg/jwks"
 	app_jwt "qauth-server/pkg/jwt"
@@ -34,6 +35,7 @@ type OAuthService struct {
 	jwksManager     *jwks.JWKSManager
 	userService     *UserService
 	appGroupService *AppGroupService
+	oauthRepo       *repository.OAuthRepository
 }
 
 // SetAppGroupService 设置应用组服务（用于延迟注入以避免循环依赖）
@@ -55,10 +57,10 @@ func NewGormClientStore(db *gorm.DB) *GormClientStore {
 func (s *GormClientStore) GetByID(ctx context.Context, id string) (oauth2.ClientInfo, error) {
 	var client models.OAuth2Client
 	if err := s.db.WithContext(ctx).First(&client, "id = ?", id).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, errors.New("client not found")
+		if err == gorm.ErrRecordNotFound {
+			return nil, app_error.ErrClientNotFound.WithMessage(id)
 		}
-		return nil, err
+		return nil, app_error.ErrClientQueryFailed.Wrap(err)
 	}
 
 	return &oauthmodels.Client{
@@ -81,7 +83,7 @@ func (g *CustomAccessTokenGenerate) Token(ctx context.Context, data *oauth2.Gene
 	}
 
 	if err != nil {
-		return "", "", err
+		return "", "", app_error.ErrTokenGenerationFailed.Wrap(err)
 	}
 
 	access = "atk:" + access
@@ -96,6 +98,7 @@ func NewOAuthService(
 	cfg *config.Config,
 	jwksManager *jwks.JWKSManager,
 	userService *UserService,
+	oauthRepo *repository.OAuthRepository,
 ) *OAuthService {
 	logger := utilities.GetLogger()
 
@@ -156,6 +159,7 @@ func NewOAuthService(
 		clientStore: clientStore,
 		jwksManager: jwksManager,
 		userService: userService,
+		oauthRepo:   oauthRepo,
 	}
 
 	// 设置内部错误处理
@@ -203,27 +207,30 @@ func (s *OAuthService) userAuthorizationHandler(w http.ResponseWriter, r *http.R
 	cookie, err := r.Cookie("access_token")
 	if err != nil {
 		s.recordLoginState("", &clientID, models.LoginTypeOAuth2, false, "user not logged in")
-		return "", errors.New("user not logged in")
+		return "", app_error.ErrUnauthorized.WithMessage("missing access token")
 	}
 
 	// 解析 JWT Token
 	claims, err := app_jwt.ParseAccessToken(cookie.Value)
 	if err != nil {
 		s.recordLoginState("", &clientID, models.LoginTypeOAuth2, false, "invalid access token")
-		return "", errors.New("invalid access token")
+		return "", app_error.ErrInvalidToken.Wrap(err)
 	}
 
 	// 验证用户是否存在
 	var user models.Users
 	if err := s.db.First(&user, "id = ?", claims.UserID).Error; err != nil {
 		s.recordLoginState("", &clientID, models.LoginTypeOAuth2, false, "user not found")
-		return "", errors.New("user not found")
+		if err == gorm.ErrRecordNotFound {
+			return "", app_error.ErrUserNotFound.WithMessage(claims.UserID)
+		}
+		return "", app_error.ErrUserNotFound.Wrap(err)
 	}
 
 	// 检查用户状态
 	if user.Status != models.UserStatusActive {
 		s.recordLoginState(user.ID, &clientID, models.LoginTypeOAuth2, false, "user account is not active")
-		return "", errors.New("user account is not active")
+		return "", app_error.ErrUserInactive.WithMessage(user.ID)
 	}
 
 	s.recordLoginState(user.ID, &clientID, models.LoginTypeOAuth2, true, "")
@@ -235,24 +242,24 @@ func (s *OAuthService) passwordAuthorizationHandler(ctx context.Context, clientI
 	// 根据学号查找用户
 	var user models.Users
 	if err := s.db.First(&user, "student_id = ?", username).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
+		if err == gorm.ErrRecordNotFound {
 			s.recordLoginState("", &clientID, models.LoginTypeOAuth2, false, "user not found")
-			return "", errors.New("user not found")
+			return "", app_error.ErrUserNotFound.WithMessage(username)
 		}
 		s.recordLoginState("", &clientID, models.LoginTypeOAuth2, false, "database error: "+err.Error())
-		return "", err
+		return "", app_error.ErrUserNotFound.Wrap(err)
 	}
 
 	// 验证密码
 	if !utilities.VerifyPassword(password, user.Salt, user.PasswordHash) {
 		s.recordLoginState(user.ID, &clientID, models.LoginTypeOAuth2, false, "invalid password")
-		return "", errors.New("invalid password")
+		return "", app_error.ErrInvalidPassword
 	}
 
 	// 检查用户状态
 	if user.Status != models.UserStatusActive {
 		s.recordLoginState(user.ID, &clientID, models.LoginTypeOAuth2, false, "user account is not active")
-		return "", errors.New("user account is not active")
+		return "", app_error.ErrUserInactive.WithMessage(user.ID)
 	}
 
 	// 记录登录状态
@@ -269,6 +276,8 @@ func (s *OAuthService) extensionFieldsHandler(ti oauth2.TokenInfo) (fieldsValue 
 
 	user, err := s.userService.GetUserByID(ti.GetUserID(), false)
 	if err != nil {
+		clientID := ti.GetClientID()
+		s.recordError(ti.GetUserID(), &clientID, app_error.ErrUserNotFound.Wrap(err).Error())
 		return nil
 	}
 
@@ -333,7 +342,8 @@ func (s *OAuthService) extensionFieldsHandler(ti oauth2.TokenInfo) (fieldsValue 
 	// 生成 ID Token
 	idToken, err := s.jwksManager.SignToken(basic, data)
 	if err != nil {
-		utilities.GetLogger().Error("failed to sign ID token", "error", err)
+		clientID := ti.GetClientID()
+		s.recordError(ti.GetUserID(), &clientID, app_error.ErrIDTokenGenerationFailed.Wrap(err).Error())
 		return nil
 	}
 
@@ -342,14 +352,14 @@ func (s *OAuthService) extensionFieldsHandler(ti oauth2.TokenInfo) (fieldsValue 
 
 // recordLoginState 记录登录状态
 func (s *OAuthService) recordLoginState(userID string, clientID *string, loginType models.LoginType, isSuccess bool, failReason string) {
-	loginState := models.LoginState{
+	loginState := &models.LoginState{
 		UserID:     userID,
 		ClientID:   clientID,
 		Type:       loginType,
 		IsSuccess:  isSuccess,
 		FailReason: failReason,
 	}
-	if err := s.db.Create(&loginState).Error; err != nil {
+	if err := s.oauthRepo.CreateLoginState(loginState); err != nil {
 		utilities.GetLogger().Error("failed to record login state", "error", err)
 	}
 }
@@ -363,7 +373,7 @@ func (s *OAuthService) recordError(userID string, clientID *string, errMsg strin
 		Message:   errMsg,
 		Timestamp: time.Now().Unix(),
 	}
-	if err := s.db.Create(errorRecord).Error; err != nil {
+	if err := s.oauthRepo.CreateErrorRecord(errorRecord); err != nil {
 		utilities.GetLogger().Error("failed to record error", "error", err)
 	}
 }
@@ -417,14 +427,14 @@ func (s *OAuthService) CreateClient(name, domain, secret string, isPublic bool, 
 		},
 	}
 
-	if err := s.db.Create(client).Error; err != nil {
+	if err := s.oauthRepo.CreateClient(client); err != nil {
 		return nil, err
 	}
 
 	// 更新 Data 中的 ID
 	client.Data.ID = client.ID
 	client.Data.Secret = secret
-	if err := s.db.Save(client).Error; err != nil {
+	if err := s.oauthRepo.UpdateClient(client); err != nil {
 		return nil, err
 	}
 
@@ -488,14 +498,14 @@ func (s *OAuthService) CreateClientFull(params *CreateClientParams) (*models.OAu
 		},
 	}
 
-	if err := s.db.Create(client).Error; err != nil {
+	if err := s.oauthRepo.CreateClient(client); err != nil {
 		return nil, err
 	}
 
 	// 更新 Data 中的 ID
 	client.Data.ID = client.ID
 	client.Data.Secret = params.Secret
-	if err := s.db.Save(client).Error; err != nil {
+	if err := s.oauthRepo.UpdateClient(client); err != nil {
 		return nil, err
 	}
 
@@ -504,11 +514,7 @@ func (s *OAuthService) CreateClientFull(params *CreateClientParams) (*models.OAu
 
 // GetClientByID 根据 ID 获取客户端
 func (s *OAuthService) GetClientByID(clientID string) (*models.OAuth2Client, error) {
-	var client models.OAuth2Client
-	if err := s.db.First(&client, "id = ?", clientID).Error; err != nil {
-		return nil, err
-	}
-	return &client, nil
+	return s.oauthRepo.FindClientByID(context.Background(), clientID)
 }
 
 // UpdateClientParams 更新客户端参数
@@ -528,12 +534,10 @@ type UpdateClientParams struct {
 
 // UpdateClient 更新客户端信息
 func (s *OAuthService) UpdateClient(clientID string, name, domain string) error {
-	return s.db.Model(&models.OAuth2Client{}).
-		Where("id = ?", clientID).
-		Updates(map[string]interface{}{
-			"name":   name,
-			"domain": domain,
-		}).Error
+	return s.oauthRepo.UpdateClientFields(clientID, map[string]interface{}{
+		"name":   name,
+		"domain": domain,
+	})
 }
 
 // UpdateClientFull 更新完整的客户端信息
@@ -575,17 +579,15 @@ func (s *OAuthService) UpdateClientFull(clientID string, params *UpdateClientPar
 	}
 
 	if len(updates) == 0 {
-		return nil
+		return app_error.ErrNoFieldsToUpdate
 	}
 
-	return s.db.Model(&models.OAuth2Client{}).
-		Where("id = ?", clientID).
-		Updates(updates).Error
+	return s.oauthRepo.UpdateClientFields(clientID, updates)
 }
 
 // DeleteClient 删除客户端
 func (s *OAuthService) DeleteClient(clientID string) error {
-	return s.db.Delete(&models.OAuth2Client{}, "id = ?", clientID).Error
+	return s.oauthRepo.DeleteClient(clientID)
 }
 
 // ListClientsParams 列出客户端参数
@@ -600,110 +602,50 @@ type ListClientsParams struct {
 
 // CountClients 计算客户端数量
 func (s *OAuthService) CountClients() (int64, error) {
-	var count int64
-	if err := s.db.Model(&models.OAuth2Client{}).Count(&count).Error; err != nil {
-		return 0, err
-	}
-	return count, nil
+	return s.oauthRepo.CountClients()
 }
 
 // ListClients 获取客户端列表
 func (s *OAuthService) ListClients(page, pageSize int) ([]models.OAuth2Client, int64, error) {
-	var clients []models.OAuth2Client
-	var total int64
-
-	if err := s.db.Model(&models.OAuth2Client{}).Count(&total).Error; err != nil {
-		return nil, 0, err
-	}
-
-	offset := (page - 1) * pageSize
-	if err := s.db.Offset(offset).Limit(pageSize).Find(&clients).Error; err != nil {
-		return nil, 0, err
-	}
-
-	return clients, total, nil
+	return s.oauthRepo.ListClients(page, pageSize)
 }
 
 // ListClientsFull 获取客户端列表（支持更多查询参数）
 func (s *OAuthService) ListClientsFull(params *ListClientsParams) ([]models.OAuth2Client, int64, error) {
-	var clients []models.OAuth2Client
-	var total int64
-
-	query := s.db.Model(&models.OAuth2Client{})
-
-	// 搜索条件
-	if params.Search != "" {
-		searchTerm := "%" + params.Search + "%"
-		query = query.Where("name ILIKE ? OR description ILIKE ? OR id::text ILIKE ?", searchTerm, searchTerm, searchTerm)
-	}
-
-	// 状态过滤
-	if params.Status != "" {
-		query = query.Where("status = ?", params.Status)
-	}
-
-	// 计算总数
-	if err := query.Count(&total).Error; err != nil {
-		return nil, 0, err
-	}
-
-	// 排序
-	orderClause := "created_at DESC"
-	if params.SortBy != "" {
-		order := "ASC"
-		if params.SortDesc {
-			order = "DESC"
-		}
-		orderClause = params.SortBy + " " + order
-	}
-	query = query.Order(orderClause)
-
-	// 分页
-	offset := (params.Page - 1) * params.PageSize
-	if err := query.Offset(offset).Limit(params.PageSize).Find(&clients).Error; err != nil {
-		return nil, 0, err
-	}
-
-	return clients, total, nil
+	return s.oauthRepo.ListClientsWithFilter(
+		params.Search,
+		params.Status,
+		params.SortBy,
+		params.SortDesc,
+		params.Page,
+		params.PageSize,
+	)
 }
 
 // RegenerateClientSecret 重新生成客户端密钥
 func (s *OAuthService) RegenerateClientSecret(clientID, newSecret string) error {
-	return s.db.Model(&models.OAuth2Client{}).
-		Where("id = ?", clientID).
-		Update("secret", newSecret).Error
+	return s.oauthRepo.UpdateClientSecret(clientID, newSecret)
 }
 
 // IncrementClientRequestCount 增加客户端请求计数
 func (s *OAuthService) IncrementClientRequestCount(clientID string) error {
-	return s.db.Model(&models.OAuth2Client{}).
-		Where("id = ?", clientID).
-		Updates(map[string]interface{}{
-			"request_count": gorm.Expr("request_count + 1"),
-			"last_used_at":  time.Now(),
-		}).Error
+	return s.oauthRepo.IncrementClientRequestCount(clientID)
 }
 
 // GetClientStats 获取客户端统计数据
 func (s *OAuthService) GetClientStats() (map[string]int64, error) {
 	stats := make(map[string]int64)
 
-	// 总客户端数
-	var total int64
-	if err := s.db.Model(&models.OAuth2Client{}).Count(&total).Error; err != nil {
+	// 获取总客户端数
+	total, err := s.oauthRepo.CountClients()
+	if err != nil {
 		return nil, err
 	}
 	stats["total"] = total
 
-	// 各状态客户端数
-	var statusCounts []struct {
-		Status models.ClientStatus
-		Count  int64
-	}
-	if err := s.db.Model(&models.OAuth2Client{}).
-		Select("status, COUNT(*) as count").
-		Group("status").
-		Find(&statusCounts).Error; err != nil {
+	// 获取各状态客户端数
+	statusCounts, err := s.oauthRepo.CountClientsByStatus()
+	if err != nil {
 		return nil, err
 	}
 
@@ -716,15 +658,25 @@ func (s *OAuthService) GetClientStats() (map[string]int64, error) {
 
 // RevokeToken 撤销令牌
 func (s *OAuthService) RevokeToken(accessToken string) error {
-	return s.manager.RemoveAccessToken(context.Background(), accessToken)
+	if err := s.manager.RemoveAccessToken(context.Background(), accessToken); err != nil {
+		return app_error.ErrTokenRevocationFailed.Wrap(err)
+	}
+	return nil
 }
 
 // RevokeRefreshToken 撤销刷新令牌
 func (s *OAuthService) RevokeRefreshToken(refreshToken string) error {
-	return s.manager.RemoveRefreshToken(context.Background(), refreshToken)
+	if err := s.manager.RemoveRefreshToken(context.Background(), refreshToken); err != nil {
+		return app_error.ErrTokenRevocationFailed.Wrap(err)
+	}
+	return nil
 }
 
 // GetTokenInfo 获取令牌信息
 func (s *OAuthService) GetTokenInfo(accessToken string) (oauth2.TokenInfo, error) {
-	return s.manager.LoadAccessToken(context.Background(), accessToken)
+	info, err := s.manager.LoadAccessToken(context.Background(), accessToken)
+	if err != nil {
+		return nil, app_error.ErrTokenLoadFailed.Wrap(err)
+	}
+	return info, nil
 }

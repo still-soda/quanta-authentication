@@ -39,6 +39,8 @@ var (
 	ErrFailedToRevokePermissionsFromRole        = app_error.NewAppError(500, "failed to revoke permissions from role")
 	ErrFailedToClearExistingPermissions         = app_error.NewAppError(500, "failed to clear existing permissions")
 	ErrFailedToGetRolePermissions               = app_error.NewAppError(500, "failed to get role permissions")
+	ErrFailedToCountRoleUsers                   = app_error.NewAppError(500, "failed to count role users")
+	ErrFailedToCountPermissions                 = app_error.NewAppError(500, "failed to count permissions")
 )
 
 // 应用组用户角色相关错误

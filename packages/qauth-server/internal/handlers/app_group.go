@@ -72,7 +72,7 @@ func (h *AppGroupHandler) checkAppGroupAdminPermission(c *gin.Context, clientID 
 func (h *AppGroupHandler) checkClientExists(clientID string) error {
 	_, err := h.oauthService.GetClientByID(clientID)
 	if err != nil {
-		return app_error.ErrOAuthClientNotFound
+		return app_error.ErrClientNotFound
 	}
 	return nil
 }

@@ -75,13 +75,14 @@ func main() {
 	auditRepo := repository.NewAuditRepository(db)
 	counterRepo := repository.NewCounterRepository(db)
 	fileRepo := repository.NewFileRepository(db)
+	oauthRepo := repository.NewOAuthRepository(db)
 
 	// 创建服务
 	permSrv := services.NewPermissionService(db)
 	fileSrv := services.NewFileService(storageProvider, fileRepo)
 	userSrv := services.NewUserService(db)
 	roleSrv := services.NewRoleService(db, permSrv, userSrv)
-	oauthSrv := services.NewOAuthService(db, cfg, jwksMgr, userSrv)
+	oauthSrv := services.NewOAuthService(db, cfg, jwksMgr, userSrv, oauthRepo)
 	counterSrv := services.NewCounterService(counterRepo)
 	auditSrv := services.NewAuditService(
 		auditRepo,
