@@ -9,6 +9,8 @@ import (
 	"qauth-server/internal/database"
 	"qauth-server/internal/handlers"
 	"qauth-server/internal/handlers/business"
+	"qauth-server/internal/providers"
+	"qauth-server/internal/repository"
 	"qauth-server/internal/routes"
 	"qauth-server/internal/services"
 	"qauth-server/internal/tasks"
@@ -52,56 +54,78 @@ func main() {
 	r.Static("/uploads", cfg.Storage.LocalDir)
 
 	// 创建 jwks 管理器
-	jwksManager, err := jwks.NewJWKSManager(nil)
+	jwksMgr, err := jwks.NewJWKSManager(nil)
 	if err != nil {
 		panic("failed to create jwks manager: " + err.Error())
 	}
 	// 启动密钥轮换
-	jwksManager.StartRotation()
-	defer jwksManager.StopRotation()
+	jwksMgr.StartRotation()
+	defer jwksMgr.StopRotation()
+
+	// 创建提供者
+	loggerProvider := providers.NewRootLogger()
+
+	// 创建仓储
+	appGroupAdminRepo := repository.NewAppGroupAdminRepository(db)
+	appGroupPermRepo := repository.NewAppGroupPermissionRepository(db)
+	appGroupRoleRepo := repository.NewAppGroupRoleRepository(db)
+	appGroupUserRoleRepo := repository.NewAppGroupUserRoleRepository(db)
+	auditRepo := repository.NewAuditRepository(db)
 
 	// 创建服务
-	storageService, err := services.NewStorageService(cfg)
+	storeSrv, err := services.NewStorageService(cfg)
 	if err != nil {
 		panic("failed to create storage service")
 	}
-	defer storageService.Close()
+	defer storeSrv.Close()
 
-	cacheService := services.NewCacheService(cfg)
-	defer cacheService.Close()
+	cacheSrv := services.NewCacheService(cfg)
+	defer cacheSrv.Close()
 
-	permissionService := services.NewPermissionService(db)
-	fileService := services.NewFileService(storageService, db)
-	userService := services.NewUserService(db)
-	roleService := services.NewRoleService(db, permissionService, userService)
-	oauthService := services.NewOAuthService(db, cfg, jwksManager, userService)
-	counterService := services.NewCounterService(db)
-	auditService := services.NewAuditService(db, userService)
-	appGroupService := services.NewAppGroupService(db, userService)
+	permSrv := services.NewPermissionService(db)
+	fileSrv := services.NewFileService(storeSrv, db)
+	userSrv := services.NewUserService(db)
+	roleSrv := services.NewRoleService(db, permSrv, userSrv)
+	oauthSrv := services.NewOAuthService(db, cfg, jwksMgr, userSrv)
+	counterSrv := services.NewCounterService(db)
+	auditSrv := services.NewAuditService(
+		auditRepo,
+		userSrv,
+		loggerProvider,
+	)
+	appGroupSrv := services.NewAppGroupService(
+		db,
+		userSrv,
+		appGroupAdminRepo,
+		appGroupPermRepo,
+		appGroupRoleRepo,
+		appGroupUserRoleRepo,
+		loggerProvider,
+	)
 
 	// 设置 OAuthService 的 AppGroupService（延迟注入以避免循环依赖）
-	oauthService.SetAppGroupService(appGroupService)
+	oauthSrv.SetAppGroupService(appGroupSrv)
 
 	// OIDC 服务
 	issuer := "http://localhost:" + cfg.Server.Port
-	oidcService, err := services.NewOIDCService(cfg, issuer, jwksManager)
+	oidcSrv, err := services.NewOIDCService(cfg, issuer, jwksMgr)
 	if err != nil {
 		panic("failed to create oidc service: " + err.Error())
 	}
-	defer oidcService.Close()
+	defer oidcSrv.Close()
 
 	// 创建定时器
 	cronScheduler := cron.New(cron.WithSeconds())
 
 	// 创建定时任务
-	counterTask := tasks.NewCounterTask(counterService, cacheService, userService, oauthService)
+	counterTask := tasks.NewCounterTask(counterSrv, cacheSrv, userSrv, oauthSrv)
 	cleanupCounterTask, err := counterTask.Register(cronScheduler)
 	if err != nil {
 		panic("failed to register counter task: " + err.Error())
 	}
 	defer cleanupCounterTask()
 
-	userTask := tasks.NewUserTask(cacheService)
+	userTask := tasks.NewUserTask(cacheSrv)
 	cleanupUserTask, err := userTask.Register(cronScheduler)
 	if err != nil {
 		panic("failed to register user task: " + err.Error())
@@ -110,16 +134,16 @@ func main() {
 
 	// 创建处理器
 	healthHandler := handlers.NewHealthHandler()
-	fileHandler := handlers.NewFileHandler(fileService)
-	authHandler := handlers.NewAuthHandler(userService, roleService, auditService)
-	oauthHandler := handlers.NewOAuthHandler(oauthService, roleService, userService, oidcService, cacheService, auditService, appGroupService)
-	oidcHandler := handlers.NewOIDCHandler(oidcService, userService)
-	roleHandler := handlers.NewRoleHandler(roleService, permissionService, auditService)
-	permissionHandler := handlers.NewPermissionHandler(roleService, permissionService, auditService)
-	userHandler := handlers.NewUserHandler(userService, roleService, auditService)
-	appGroupHandler := handlers.NewAppGroupHandler(appGroupService, oauthService, roleService, auditService)
-	dashboardHandler := business.NewDashboardHandler(userService, counterService, cacheService, oauthService)
-	auditHandler := business.NewAuditHandler(auditService, roleService)
+	fileHandler := handlers.NewFileHandler(fileSrv)
+	authHandler := handlers.NewAuthHandler(userSrv, roleSrv, auditSrv)
+	oauthHandler := handlers.NewOAuthHandler(oauthSrv, roleSrv, userSrv, oidcSrv, cacheSrv, auditSrv, appGroupSrv)
+	oidcHandler := handlers.NewOIDCHandler(oidcSrv, userSrv)
+	roleHandler := handlers.NewRoleHandler(roleSrv, permSrv, auditSrv)
+	permissionHandler := handlers.NewPermissionHandler(roleSrv, permSrv, auditSrv)
+	userHandler := handlers.NewUserHandler(userSrv, roleSrv, auditSrv)
+	appGroupHandler := handlers.NewAppGroupHandler(appGroupSrv, oauthSrv, roleSrv, auditSrv)
+	dashboardHandler := business.NewDashboardHandler(userSrv, counterSrv, cacheSrv, oauthSrv)
+	auditHandler := business.NewAuditHandler(auditSrv, roleSrv)
 
 	// 注册路由
 	routes.RegisterRoutes(r, &routes.RegisterRouterHandlers{

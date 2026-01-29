@@ -2,27 +2,34 @@ package services
 
 import (
 	"encoding/json"
+	e "qauth-server/internal/errors"
 	"qauth-server/internal/models"
-	"qauth-server/internal/utilities"
+	"qauth-server/internal/providers"
+	"qauth-server/internal/repository"
 	"qauth-server/pkg/jwt"
 	"time"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/datatypes"
-	"gorm.io/gorm"
 )
 
 // AuditService 审计日志服务
 type AuditService struct {
-	db          *gorm.DB
-	userService *UserService
+	repo    *repository.AuditRepository
+	userSrv *UserService
+	logger  providers.ILogger
 }
 
 // NewAuditService 创建审计日志服务
-func NewAuditService(db *gorm.DB, userService *UserService) *AuditService {
+func NewAuditService(
+	repo *repository.AuditRepository,
+	userSrv *UserService,
+	logger providers.ILogger,
+) *AuditService {
 	return &AuditService{
-		db:          db,
-		userService: userService,
+		repo:    repo,
+		userSrv: userSrv,
+		logger:  logger.With("service", "AuditService"),
 	}
 }
 
@@ -65,7 +72,7 @@ func (s *AuditService) ExtractAuditContext(c *gin.Context) *AuditContext {
 		ctx.OperatorID = &userInfo.UserID
 
 		// 获取用户名
-		if user, err := s.userService.GetUserByID(userInfo.UserID, false); err == nil {
+		if user, err := s.userSrv.GetUserByID(userInfo.UserID, false); err == nil {
 			ctx.OperatorName = user.Name
 		}
 	}
@@ -75,14 +82,12 @@ func (s *AuditService) ExtractAuditContext(c *gin.Context) *AuditContext {
 
 // Log 记录审计日志
 func (s *AuditService) Log(ctx *AuditContext, entry *AuditEntry) error {
-	logger := utilities.GetLogger()
-
 	// 构建详情 JSON
 	var detailJSON datatypes.JSON
 	if entry.Detail != nil {
 		detailBytes, err := json.Marshal(entry.Detail)
 		if err != nil {
-			logger.Error("Failed to marshal audit detail", "error", err)
+			s.logger.Error("Failed to marshal audit detail", "error", err)
 			detailJSON = datatypes.JSON([]byte("{}"))
 		} else {
 			detailJSON = datatypes.JSON(detailBytes)
@@ -115,12 +120,12 @@ func (s *AuditService) Log(ctx *AuditContext, entry *AuditEntry) error {
 		RequestID:    ctx.RequestID,
 	}
 
-	if err := s.db.Create(auditLog).Error; err != nil {
-		logger.Error("Failed to create audit log", "error", err)
+	if err := s.repo.Create(auditLog); err != nil {
+		s.logger.Error("Failed to create audit log", "error", err)
 		return err
 	}
 
-	logger.Info("Audit log created",
+	s.logger.Info("Audit log created",
 		"module", entry.Module,
 		"action", entry.Action,
 		"operator", ctx.OperatorID,
@@ -218,226 +223,71 @@ func (s *AuditService) LogOAuthAuthorize(c *gin.Context, userID, userName string
 
 // QueryAuditLogs 查询审计日志
 func (s *AuditService) QueryAuditLogs(query *models.AuditLogQuery) ([]models.AuditLog, int64, error) {
-	var logs []models.AuditLog
-	var total int64
-
-	db := s.db.Model(&models.AuditLog{})
-
-	// 构建查询条件
-	if query.OperatorID != "" {
-		db = db.Where("operator_id = ?", query.OperatorID)
-	}
-	if query.Module != "" {
-		db = db.Where("module = ?", query.Module)
-	}
-	if query.Action != "" {
-		db = db.Where("action = ?", query.Action)
-	}
-	if query.TargetID != "" {
-		db = db.Where("target_id = ?", query.TargetID)
-	}
-	if query.Status != "" {
-		db = db.Where("status = ?", query.Status)
-	}
-	if query.ClientID != "" {
-		db = db.Where("client_id = ?", query.ClientID)
-	}
-	if query.StartTime != nil {
-		db = db.Where("created_at >= ?", query.StartTime)
-	}
-	if query.EndTime != nil {
-		db = db.Where("created_at <= ?", query.EndTime)
-	}
-
-	// 计算总数
-	if err := db.Count(&total).Error; err != nil {
-		return nil, 0, err
-	}
-
-	// 分页
-	if query.Page <= 0 {
-		query.Page = 1
-	}
-	if query.PageSize <= 0 {
-		query.PageSize = 20
-	}
-	if query.PageSize > 100 {
-		query.PageSize = 100
-	}
-
-	// 排序
-	orderClause := "created_at DESC"
-	if query.SortBy != "" {
-		allowedSortFields := map[string]string{
-			"operator_name": "operator_name",
-			"module":        "module",
-			"action":        "action",
-			"target_name":   "target_name",
-			"status":        "status",
-			"duration_ms":   "duration_ms",
-			"created_at":    "created_at",
-		}
-		if field, ok := allowedSortFields[query.SortBy]; ok {
-			direction := "ASC"
-			if query.SortDesc {
-				direction = "DESC"
-			}
-			orderClause = field + " " + direction
-		}
-	}
-
-	offset := (query.Page - 1) * query.PageSize
-	if err := db.Preload("Operator").
-		Order(orderClause).
-		Offset(offset).
-		Limit(query.PageSize).
-		Find(&logs).Error; err != nil {
-		return nil, 0, err
-	}
-
-	return logs, total, nil
+	return s.repo.Query(query)
 }
 
 // GetAuditLogByID 根据 ID 获取审计日志
 func (s *AuditService) GetAuditLogByID(id string) (*models.AuditLog, error) {
-	var log models.AuditLog
-	if err := s.db.Preload("Operator").Preload("Client").First(&log, "id = ?", id).Error; err != nil {
-		return nil, err
-	}
-	return &log, nil
+	return s.repo.FindByID(id)
 }
 
 // GetRecentActivities 获取最近活动列表
 func (s *AuditService) GetRecentActivities(limit int) ([]models.AuditLog, error) {
-	var logs []models.AuditLog
-	if err := s.db.Preload("Operator").
-		Order("created_at DESC").
-		Limit(limit).
-		Find(&logs).Error; err != nil {
-		return nil, err
+	if limit <= 0 {
+		return nil, e.ErrInvalidParameter.Wrapf("limit must be greater than 0, got %d", limit)
 	}
-	return logs, nil
+
+	return s.repo.FindRecent(limit)
 }
 
 // GetAuditStatsByModule 按模块统计审计日志
 func (s *AuditService) GetAuditStatsByModule(startTime, endTime time.Time) (map[string]int64, error) {
-	type Result struct {
-		Module string
-		Count  int64
-	}
-	var results []Result
-
-	if err := s.db.Model(&models.AuditLog{}).
-		Select("module, COUNT(*) as count").
-		Where("created_at >= ? AND created_at <= ?", startTime, endTime).
-		Group("module").
-		Scan(&results).Error; err != nil {
-		return nil, err
+	if startTime.IsZero() || endTime.IsZero() || !endTime.After(startTime) {
+		return nil, e.ErrInvalidTimeRange.Wrapf("startTime: %v, endTime: %v", startTime, endTime)
 	}
 
-	stats := make(map[string]int64)
-	for _, r := range results {
-		stats[r.Module] = r.Count
-	}
-	return stats, nil
+	return s.repo.GetStatsByModule(startTime, endTime)
 }
 
 // GetAuditStatsByAction 按操作类型统计审计日志
 func (s *AuditService) GetAuditStatsByAction(startTime, endTime time.Time) (map[string]int64, error) {
-	type Result struct {
-		Action string
-		Count  int64
-	}
-	var results []Result
-
-	if err := s.db.Model(&models.AuditLog{}).
-		Select("action, COUNT(*) as count").
-		Where("created_at >= ? AND created_at <= ?", startTime, endTime).
-		Group("action").
-		Scan(&results).Error; err != nil {
-		return nil, err
+	if startTime.IsZero() || endTime.IsZero() || !endTime.After(startTime) {
+		return nil, e.ErrInvalidTimeRange.Wrapf("startTime: %v, endTime: %v", startTime, endTime)
 	}
 
-	stats := make(map[string]int64)
-	for _, r := range results {
-		stats[r.Action] = r.Count
-	}
-	return stats, nil
+	return s.repo.GetStatsByAction(startTime, endTime)
 }
 
 // GetAuditStatsByStatus 按状态统计审计日志
 func (s *AuditService) GetAuditStatsByStatus(startTime, endTime time.Time) (map[string]int64, error) {
-	type Result struct {
-		Status string
-		Count  int64
-	}
-	var results []Result
-
-	if err := s.db.Model(&models.AuditLog{}).
-		Select("status, COUNT(*) as count").
-		Where("created_at >= ? AND created_at <= ?", startTime, endTime).
-		Group("status").
-		Scan(&results).Error; err != nil {
-		return nil, err
+	if startTime.IsZero() || endTime.IsZero() || !endTime.After(startTime) {
+		return nil, e.ErrInvalidTimeRange.Wrapf("startTime: %v, endTime: %v", startTime, endTime)
 	}
 
-	stats := make(map[string]int64)
-	for _, r := range results {
-		stats[r.Status] = r.Count
-	}
-	return stats, nil
+	return s.repo.GetStatsByStatus(startTime, endTime)
 }
 
 // GetLoginStats 获取登录统计（用于替代单独的登录状态查询）
 func (s *AuditService) GetLoginStats(startTime, endTime time.Time) (successCount, failCount int64, err error) {
-	type Result struct {
-		Status string
-		Count  int64
-	}
-	var results []Result
-
-	if err := s.db.Model(&models.AuditLog{}).
-		Select("status, COUNT(*) as count").
-		Where("action = ? AND created_at >= ? AND created_at <= ?", models.AuditActionLogin, startTime, endTime).
-		Group("status").
-		Scan(&results).Error; err != nil {
-		return 0, 0, err
+	if startTime.IsZero() || endTime.IsZero() || !endTime.After(startTime) {
+		return 0, 0, e.ErrInvalidTimeRange.Wrapf("startTime: %v, endTime: %v", startTime, endTime)
 	}
 
-	for _, r := range results {
-		if r.Status == string(models.AuditStatusSuccess) {
-			successCount = r.Count
-		} else {
-			failCount += r.Count
-		}
-	}
-
-	return successCount, failCount, nil
+	return s.repo.GetLoginStats(startTime, endTime)
 }
 
 // GetTopClients 获取热门客户端
 func (s *AuditService) GetTopClients(startTime, endTime time.Time, limit int) ([]map[string]any, error) {
-	type Result struct {
-		ClientID string
-		Count    int64
-	}
-	var results []Result
-
-	if err := s.db.Model(&models.AuditLog{}).
-		Select("client_id, COUNT(*) as count").
-		Where("client_id IS NOT NULL AND created_at >= ? AND created_at <= ?", startTime, endTime).
-		Group("client_id").
-		Order("count DESC").
-		Limit(limit).
-		Scan(&results).Error; err != nil {
+	results, err := s.repo.GetTopClients(startTime, endTime, limit)
+	if err != nil {
 		return nil, err
 	}
 
 	// 获取客户端详情
 	clients := make([]map[string]any, 0, len(results))
 	for _, r := range results {
-		var client models.OAuth2Client
-		if err := s.db.First(&client, "id = ?", r.ClientID).Error; err == nil {
+		client, err := s.repo.FindClientByID(r.ClientID)
+		if err == nil {
 			clients = append(clients, map[string]any{
 				"client_id":   r.ClientID,
 				"client_name": client.Name,
@@ -452,6 +302,5 @@ func (s *AuditService) GetTopClients(startTime, endTime time.Time, limit int) ([
 // CleanupOldLogs 清理旧的审计日志
 func (s *AuditService) CleanupOldLogs(retentionDays int) (int64, error) {
 	cutoff := time.Now().AddDate(0, 0, -retentionDays)
-	result := s.db.Where("created_at < ?", cutoff).Delete(&models.AuditLog{})
-	return result.RowsAffected, result.Error
+	return s.repo.DeleteOldLogs(cutoff)
 }

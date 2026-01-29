@@ -2,25 +2,43 @@ package services
 
 import (
 	"errors"
-	"fmt"
+	e "qauth-server/internal/errors"
 	"qauth-server/internal/models"
-	"qauth-server/internal/utilities"
+	"qauth-server/internal/providers"
+	"qauth-server/internal/repository"
 
 	"gorm.io/gorm"
-	"gorm.io/gorm/clause"
 )
 
 // AppGroupService 应用组权限服务
 type AppGroupService struct {
-	db          *gorm.DB
-	userService *UserService
+	db                   *gorm.DB
+	userService          *UserService
+	appGroupAdminRepo    *repository.AppGroupAdminRepository
+	appGroupPermRepo     *repository.AppGroupPermissionRepository
+	appGroupRoleRepo     *repository.AppGroupRoleRepository
+	appGroupUserRoleRepo *repository.AppGroupUserRoleRepository
+	logger               providers.ILogger
 }
 
 // NewAppGroupService 创建应用组权限服务
-func NewAppGroupService(db *gorm.DB, userService *UserService) *AppGroupService {
+func NewAppGroupService(
+	db *gorm.DB,
+	userSrv *UserService,
+	appGroupAdminRepo *repository.AppGroupAdminRepository,
+	appGroupPermRepo *repository.AppGroupPermissionRepository,
+	appGroupRoleRepo *repository.AppGroupRoleRepository,
+	appGroupUserRoleRepo *repository.AppGroupUserRoleRepository,
+	logger providers.ILogger,
+) *AppGroupService {
 	return &AppGroupService{
-		db:          db,
-		userService: userService,
+		db:                   db,
+		userService:          userSrv,
+		appGroupAdminRepo:    appGroupAdminRepo,
+		appGroupPermRepo:     appGroupPermRepo,
+		appGroupRoleRepo:     appGroupRoleRepo,
+		appGroupUserRoleRepo: appGroupUserRoleRepo,
+		logger:               logger.With("service", "AppGroupService"),
 	}
 }
 
@@ -37,11 +55,11 @@ func (s *AppGroupService) InitializeAppGroupAdmins(clientID, creatorID string) e
 		GrantedBy: creatorID,
 	}
 
-	if err := s.db.Clauses(clause.OnConflict{DoNothing: true}).Create(ownerAdmin).Error; err != nil {
-		return fmt.Errorf("failed to create owner admin: %w", err)
+	if err := s.appGroupAdminRepo.Create(ownerAdmin); err != nil {
+		return e.ErrFailedToCreateOwnerAdmin.Wrap(err)
 	}
 
-	utilities.GetLogger().Info("initialized app group admins", "clientID", clientID, "creatorID", creatorID)
+	s.logger.Info("initialized app group admins", "clientID", clientID, "creatorID", creatorID)
 	return nil
 }
 
@@ -54,8 +72,8 @@ func (s *AppGroupService) AddAppGroupAdmin(clientID, userID string, adminType mo
 		GrantedBy: grantedBy,
 	}
 
-	if err := s.db.Clauses(clause.OnConflict{DoNothing: true}).Create(admin).Error; err != nil {
-		return fmt.Errorf("failed to add app group admin: %w", err)
+	if err := s.appGroupAdminRepo.Create(admin); err != nil {
+		return e.ErrFailedToAddAppGroupAdmin.Wrap(err)
 	}
 
 	return nil
@@ -63,48 +81,38 @@ func (s *AppGroupService) AddAppGroupAdmin(clientID, userID string, adminType mo
 
 // RemoveAppGroupAdmin 移除应用组管理员
 func (s *AppGroupService) RemoveAppGroupAdmin(clientID, userID string, adminType models.AppGroupAdminType) error {
-	result := s.db.Where("client_id = ? AND user_id = ? AND admin_type = ?", clientID, userID, adminType).
-		Delete(&models.AppGroupAdmin{})
-	if result.Error != nil {
-		return fmt.Errorf("failed to remove app group admin: %w", result.Error)
+	if err := s.appGroupAdminRepo.Delete(clientID, userID, adminType); err != nil {
+		return e.ErrFailedToRemoveAppGroupAdmin.Wrap(err)
 	}
 	return nil
 }
 
 // GetAppGroupAdmins 获取应用组的所有管理员
 func (s *AppGroupService) GetAppGroupAdmins(clientID string) ([]models.AppGroupAdmin, error) {
-	var admins []models.AppGroupAdmin
-	if err := s.db.Preload("User").Preload("Granter").
-		Where("client_id = ?", clientID).
-		Order("admin_type ASC, created_at ASC").
-		Find(&admins).Error; err != nil {
-		return nil, fmt.Errorf("failed to get app group admins: %w", err)
+	admins, err := s.appGroupAdminRepo.FindByClientID(clientID)
+	if err != nil {
+		return nil, e.ErrFailedToGetAppGroupAdmins.Wrap(err)
 	}
 	return admins, nil
 }
 
 // GetAppGroupAdminsByUser 获取用户在所有应用组的管理员身份
 func (s *AppGroupService) GetAppGroupAdminsByUser(userID string) ([]models.AppGroupAdmin, error) {
-	var admins []models.AppGroupAdmin
-	if err := s.db.Preload("Client").
-		Where("user_id = ?", userID).
-		Find(&admins).Error; err != nil {
-		return nil, fmt.Errorf("failed to get user's app group admins: %w", err)
+	admins, err := s.appGroupAdminRepo.FindByUserID(userID)
+	if err != nil {
+		return nil, e.ErrFailedToGetUserAppGroupAdmins.Wrap(err)
 	}
 	return admins, nil
 }
 
 // IsAppGroupAdmin 检查用户是否为应用组管理员
 func (s *AppGroupService) IsAppGroupAdmin(clientID, userID string) (bool, models.AppGroupAdminType, error) {
-	var admin models.AppGroupAdmin
-	err := s.db.Where("client_id = ? AND user_id = ?", clientID, userID).
-		Order("CASE admin_type WHEN 'owner' THEN 1 WHEN 'admin' THEN 2 ELSE 3 END").
-		First(&admin).Error
+	admin, err := s.appGroupAdminRepo.FindByClientIDAndUserID(clientID, userID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return false, "", nil
 		}
-		return false, "", fmt.Errorf("failed to check app group admin: %w", err)
+		return false, "", e.ErrFailedToCheckAppGroupAdmin.Wrap(err)
 	}
 	return true, admin.AdminType, nil
 }
@@ -147,8 +155,8 @@ func (s *AppGroupService) CreateAppGroupPermission(clientID, resource string, ac
 		Description: description,
 	}
 
-	if err := s.db.Create(permission).Error; err != nil {
-		return nil, fmt.Errorf("failed to create app group permission: %w", err)
+	if err := s.appGroupPermRepo.Create(permission); err != nil {
+		return nil, e.ErrFailedToCreateAppGroupPermission.Wrap(err)
 	}
 
 	return permission, nil
@@ -156,31 +164,31 @@ func (s *AppGroupService) CreateAppGroupPermission(clientID, resource string, ac
 
 // UpdateAppGroupPermission 更新应用组权限
 func (s *AppGroupService) UpdateAppGroupPermission(permissionID, name, description string) (*models.AppGroupPermission, error) {
-	var permission models.AppGroupPermission
-	if err := s.db.First(&permission, "id = ?", permissionID).Error; err != nil {
-		return nil, fmt.Errorf("failed to find permission: %w", err)
+	permission, err := s.appGroupPermRepo.FindByID(permissionID)
+	if err != nil {
+		return nil, e.ErrFailedToFindPermission.Wrap(err)
 	}
 
 	permission.Name = name
 	permission.Description = description
 
-	if err := s.db.Save(&permission).Error; err != nil {
-		return nil, fmt.Errorf("failed to update app group permission: %w", err)
+	if err := s.appGroupPermRepo.Update(permission); err != nil {
+		return nil, e.ErrFailedToUpdateAppGroupPermission.Wrap(err)
 	}
 
-	return &permission, nil
+	return permission, nil
 }
 
 // DeleteAppGroupPermission 删除应用组权限
 func (s *AppGroupService) DeleteAppGroupPermission(permissionID string) error {
 	// 先删除角色权限关联
-	if err := s.db.Where("app_group_permission_id = ?", permissionID).Delete(&models.AppGroupRolesPermissions{}).Error; err != nil {
-		return fmt.Errorf("failed to delete role permission associations: %w", err)
+	if err := s.appGroupRoleRepo.DeletePermissionRoleAssociations(permissionID); err != nil {
+		return e.ErrFailedToDeleteRolePermissionAssociations.Wrap(err)
 	}
 
 	// 删除权限
-	if err := s.db.Delete(&models.AppGroupPermission{}, "id = ?", permissionID).Error; err != nil {
-		return fmt.Errorf("failed to delete app group permission: %w", err)
+	if err := s.appGroupPermRepo.Delete(permissionID); err != nil {
+		return e.ErrFailedToDeleteAppGroupPermission.Wrap(err)
 	}
 
 	return nil
@@ -188,33 +196,31 @@ func (s *AppGroupService) DeleteAppGroupPermission(permissionID string) error {
 
 // GetAppGroupPermission 获取应用组权限详情
 func (s *AppGroupService) GetAppGroupPermission(permissionID string) (*models.AppGroupPermission, error) {
-	var permission models.AppGroupPermission
-	if err := s.db.First(&permission, "id = ?", permissionID).Error; err != nil {
-		return nil, fmt.Errorf("failed to get app group permission: %w", err)
+	permission, err := s.appGroupPermRepo.FindByID(permissionID)
+	if err != nil {
+		return nil, e.ErrFailedToGetAppGroupPermission.Wrap(err)
 	}
-	return &permission, nil
+	return permission, nil
 }
 
 // GetAppGroupPermissions 获取应用组的所有权限
 func (s *AppGroupService) GetAppGroupPermissions(clientID string) ([]models.AppGroupPermission, error) {
-	var permissions []models.AppGroupPermission
-	if err := s.db.Where("client_id = ?", clientID).
-		Order("resource ASC, action ASC").
-		Find(&permissions).Error; err != nil {
-		return nil, fmt.Errorf("failed to get app group permissions: %w", err)
+	perms, err := s.appGroupPermRepo.FindByClientID(clientID)
+	if err != nil {
+		return nil, e.ErrFailedToGetAppGroupPermissions.Wrap(err)
 	}
-	return permissions, nil
+	return perms, nil
 }
 
 // GetAppGroupPermissionsByResource 获取应用组按资源分组的权限
 func (s *AppGroupService) GetAppGroupPermissionsByResource(clientID string) (map[string][]models.AppGroupPermission, error) {
-	permissions, err := s.GetAppGroupPermissions(clientID)
+	perms, err := s.GetAppGroupPermissions(clientID)
 	if err != nil {
 		return nil, err
 	}
 
 	grouped := make(map[string][]models.AppGroupPermission)
-	for _, perm := range permissions {
+	for _, perm := range perms {
 		grouped[perm.Resource] = append(grouped[perm.Resource], perm)
 	}
 
@@ -223,11 +229,11 @@ func (s *AppGroupService) GetAppGroupPermissionsByResource(clientID string) (map
 
 // GetAppGroupPermissionByCodes 根据权限代码获取权限列表
 func (s *AppGroupService) GetAppGroupPermissionByCodes(clientID string, codes []string) ([]models.AppGroupPermission, error) {
-	var permissions []models.AppGroupPermission
-	if err := s.db.Where("client_id = ? AND code IN ?", clientID, codes).Find(&permissions).Error; err != nil {
-		return nil, fmt.Errorf("failed to get app group permissions by codes: %w", err)
+	perms, err := s.appGroupPermRepo.FindByCodes(clientID, codes)
+	if err != nil {
+		return nil, e.ErrFailedToGetPermissionByCodes.Wrap(err)
 	}
-	return permissions, nil
+	return perms, nil
 }
 
 // ======================== 应用组角色相关方法 ========================
@@ -242,8 +248,8 @@ func (s *AppGroupService) CreateAppGroupRole(clientID, code, name, description s
 		IsDefault:   isDefault,
 	}
 
-	if err := s.db.Create(role).Error; err != nil {
-		return nil, fmt.Errorf("failed to create app group role: %w", err)
+	if err := s.appGroupRoleRepo.Create(role); err != nil {
+		return nil, e.ErrFailedToCreateAppGroupRole.Wrap(err)
 	}
 
 	return role, nil
@@ -251,37 +257,37 @@ func (s *AppGroupService) CreateAppGroupRole(clientID, code, name, description s
 
 // UpdateAppGroupRole 更新应用组角色
 func (s *AppGroupService) UpdateAppGroupRole(roleID, name, description string, isDefault bool) (*models.AppGroupRole, error) {
-	var role models.AppGroupRole
-	if err := s.db.First(&role, "id = ?", roleID).Error; err != nil {
-		return nil, fmt.Errorf("failed to find role: %w", err)
+	role, err := s.appGroupRoleRepo.FindByID(roleID)
+	if err != nil {
+		return nil, e.ErrFailedToFindRole.Wrap(err)
 	}
 
 	role.Name = name
 	role.Description = description
 	role.IsDefault = isDefault
 
-	if err := s.db.Save(&role).Error; err != nil {
-		return nil, fmt.Errorf("failed to update app group role: %w", err)
+	if err := s.appGroupRoleRepo.Update(role); err != nil {
+		return nil, e.ErrFailedToUpdateAppGroupRole.Wrap(err)
 	}
 
-	return &role, nil
+	return role, nil
 }
 
 // DeleteAppGroupRole 删除应用组角色
 func (s *AppGroupService) DeleteAppGroupRole(roleID string) error {
 	// 先删除角色权限关联
-	if err := s.db.Where("app_group_role_id = ?", roleID).Delete(&models.AppGroupRolesPermissions{}).Error; err != nil {
-		return fmt.Errorf("failed to delete role permission associations: %w", err)
+	if err := s.appGroupRoleRepo.DeleteRolePermissionAssociations(roleID); err != nil {
+		return e.ErrFailedToDeleteRolePermissionAssociations.Wrap(err)
 	}
 
 	// 删除用户角色关联
-	if err := s.db.Where("app_group_role_id = ?", roleID).Delete(&models.AppGroupUsersRoles{}).Error; err != nil {
-		return fmt.Errorf("failed to delete user role associations: %w", err)
+	if err := s.appGroupRoleRepo.DeleteUserRoleAssociations(roleID); err != nil {
+		return e.ErrFailedToDeleteUserRoleAssociations.Wrap(err)
 	}
 
 	// 删除角色
-	if err := s.db.Delete(&models.AppGroupRole{}, "id = ?", roleID).Error; err != nil {
-		return fmt.Errorf("failed to delete app group role: %w", err)
+	if err := s.appGroupRoleRepo.Delete(roleID); err != nil {
+		return e.ErrFailedToDeleteAppGroupRole.Wrap(err)
 	}
 
 	return nil
@@ -289,20 +295,18 @@ func (s *AppGroupService) DeleteAppGroupRole(roleID string) error {
 
 // GetAppGroupRole 获取应用组角色详情
 func (s *AppGroupService) GetAppGroupRole(roleID string) (*models.AppGroupRole, error) {
-	var role models.AppGroupRole
-	if err := s.db.First(&role, "id = ?", roleID).Error; err != nil {
-		return nil, fmt.Errorf("failed to get app group role: %w", err)
+	role, err := s.appGroupRoleRepo.FindByID(roleID)
+	if err != nil {
+		return nil, e.ErrFailedToGetAppGroupRole.Wrap(err)
 	}
-	return &role, nil
+	return role, nil
 }
 
 // GetAppGroupRoles 获取应用组的所有角色
 func (s *AppGroupService) GetAppGroupRoles(clientID string) ([]models.AppGroupRole, error) {
-	var roles []models.AppGroupRole
-	if err := s.db.Where("client_id = ?", clientID).
-		Order("is_default DESC, created_at ASC").
-		Find(&roles).Error; err != nil {
-		return nil, fmt.Errorf("failed to get app group roles: %w", err)
+	roles, err := s.appGroupRoleRepo.FindByClientID(clientID)
+	if err != nil {
+		return nil, e.ErrFailedToGetAppGroupRoles.Wrap(err)
 	}
 	return roles, nil
 }
@@ -323,11 +327,8 @@ func (s *AppGroupService) GetAppGroupRolesWithStats(clientID string) ([]AppGroup
 
 	result := make([]AppGroupRoleWithStats, len(roles))
 	for i, role := range roles {
-		var userCount int64
-		s.db.Model(&models.AppGroupUsersRoles{}).Where("app_group_role_id = ?", role.ID).Count(&userCount)
-
-		var permCount int64
-		s.db.Model(&models.AppGroupRolesPermissions{}).Where("app_group_role_id = ?", role.ID).Count(&permCount)
+		userCount, _ := s.appGroupRoleRepo.CountUsers(role.ID)
+		permCount, _ := s.appGroupRoleRepo.CountPermissions(role.ID)
 
 		result[i] = AppGroupRoleWithStats{
 			AppGroupRole:    role,
@@ -346,11 +347,8 @@ func (s *AppGroupService) GetAppGroupRoleWithStats(roleID string) (*AppGroupRole
 		return nil, err
 	}
 
-	var userCount int64
-	s.db.Model(&models.AppGroupUsersRoles{}).Where("app_group_role_id = ?", role.ID).Count(&userCount)
-
-	var permCount int64
-	s.db.Model(&models.AppGroupRolesPermissions{}).Where("app_group_role_id = ?", role.ID).Count(&permCount)
+	userCount, _ := s.appGroupRoleRepo.CountUsers(role.ID)
+	permCount, _ := s.appGroupRoleRepo.CountPermissions(role.ID)
 
 	return &AppGroupRoleWithStats{
 		AppGroupRole:    *role,
@@ -361,25 +359,31 @@ func (s *AppGroupService) GetAppGroupRoleWithStats(roleID string) (*AppGroupRole
 
 // GrantPermissionsToAppGroupRole 为应用组角色分配权限
 func (s *AppGroupService) GrantPermissionsToAppGroupRole(roleID string, permissionIDs []string) error {
-	var role models.AppGroupRole
-	if err := s.db.First(&role, "id = ?", roleID).Error; err != nil {
-		return fmt.Errorf("failed to find role: %w", err)
+	role, err := s.appGroupRoleRepo.FindByID(roleID)
+	if err != nil {
+		return e.ErrFailedToFindRole.Wrap(err)
 	}
 
-	var permissions []models.AppGroupPermission
-	if err := s.db.Where("id IN ? AND client_id = ?", permissionIDs, role.ClientID).Find(&permissions).Error; err != nil {
-		return fmt.Errorf("failed to find permissions: %w", err)
+	perms, err := s.appGroupPermRepo.FindByIDs(permissionIDs)
+	if err != nil {
+		return e.ErrFailedToFindPermissions.Wrap(err)
 	}
 
-	// 创建关联
-	for _, perm := range permissions {
-		assoc := &models.AppGroupRolesPermissions{
-			AppGroupRoleID:       roleID,
-			AppGroupPermissionID: perm.ID,
+	// 验证权限属于同一客户端
+	for _, perm := range perms {
+		if perm.ClientID != role.ClientID {
+			return e.ErrPermissionNotBelongToClient.WithDetails("permissionID", perm.ID, "clientID", role.ClientID)
 		}
-		if err := s.db.Clauses(clause.OnConflict{DoNothing: true}).Create(assoc).Error; err != nil {
-			return fmt.Errorf("failed to grant permission to role: %w", err)
-		}
+	}
+
+	// 提取权限 ID
+	permIDs := make([]string, len(perms))
+	for i, perm := range perms {
+		permIDs[i] = perm.ID
+	}
+
+	if err := s.appGroupRoleRepo.GrantPermissions(roleID, permIDs); err != nil {
+		return e.ErrFailedToGrantPermissionToRole.Wrap(err)
 	}
 
 	return nil
@@ -387,36 +391,31 @@ func (s *AppGroupService) GrantPermissionsToAppGroupRole(roleID string, permissi
 
 // RevokePermissionsFromAppGroupRole 从应用组角色撤销权限
 func (s *AppGroupService) RevokePermissionsFromAppGroupRole(roleID string, permissionIDs []string) error {
-	if err := s.db.Where("app_group_role_id = ? AND app_group_permission_id IN ?", roleID, permissionIDs).
-		Delete(&models.AppGroupRolesPermissions{}).Error; err != nil {
-		return fmt.Errorf("failed to revoke permissions from role: %w", err)
+	if err := s.appGroupRoleRepo.RevokePermissions(roleID, permissionIDs); err != nil {
+		return e.ErrFailedToRevokePermissionsFromRole.Wrap(err)
 	}
 	return nil
 }
 
 // SetAppGroupRolePermissions 设置应用组角色的权限（替换现有权限）
 func (s *AppGroupService) SetAppGroupRolePermissions(roleID string, permissionIDs []string) error {
-	var role models.AppGroupRole
-	if err := s.db.First(&role, "id = ?", roleID).Error; err != nil {
-		return fmt.Errorf("failed to find role: %w", err)
+	_, err := s.appGroupRoleRepo.FindByID(roleID)
+	if err != nil {
+		return e.ErrFailedToFindRole.Wrap(err)
 	}
 
 	// 开启事务
 	return s.db.Transaction(func(tx *gorm.DB) error {
+		repoWithTx := s.appGroupRoleRepo.WithTx(tx)
+
 		// 删除现有关联
-		if err := tx.Where("app_group_role_id = ?", roleID).Delete(&models.AppGroupRolesPermissions{}).Error; err != nil {
-			return fmt.Errorf("failed to clear existing permissions: %w", err)
+		if err := repoWithTx.ClearPermissions(roleID); err != nil {
+			return e.ErrFailedToClearExistingPermissions.Wrap(err)
 		}
 
 		// 添加新关联
-		for _, permID := range permissionIDs {
-			assoc := &models.AppGroupRolesPermissions{
-				AppGroupRoleID:       roleID,
-				AppGroupPermissionID: permID,
-			}
-			if err := tx.Create(assoc).Error; err != nil {
-				return fmt.Errorf("failed to grant permission to role: %w", err)
-			}
+		if err := repoWithTx.GrantPermissions(roleID, permissionIDs); err != nil {
+			return e.ErrFailedToGrantPermissionToRole.Wrap(err)
 		}
 
 		return nil
@@ -425,9 +424,9 @@ func (s *AppGroupService) SetAppGroupRolePermissions(roleID string, permissionID
 
 // GetAppGroupRolePermissions 获取应用组角色的权限
 func (s *AppGroupService) GetAppGroupRolePermissions(roleID string) ([]models.AppGroupPermission, error) {
-	var role models.AppGroupRole
-	if err := s.db.Preload("Permissions").First(&role, "id = ?", roleID).Error; err != nil {
-		return nil, fmt.Errorf("failed to get role permissions: %w", err)
+	role, err := s.appGroupRoleRepo.FindWithPermissions(roleID)
+	if err != nil {
+		return nil, e.ErrFailedToGetRolePermissions.Wrap(err)
 	}
 	return role.Permissions, nil
 }
@@ -442,8 +441,8 @@ func (s *AppGroupService) AssignAppGroupRoleToUser(userID, roleID, assignedBy st
 		AssignedBy:     assignedBy,
 	}
 
-	if err := s.db.Clauses(clause.OnConflict{DoNothing: true}).Create(assignment).Error; err != nil {
-		return fmt.Errorf("failed to assign role to user: %w", err)
+	if err := s.appGroupUserRoleRepo.Assign(assignment); err != nil {
+		return e.ErrFailedToAssignRoleToUser.Wrap(err)
 	}
 
 	return nil
@@ -451,21 +450,17 @@ func (s *AppGroupService) AssignAppGroupRoleToUser(userID, roleID, assignedBy st
 
 // RevokeAppGroupRoleFromUser 从用户撤销应用组角色
 func (s *AppGroupService) RevokeAppGroupRoleFromUser(userID, roleID string) error {
-	if err := s.db.Where("user_id = ? AND app_group_role_id = ?", userID, roleID).
-		Delete(&models.AppGroupUsersRoles{}).Error; err != nil {
-		return fmt.Errorf("failed to revoke role from user: %w", err)
+	if err := s.appGroupUserRoleRepo.Revoke(userID, roleID); err != nil {
+		return e.ErrFailedToRevokeRoleFromUser.Wrap(err)
 	}
 	return nil
 }
 
 // GetUserAppGroupRoles 获取用户在应用组的所有角色
 func (s *AppGroupService) GetUserAppGroupRoles(userID, clientID string) ([]models.AppGroupRole, error) {
-	var assignments []models.AppGroupUsersRoles
-	if err := s.db.Preload("AppGroupRole").
-		Joins("JOIN app_group_roles ON app_group_users_roles.app_group_role_id = app_group_roles.id").
-		Where("app_group_users_roles.user_id = ? AND app_group_roles.client_id = ?", userID, clientID).
-		Find(&assignments).Error; err != nil {
-		return nil, fmt.Errorf("failed to get user app group roles: %w", err)
+	assignments, err := s.appGroupUserRoleRepo.FindUserRoles(userID, clientID)
+	if err != nil {
+		return nil, e.ErrFailedToGetUserAppGroupRoles.Wrap(err)
 	}
 
 	roles := make([]models.AppGroupRole, len(assignments))
@@ -492,12 +487,9 @@ func (s *AppGroupService) GetUserAppGroupPermissions(userID, clientID string) ([
 		roleIDs[i] = role.ID
 	}
 
-	var permissions []models.AppGroupPermission
-	if err := s.db.Distinct().
-		Joins("JOIN app_group_roles_permissions ON app_group_permissions.id = app_group_roles_permissions.app_group_permission_id").
-		Where("app_group_roles_permissions.app_group_role_id IN ?", roleIDs).
-		Find(&permissions).Error; err != nil {
-		return nil, fmt.Errorf("failed to get user app group permissions: %w", err)
+	permissions, err := s.appGroupPermRepo.FindByRoleIDs(roleIDs)
+	if err != nil {
+		return nil, e.ErrFailedToGetUserAppGroupPermissions.Wrap(err)
 	}
 
 	return permissions, nil
@@ -505,9 +497,9 @@ func (s *AppGroupService) GetUserAppGroupPermissions(userID, clientID string) ([
 
 // GetAppGroupRoleUsers 获取应用组角色的所有用户
 func (s *AppGroupService) GetAppGroupRoleUsers(roleID string) ([]models.Users, error) {
-	var assignments []models.AppGroupUsersRoles
-	if err := s.db.Preload("User").Where("app_group_role_id = ?", roleID).Find(&assignments).Error; err != nil {
-		return nil, fmt.Errorf("failed to get role users: %w", err)
+	assignments, err := s.appGroupUserRoleRepo.FindRoleUsers(roleID)
+	if err != nil {
+		return nil, e.ErrFailedToGetRoleUsers.Wrap(err)
 	}
 
 	users := make([]models.Users, len(assignments))
@@ -520,13 +512,13 @@ func (s *AppGroupService) GetAppGroupRoleUsers(roleID string) ([]models.Users, e
 
 // UserHasAppGroupPermission 检查用户是否拥有应用组权限
 func (s *AppGroupService) UserHasAppGroupPermission(userID, clientID string, permissionCodes []string) (bool, error) {
-	permissions, err := s.GetUserAppGroupPermissions(userID, clientID)
+	perms, err := s.GetUserAppGroupPermissions(userID, clientID)
 	if err != nil {
 		return false, err
 	}
 
 	permMap := make(map[string]bool)
-	for _, perm := range permissions {
+	for _, perm := range perms {
 		permMap[perm.Code] = true
 	}
 
@@ -543,29 +535,29 @@ func (s *AppGroupService) UserHasAppGroupPermission(userID, clientID string, per
 
 // GetDefaultAppGroupRole 获取应用组的默认角色
 func (s *AppGroupService) GetDefaultAppGroupRole(clientID string) (*models.AppGroupRole, error) {
-	var role models.AppGroupRole
-	if err := s.db.Where("client_id = ? AND is_default = ?", clientID, true).First(&role).Error; err != nil {
+	role, err := s.appGroupRoleRepo.FindDefaultRole(clientID)
+	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, nil
 		}
-		return nil, fmt.Errorf("failed to get default role: %w", err)
+		return nil, e.ErrFailedToGetDefaultRole.Wrap(err)
 	}
-	return &role, nil
+	return role, nil
 }
 
 // SetDefaultAppGroupRole 设置应用组的默认角色
 func (s *AppGroupService) SetDefaultAppGroupRole(clientID, roleID string) error {
 	return s.db.Transaction(func(tx *gorm.DB) error {
+		repoWithTx := s.appGroupRoleRepo.WithTx(tx)
+
 		// 取消现有默认角色
-		if err := tx.Model(&models.AppGroupRole{}).Where("client_id = ? AND is_default = ?", clientID, true).
-			Update("is_default", false).Error; err != nil {
-			return fmt.Errorf("failed to clear default role: %w", err)
+		if err := repoWithTx.ClearDefaultRole(clientID); err != nil {
+			return e.ErrFailedToClearDefaultRole.Wrap(err)
 		}
 
 		// 设置新的默认角色
-		if err := tx.Model(&models.AppGroupRole{}).Where("id = ? AND client_id = ?", roleID, clientID).
-			Update("is_default", true).Error; err != nil {
-			return fmt.Errorf("failed to set default role: %w", err)
+		if err := repoWithTx.SetDefaultRole(roleID, clientID); err != nil {
+			return e.ErrFailedToSetDefaultRole.Wrap(err)
 		}
 
 		return nil
