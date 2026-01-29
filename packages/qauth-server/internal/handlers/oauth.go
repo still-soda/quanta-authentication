@@ -1029,8 +1029,8 @@ func (h *OAuthHandler) Logout(c *gin.Context) {
 
 	// 撤销访问令牌和刷新令牌
 	refreshToken := info.GetRefresh()
-	h.oauthSrv.GetManager().RemoveAccessToken(c, token)
-	h.oauthSrv.GetManager().RemoveRefreshToken(c, refreshToken)
+	h.oauthSrv.RevokeToken(token)
+	h.oauthSrv.RevokeRefreshToken(refreshToken)
 
 	// 处理登出重定向，只允许重定向到相对路径或空路径
 	postLogoutRedirectURI := c.Query("post_logout_redirect_uri")

@@ -4,8 +4,9 @@ import (
 	"context"
 	"net/http"
 	"qauth-server/internal/config"
-	app_error "qauth-server/internal/errors"
+	e "qauth-server/internal/errors"
 	"qauth-server/internal/models"
+	"qauth-server/internal/providers"
 	"qauth-server/internal/repository"
 	"qauth-server/internal/utilities"
 	"qauth-server/pkg/jwks"
@@ -15,13 +16,6 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/go-oauth2/oauth2/v4"
-	oautherrors "github.com/go-oauth2/oauth2/v4/errors"
-	"github.com/go-oauth2/oauth2/v4/manage"
-	oauthmodels "github.com/go-oauth2/oauth2/v4/models"
-	"github.com/go-oauth2/oauth2/v4/server"
-	oredis "github.com/go-oauth2/redis/v4"
-	"github.com/go-redis/redis/v8"
 	"gorm.io/gorm"
 )
 
@@ -29,9 +23,7 @@ import (
 type OAuthService struct {
 	db              *gorm.DB
 	cfg             *config.Config
-	server          *server.Server
-	manager         *manage.Manager
-	clientStore     *GormClientStore
+	provider        providers.OAuthProvider
 	jwksManager     *jwks.JWKSManager
 	userService     *UserService
 	appGroupService *AppGroupService
@@ -43,55 +35,6 @@ func (s *OAuthService) SetAppGroupService(appGroupService *AppGroupService) {
 	s.appGroupService = appGroupService
 }
 
-// GormClientStore 基于 GORM 的 OAuth2 客户端存储
-type GormClientStore struct {
-	db *gorm.DB
-}
-
-// NewGormClientStore 创建新的 GORM 客户端存储
-func NewGormClientStore(db *gorm.DB) *GormClientStore {
-	return &GormClientStore{db: db}
-}
-
-// GetByID 根据 ID 获取 OAuth2 客户端
-func (s *GormClientStore) GetByID(ctx context.Context, id string) (oauth2.ClientInfo, error) {
-	var client models.OAuth2Client
-	if err := s.db.WithContext(ctx).First(&client, "id = ?", id).Error; err != nil {
-		if err == gorm.ErrRecordNotFound {
-			return nil, app_error.ErrClientNotFound.WithMessage(id)
-		}
-		return nil, app_error.ErrClientQueryFailed.Wrap(err)
-	}
-
-	return &oauthmodels.Client{
-		ID:     client.ID,
-		Secret: client.Secret,
-		Domain: client.Domain,
-		UserID: client.Data.UserID,
-		Public: client.Data.Public,
-	}, nil
-}
-
-// CustomAccessTokenGenerate 自定义令牌生成器
-type CustomAccessTokenGenerate struct {
-}
-
-func (g *CustomAccessTokenGenerate) Token(ctx context.Context, data *oauth2.GenerateBasic, isGenRefresh bool) (access, refresh string, err error) {
-	access, err = utilities.GenerateRandomString(32)
-	if isGenRefresh {
-		refresh, err = utilities.GenerateRandomString(32)
-	}
-
-	if err != nil {
-		return "", "", app_error.ErrTokenGenerationFailed.Wrap(err)
-	}
-
-	access = "atk:" + access
-	refresh = "rtk:" + refresh
-
-	return access, refresh, err
-}
-
 // NewOAuthService 创建新的 OAuth2 服务
 func NewOAuthService(
 	db *gorm.DB,
@@ -100,97 +43,28 @@ func NewOAuthService(
 	userService *UserService,
 	oauthRepo *repository.OAuthRepository,
 ) *OAuthService {
-	logger := utilities.GetLogger()
-
-	// 创建基于 GORM 的客户端存储
-	clientStore := NewGormClientStore(db)
-
-	// 创建 Redis Token 存储
-	tokenStore := oredis.NewRedisStore(&redis.Options{
-		Addr:     cfg.Redis.Addr,
-		Password: cfg.Redis.Password,
-		DB:       cfg.Redis.DB,
-	}, "oauth2_token:")
-
-	// 创建 OAuth2 管理器
-	manager := manage.NewDefaultManager()
-	manager.MapTokenStorage(tokenStore)
-	manager.MapClientStorage(clientStore)
-
-	// 使用自定义的令牌生成器
-	manager.MapAccessGenerate(&CustomAccessTokenGenerate{})
-
-	// 配置授权码模式
-	manager.SetAuthorizeCodeTokenCfg(&manage.Config{
-		AccessTokenExp:    cfg.JWT.AccessTokenExp,
-		RefreshTokenExp:   cfg.JWT.RefreshTokenExp,
-		IsGenerateRefresh: true,
-	})
-
-	// 配置密码模式
-	manager.SetPasswordTokenCfg(&manage.Config{
-		AccessTokenExp:    cfg.JWT.AccessTokenExp,
-		RefreshTokenExp:   cfg.JWT.RefreshTokenExp,
-		IsGenerateRefresh: true,
-	})
-
-	// 配置客户端凭证模式
-	manager.SetClientTokenCfg(&manage.Config{
-		AccessTokenExp: cfg.JWT.AccessTokenExp,
-	})
-
-	// 配置刷新令牌
-	manager.SetRefreshTokenCfg(&manage.RefreshingConfig{
-		IsGenerateRefresh:  true,
-		IsRemoveAccess:     true,
-		IsRemoveRefreshing: true,
-	})
-
-	// 创建 OAuth2 服务器
-	srv := server.NewDefaultServer(manager)
-	srv.SetAllowGetAccessRequest(true)
-	srv.SetClientInfoHandler(server.ClientFormHandler)
-
 	service := &OAuthService{
 		db:          db,
 		cfg:         cfg,
-		server:      srv,
-		manager:     manager,
-		clientStore: clientStore,
 		jwksManager: jwksManager,
 		userService: userService,
 		oauthRepo:   oauthRepo,
 	}
 
-	// 设置内部错误处理
-	srv.SetInternalErrorHandler(func(err error) (re *oautherrors.Response) {
-		service.recordError("", nil, err.Error())
-		logger.Error("OAuth2 internal error", "error", err)
-		return
-	})
-
-	// 设置响应错误处理
-	srv.SetResponseErrorHandler(func(re *oautherrors.Response) {
-		logger.Error("OAuth2 response error", "error", re.Error, "description", re.Description)
-	})
-
-	// 仅允许授权码模式
-	gt := []oauth2.GrantType{}
-	for _, grantType := range cfg.OAuth.GrantTypesSupported {
-		gt = append(gt, oauth2.GrantType(grantType))
-	}
-	srv.SetAllowedGrantType(gt...)
+	// 创建 OAuth 提供者
+	provider := providers.NewGoOAuth2Provider(db, cfg, service.recordError)
 
 	// 设置用户授权处理器
-	srv.SetUserAuthorizationHandler(service.userAuthorizationHandler)
+	provider.SetUserAuthorizationHandler(service.userAuthorizationHandler)
 
 	// 设置密码授权处理器
-	srv.SetPasswordAuthorizationHandler(service.passwordAuthorizationHandler)
+	provider.SetPasswordAuthorizationHandler(service.passwordAuthorizationHandler)
 
 	// 设置扩展字段处理器
-	srv.SetExtensionFieldsHandler(service.extensionFieldsHandler)
+	provider.SetExtensionFieldsHandler(service.extensionFieldsHandler)
 
-	logger.Info("OAuth2 service initialized")
+	service.provider = provider
+
 	return service
 }
 
@@ -207,14 +81,14 @@ func (s *OAuthService) userAuthorizationHandler(w http.ResponseWriter, r *http.R
 	cookie, err := r.Cookie("access_token")
 	if err != nil {
 		s.recordLoginState("", &clientID, models.LoginTypeOAuth2, false, "user not logged in")
-		return "", app_error.ErrUnauthorized.WithMessage("missing access token")
+		return "", e.ErrUnauthorized.WithMessage("missing access token")
 	}
 
 	// 解析 JWT Token
 	claims, err := app_jwt.ParseAccessToken(cookie.Value)
 	if err != nil {
 		s.recordLoginState("", &clientID, models.LoginTypeOAuth2, false, "invalid access token")
-		return "", app_error.ErrInvalidToken.Wrap(err)
+		return "", e.ErrInvalidToken.Wrap(err)
 	}
 
 	// 验证用户是否存在
@@ -222,15 +96,15 @@ func (s *OAuthService) userAuthorizationHandler(w http.ResponseWriter, r *http.R
 	if err := s.db.First(&user, "id = ?", claims.UserID).Error; err != nil {
 		s.recordLoginState("", &clientID, models.LoginTypeOAuth2, false, "user not found")
 		if err == gorm.ErrRecordNotFound {
-			return "", app_error.ErrUserNotFound.WithMessage(claims.UserID)
+			return "", e.ErrUserNotFound.WithMessage(claims.UserID)
 		}
-		return "", app_error.ErrUserNotFound.Wrap(err)
+		return "", e.ErrUserNotFound.Wrap(err)
 	}
 
 	// 检查用户状态
 	if user.Status != models.UserStatusActive {
 		s.recordLoginState(user.ID, &clientID, models.LoginTypeOAuth2, false, "user account is not active")
-		return "", app_error.ErrUserInactive.WithMessage(user.ID)
+		return "", e.ErrUserInactive.WithMessage(user.ID)
 	}
 
 	s.recordLoginState(user.ID, &clientID, models.LoginTypeOAuth2, true, "")
@@ -244,22 +118,22 @@ func (s *OAuthService) passwordAuthorizationHandler(ctx context.Context, clientI
 	if err := s.db.First(&user, "student_id = ?", username).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
 			s.recordLoginState("", &clientID, models.LoginTypeOAuth2, false, "user not found")
-			return "", app_error.ErrUserNotFound.WithMessage(username)
+			return "", e.ErrUserNotFound.WithMessage(username)
 		}
 		s.recordLoginState("", &clientID, models.LoginTypeOAuth2, false, "database error: "+err.Error())
-		return "", app_error.ErrUserNotFound.Wrap(err)
+		return "", e.ErrUserNotFound.Wrap(err)
 	}
 
 	// 验证密码
 	if !utilities.VerifyPassword(password, user.Salt, user.PasswordHash) {
 		s.recordLoginState(user.ID, &clientID, models.LoginTypeOAuth2, false, "invalid password")
-		return "", app_error.ErrInvalidPassword
+		return "", e.ErrInvalidPassword
 	}
 
 	// 检查用户状态
 	if user.Status != models.UserStatusActive {
 		s.recordLoginState(user.ID, &clientID, models.LoginTypeOAuth2, false, "user account is not active")
-		return "", app_error.ErrUserInactive.WithMessage(user.ID)
+		return "", e.ErrUserInactive.WithMessage(user.ID)
 	}
 
 	// 记录登录状态
@@ -268,7 +142,7 @@ func (s *OAuthService) passwordAuthorizationHandler(ctx context.Context, clientI
 }
 
 // extensionFieldsHandler 扩展字段处理器（用于生成 ID Token）
-func (s *OAuthService) extensionFieldsHandler(ti oauth2.TokenInfo) (fieldsValue map[string]any) {
+func (s *OAuthService) extensionFieldsHandler(ti providers.TokenInfo) (fieldsValue map[string]any) {
 	scopes := strings.Split(ti.GetScope(), " ")
 	if !slices.Contains(scopes, string(config.ScopeOpenID)) {
 		return nil
@@ -277,7 +151,7 @@ func (s *OAuthService) extensionFieldsHandler(ti oauth2.TokenInfo) (fieldsValue 
 	user, err := s.userService.GetUserByID(ti.GetUserID(), false)
 	if err != nil {
 		clientID := ti.GetClientID()
-		s.recordError(ti.GetUserID(), &clientID, app_error.ErrUserNotFound.Wrap(err).Error())
+		s.recordError(ti.GetUserID(), &clientID, e.ErrUserNotFound.Wrap(err).Error())
 		return nil
 	}
 
@@ -343,7 +217,7 @@ func (s *OAuthService) extensionFieldsHandler(ti oauth2.TokenInfo) (fieldsValue 
 	idToken, err := s.jwksManager.SignToken(basic, data)
 	if err != nil {
 		clientID := ti.GetClientID()
-		s.recordError(ti.GetUserID(), &clientID, app_error.ErrIDTokenGenerationFailed.Wrap(err).Error())
+		s.recordError(ti.GetUserID(), &clientID, e.ErrIDTokenGenerationFailed.Wrap(err).Error())
 		return nil
 	}
 
@@ -378,19 +252,19 @@ func (s *OAuthService) recordError(userID string, clientID *string, errMsg strin
 	}
 }
 
-// GetServer 获取 OAuth2 服务器实例
-func (s *OAuthService) GetServer() *server.Server {
-	return s.server
+// GetServer 获取 OAuth2 服务器实例（已弃用，使用 provider 接口）
+func (s *OAuthService) GetServer() providers.OAuthProvider {
+	return s.provider
 }
 
-// GetManager 获取 OAuth2 管理器实例
-func (s *OAuthService) GetManager() *manage.Manager {
-	return s.manager
+// GetManager 获取 OAuth2 管理器实例（已弃用，使用 provider 接口）
+func (s *OAuthService) GetManager() providers.OAuthProvider {
+	return s.provider
 }
 
 // HandleAuthorizeRequest 处理授权请求
 func (s *OAuthService) HandleAuthorizeRequest(w http.ResponseWriter, r *http.Request) error {
-	return s.server.HandleAuthorizeRequest(w, r)
+	return s.provider.HandleAuthorizeRequest(w, r)
 }
 
 // HandlerAuthorizeDeny 处理授权拒绝
@@ -400,18 +274,18 @@ func (s *OAuthService) HandlerAuthorizeDeny(c *gin.Context, redirectUri string) 
 }
 
 // ValidateAuthorizeRequest 验证授权请求
-func (s *OAuthService) ValidateAuthorizeRequest(r *http.Request) (*server.AuthorizeRequest, error) {
-	return s.server.ValidationAuthorizeRequest(r)
+func (s *OAuthService) ValidateAuthorizeRequest(r *http.Request) (*providers.AuthorizeRequest, error) {
+	return s.provider.ValidateAuthorizeRequest(r)
 }
 
 // HandleTokenRequest 处理令牌请求
 func (s *OAuthService) HandleTokenRequest(w http.ResponseWriter, r *http.Request) error {
-	return s.server.HandleTokenRequest(w, r)
+	return s.provider.HandleTokenRequest(w, r)
 }
 
 // ValidateToken 验证访问令牌
-func (s *OAuthService) ValidateToken(r *http.Request) (oauth2.TokenInfo, error) {
-	return s.server.ValidationBearerToken(r)
+func (s *OAuthService) ValidateToken(r *http.Request) (providers.TokenInfo, error) {
+	return s.provider.ValidateToken(r)
 }
 
 // CreateClient 创建 OAuth2 客户端
@@ -579,7 +453,7 @@ func (s *OAuthService) UpdateClientFull(clientID string, params *UpdateClientPar
 	}
 
 	if len(updates) == 0 {
-		return app_error.ErrNoFieldsToUpdate
+		return e.ErrNoFieldsToUpdate
 	}
 
 	return s.oauthRepo.UpdateClientFields(clientID, updates)
@@ -658,25 +532,15 @@ func (s *OAuthService) GetClientStats() (map[string]int64, error) {
 
 // RevokeToken 撤销令牌
 func (s *OAuthService) RevokeToken(accessToken string) error {
-	if err := s.manager.RemoveAccessToken(context.Background(), accessToken); err != nil {
-		return app_error.ErrTokenRevocationFailed.Wrap(err)
-	}
-	return nil
+	return s.provider.RevokeToken(context.Background(), accessToken)
 }
 
 // RevokeRefreshToken 撤销刷新令牌
 func (s *OAuthService) RevokeRefreshToken(refreshToken string) error {
-	if err := s.manager.RemoveRefreshToken(context.Background(), refreshToken); err != nil {
-		return app_error.ErrTokenRevocationFailed.Wrap(err)
-	}
-	return nil
+	return s.provider.RevokeRefreshToken(context.Background(), refreshToken)
 }
 
 // GetTokenInfo 获取令牌信息
-func (s *OAuthService) GetTokenInfo(accessToken string) (oauth2.TokenInfo, error) {
-	info, err := s.manager.LoadAccessToken(context.Background(), accessToken)
-	if err != nil {
-		return nil, app_error.ErrTokenLoadFailed.Wrap(err)
-	}
-	return info, nil
+func (s *OAuthService) GetTokenInfo(accessToken string) (providers.TokenInfo, error) {
+	return s.provider.GetTokenInfo(context.Background(), accessToken)
 }
