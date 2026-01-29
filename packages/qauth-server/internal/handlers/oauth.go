@@ -7,6 +7,7 @@ import (
 	app_error "qauth-server/internal/errors"
 	"qauth-server/internal/models"
 	"qauth-server/internal/permissions"
+	"qauth-server/internal/providers"
 	"qauth-server/internal/services"
 	"qauth-server/internal/utilities"
 	"qauth-server/pkg/jwt"
@@ -20,33 +21,33 @@ import (
 
 // OAuthHandler OAuth2 处理器
 type OAuthHandler struct {
-	oauthService    *services.OAuthService
-	roleService     *services.RoleService
-	userService     *services.UserService
-	oidcService     *services.OIDCService
-	cacheService    *services.CacheService
-	auditService    *services.AuditService
-	appGroupService *services.AppGroupService
+	cacheSrv    providers.ICache
+	oauthSrv    *services.OAuthService
+	roleSrv     *services.RoleService
+	userSrv     *services.UserService
+	oidcSrv     *services.OIDCService
+	auditSrv    *services.AuditService
+	appGroupSrv *services.AppGroupService
 }
 
 // NewOAuthHandler 创建新的 OAuth2 处理器
 func NewOAuthHandler(
-	oauthService *services.OAuthService,
-	roleService *services.RoleService,
-	userService *services.UserService,
-	oidcService *services.OIDCService,
-	cacheService *services.CacheService,
-	auditService *services.AuditService,
-	appGroupService *services.AppGroupService,
+	cache providers.ICache,
+	oauthSrv *services.OAuthService,
+	roleSrv *services.RoleService,
+	userSrv *services.UserService,
+	oidcSrv *services.OIDCService,
+	auditSrv *services.AuditService,
+	appGroupSrv *services.AppGroupService,
 ) *OAuthHandler {
 	return &OAuthHandler{
-		oauthService:    oauthService,
-		roleService:     roleService,
-		userService:     userService,
-		oidcService:     oidcService,
-		cacheService:    cacheService,
-		auditService:    auditService,
-		appGroupService: appGroupService,
+		oauthSrv:    oauthSrv,
+		roleSrv:     roleSrv,
+		userSrv:     userSrv,
+		oidcSrv:     oidcSrv,
+		cacheSrv:    cache,
+		auditSrv:    auditSrv,
+		appGroupSrv: appGroupSrv,
 	}
 }
 
@@ -113,7 +114,7 @@ func (h *OAuthHandler) requestQueryToJSON(r *http.Request) (string, error) {
 // GET /oauth/authorize
 func (h *OAuthHandler) AuthorizePage(c *gin.Context) {
 	// 验证授权请求
-	_, err := h.oauthService.ValidateAuthorizeRequest(c.Request)
+	_, err := h.oauthSrv.ValidateAuthorizeRequest(c.Request)
 	if err != nil {
 		utilities.GetLogger().Error("Validate authorize request error", "error", err)
 		c.Error(app_error.ErrBadRequest)
@@ -137,10 +138,10 @@ func (h *OAuthHandler) AuthorizePage(c *gin.Context) {
 	}
 
 	// 将 authorizeID 和请求参数存储在缓存中，有效期为 60 秒
-	h.cacheService.SetKeyValue("authorize-"+authorizeID, jsonStr, 120)
+	h.cacheSrv.SetKeyValue("authorize-"+authorizeID, jsonStr, 120)
 
 	// 重定向到授权页面
-	authorizePageUrl := h.oauthService.GetConfig().OAuth.AuthorizePageURL + "?aid=" + authorizeID
+	authorizePageUrl := h.oauthSrv.GetConfig().OAuth.AuthorizePageURL + "?aid=" + authorizeID
 	c.Redirect(302, authorizePageUrl)
 }
 
@@ -153,7 +154,7 @@ func (h *OAuthHandler) AuthorizeInfo(c *gin.Context) {
 
 	// 从缓存中获取请求参数
 	authorizeID := r.URL.Query().Get("aid")
-	data, err := h.cacheService.GetKeyValue("authorize-" + authorizeID)
+	data, err := h.cacheSrv.GetKeyValue("authorize-" + authorizeID)
 	if err != nil || data == "" {
 		utilities.GetLogger().Error("Get authorize info from cache error", "error", err)
 		response.HandlerError(c, app_error.ErrBadRequest)
@@ -174,7 +175,7 @@ func (h *OAuthHandler) AuthorizeInfo(c *gin.Context) {
 // verifyAuthorizeID 验证 authorizeID 是否有效且请求 URI 一致
 func (h *OAuthHandler) restoreRequestQuery(c *gin.Context, aid string) error {
 	// 从缓存中获取请求参数
-	data, err := h.cacheService.GetKeyValue("authorize-" + aid)
+	data, err := h.cacheSrv.GetKeyValue("authorize-" + aid)
 	if err != nil || data == "" {
 		utilities.GetLogger().Error("Get authorize info from cache error", "error", err)
 		return app_error.ErrBadRequest
@@ -221,8 +222,8 @@ func (h *OAuthHandler) Authorize(c *gin.Context) {
 	action := c.PostForm("action")
 	if action == "deny" {
 		// 记录授权拒绝
-		h.auditService.LogOAuthAuthorize(c, "", "", &clientID, scopes, "", responseType, redirectUri, false, "user denied")
-		h.oauthService.HandlerAuthorizeDeny(c, redirectUri)
+		h.auditSrv.LogOAuthAuthorize(c, "", "", &clientID, scopes, "", responseType, redirectUri, false, "user denied")
+		h.oauthSrv.HandlerAuthorizeDeny(c, redirectUri)
 		return
 	}
 
@@ -235,22 +236,22 @@ func (h *OAuthHandler) Authorize(c *gin.Context) {
 	c.Request.RequestURI = ""
 
 	// 删除缓存中的授权请求
-	h.cacheService.DeleteKey("authorize-" + authorizeID)
+	h.cacheSrv.DeleteKey("authorize-" + authorizeID)
 
 	// 处理授权请求
 	rt := c.Request.URL.Query().Get("response_type")
-	arts := h.oauthService.GetConfig().OAuth.AllowedResponseTypes
+	arts := h.oauthSrv.GetConfig().OAuth.AllowedResponseTypes
 	isValid := slices.Contains(arts, config.ResponseType(rt))
 
 	// 根据响应类型修改请求以支持隐式授权模式
 	h.modifyResponseType(c, isValid, rt)
 
 	// 处理授权请求
-	err := h.oauthService.HandleAuthorizeRequest(c.Writer, c.Request)
+	err := h.oauthSrv.HandleAuthorizeRequest(c.Writer, c.Request)
 	if err != nil {
 		utilities.GetLogger().Error("OAuth authorize error", "error", err)
 		// 记录授权失败
-		h.auditService.LogOAuthAuthorize(c, "", "", &clientID, scopes, "", responseType, redirectUri, false, err.Error())
+		h.auditSrv.LogOAuthAuthorize(c, "", "", &clientID, scopes, "", responseType, redirectUri, false, err.Error())
 		c.Error(app_error.ErrBadRequest)
 		return
 	}
@@ -260,7 +261,7 @@ func (h *OAuthHandler) Authorize(c *gin.Context) {
 	userName := ""
 	if uid, exists := c.Get("userID"); exists {
 		userID = uid.(string)
-		if user, err := h.userService.GetUserByID(userID, false); err == nil {
+		if user, err := h.userSrv.GetUserByID(userID, false); err == nil {
 			userName = user.Name
 		}
 	}
@@ -268,7 +269,7 @@ func (h *OAuthHandler) Authorize(c *gin.Context) {
 	if userID != "" {
 		operatorID = &userID
 	}
-	h.auditService.Log(&services.AuditContext{
+	h.auditSrv.Log(&services.AuditContext{
 		OperatorID:   operatorID,
 		OperatorName: userName,
 		IP:           c.ClientIP(),
@@ -289,7 +290,7 @@ func (h *OAuthHandler) Authorize(c *gin.Context) {
 	})
 
 	// 增加今日授权计数器
-	h.cacheService.IncrKey("todays-authcount")
+	h.cacheSrv.IncrKey("todays-authcount")
 
 	// 根据响应类型修改重定向位置以支持隐式授权模式
 	h.modifyRedirectLocation(c, isValid, rt)
@@ -302,10 +303,10 @@ func (h *OAuthHandler) Token(c *gin.Context) {
 	clientID := c.PostForm("client_id")
 	grantType := c.PostForm("grant_type")
 
-	err := h.oauthService.HandleTokenRequest(c.Writer, c.Request)
+	err := h.oauthSrv.HandleTokenRequest(c.Writer, c.Request)
 	if err != nil {
 		utilities.GetLogger().Error("OAuth token error", "error", err)
-		h.auditService.LogWithGinContext(c, &services.AuditEntry{
+		h.auditSrv.LogWithGinContext(c, &services.AuditEntry{
 			Module:     models.AuditModuleOAuth,
 			Action:     models.AuditActionOAuthToken,
 			TargetID:   clientID,
@@ -323,7 +324,7 @@ func (h *OAuthHandler) Token(c *gin.Context) {
 	}
 
 	// 记录令牌请求成功
-	h.auditService.LogWithGinContext(c, &services.AuditEntry{
+	h.auditSrv.LogWithGinContext(c, &services.AuditEntry{
 		Module:     models.AuditModuleOAuth,
 		Action:     models.AuditActionOAuthToken,
 		TargetID:   clientID,
@@ -339,7 +340,7 @@ func (h *OAuthHandler) Token(c *gin.Context) {
 // ValidateToken 验证访问令牌
 // POST /oauth/validate
 func (h *OAuthHandler) ValidateToken(c *gin.Context) {
-	tokenInfo, err := h.oauthService.ValidateToken(c.Request)
+	tokenInfo, err := h.oauthSrv.ValidateToken(c.Request)
 	if err != nil {
 		c.Error(app_error.ErrUnauthorized)
 		return
@@ -371,14 +372,14 @@ func (h *OAuthHandler) RevokeToken(c *gin.Context) {
 
 	var err error
 	if req.TokenTypeHint == "refresh_token" {
-		err = h.oauthService.RevokeRefreshToken(req.Token)
+		err = h.oauthSrv.RevokeRefreshToken(req.Token)
 	} else {
-		err = h.oauthService.RevokeToken(req.Token)
+		err = h.oauthSrv.RevokeToken(req.Token)
 	}
 
 	if err != nil {
 		utilities.GetLogger().Error("OAuth revoke error", "error", err)
-		h.auditService.LogWithGinContext(c, &services.AuditEntry{
+		h.auditSrv.LogWithGinContext(c, &services.AuditEntry{
 			Module:       models.AuditModuleOAuth,
 			Action:       models.AuditActionOAuthRevoke,
 			TargetType:   "token",
@@ -391,7 +392,7 @@ func (h *OAuthHandler) RevokeToken(c *gin.Context) {
 	}
 
 	// 记录令牌撤销成功
-	h.auditService.LogWithGinContext(c, &services.AuditEntry{
+	h.auditSrv.LogWithGinContext(c, &services.AuditEntry{
 		Module:     models.AuditModuleOAuth,
 		Action:     models.AuditActionOAuthRevoke,
 		TargetType: "token",
@@ -412,7 +413,7 @@ func (h *OAuthHandler) RevokeToken(c *gin.Context) {
 func (h *OAuthHandler) CreateClient(c *gin.Context) {
 	startTime := time.Now()
 
-	if err := services.VerifyPermissions(c, h.roleService, []string{
+	if err := services.VerifyPermissions(c, h.roleSrv, []string{
 		permissions.OAuthClientCreate,
 	}); err != nil {
 		response.HandlerError(c, err)
@@ -453,7 +454,7 @@ func (h *OAuthHandler) CreateClient(c *gin.Context) {
 		userID = userInfo.(*jwt.UserJWTClaims).UserID
 	}
 
-	client, err := h.oauthService.CreateClientFull(&services.CreateClientParams{
+	client, err := h.oauthSrv.CreateClientFull(&services.CreateClientParams{
 		Name:         req.Name,
 		Description:  req.Description,
 		Domain:       req.Domain,
@@ -471,7 +472,7 @@ func (h *OAuthHandler) CreateClient(c *gin.Context) {
 	})
 	if err != nil {
 		utilities.GetLogger().Error("Create OAuth client error", "error", err)
-		h.auditService.LogWithGinContext(c, &services.AuditEntry{
+		h.auditSrv.LogWithGinContext(c, &services.AuditEntry{
 			Module:       models.AuditModuleClient,
 			Action:       models.AuditActionClientCreate,
 			TargetType:   "oauth_client",
@@ -485,15 +486,15 @@ func (h *OAuthHandler) CreateClient(c *gin.Context) {
 	}
 
 	// 初始化应用组管理员（将创建者设为 owner）
-	if h.appGroupService != nil && userID != "" {
-		if err := h.appGroupService.InitializeAppGroupAdmins(client.ID, userID); err != nil {
+	if h.appGroupSrv != nil && userID != "" {
+		if err := h.appGroupSrv.InitializeAppGroupAdmins(client.ID, userID); err != nil {
 			utilities.GetLogger().Error("Initialize app group admins error", "error", err, "clientID", client.ID)
 			// 不因此失败整个创建流程，只记录警告
 		}
 	}
 
 	// 记录客户端创建成功
-	h.auditService.LogWithGinContext(c, &services.AuditEntry{
+	h.auditSrv.LogWithGinContext(c, &services.AuditEntry{
 		Module:     models.AuditModuleClient,
 		Action:     models.AuditActionClientCreate,
 		TargetID:   client.ID,
@@ -524,7 +525,7 @@ func (h *OAuthHandler) CreateClient(c *gin.Context) {
 // GetClient 获取客户端信息
 // GET /oauth/clients/:id
 func (h *OAuthHandler) GetClient(c *gin.Context) {
-	if err := services.VerifyPermissions(c, h.roleService, []string{
+	if err := services.VerifyPermissions(c, h.roleSrv, []string{
 		permissions.OAuthClientView,
 	}); err != nil {
 		response.HandlerError(c, err)
@@ -533,7 +534,7 @@ func (h *OAuthHandler) GetClient(c *gin.Context) {
 
 	clientID := c.Param("id")
 
-	client, err := h.oauthService.GetClientByID(clientID)
+	client, err := h.oauthSrv.GetClientByID(clientID)
 	if err != nil {
 		response.HandlerError(c, app_error.ErrNotFound)
 		return
@@ -547,7 +548,7 @@ func (h *OAuthHandler) GetClient(c *gin.Context) {
 func (h *OAuthHandler) UpdateClient(c *gin.Context) {
 	startTime := time.Now()
 
-	if err := services.VerifyPermissions(c, h.roleService, []string{
+	if err := services.VerifyPermissions(c, h.roleSrv, []string{
 		permissions.OAuthClientUpdate,
 	}); err != nil {
 		response.HandlerError(c, err)
@@ -576,7 +577,7 @@ func (h *OAuthHandler) UpdateClient(c *gin.Context) {
 	}
 
 	// 获取旧的客户端信息
-	oldClient, _ := h.oauthService.GetClientByID(clientID)
+	oldClient, _ := h.oauthSrv.GetClientByID(clientID)
 
 	// 构建更新参数
 	params := &services.UpdateClientParams{
@@ -597,9 +598,9 @@ func (h *OAuthHandler) UpdateClient(c *gin.Context) {
 		params.Status = &status
 	}
 
-	if err := h.oauthService.UpdateClientFull(clientID, params); err != nil {
+	if err := h.oauthSrv.UpdateClientFull(clientID, params); err != nil {
 		utilities.GetLogger().Error("Update OAuth client error", "error", err)
-		h.auditService.LogWithGinContext(c, &services.AuditEntry{
+		h.auditSrv.LogWithGinContext(c, &services.AuditEntry{
 			Module:       models.AuditModuleClient,
 			Action:       models.AuditActionClientUpdate,
 			TargetID:     clientID,
@@ -613,7 +614,7 @@ func (h *OAuthHandler) UpdateClient(c *gin.Context) {
 	}
 
 	// 获取更新后的客户端
-	updatedClient, _ := h.oauthService.GetClientByID(clientID)
+	updatedClient, _ := h.oauthSrv.GetClientByID(clientID)
 
 	// 记录变更字段
 	changedFields := []string{}
@@ -662,7 +663,7 @@ func (h *OAuthHandler) UpdateClient(c *gin.Context) {
 		targetName = updatedClient.Name
 	}
 
-	h.auditService.LogWithGinContext(c, &services.AuditEntry{
+	h.auditSrv.LogWithGinContext(c, &services.AuditEntry{
 		Module:     models.AuditModuleClient,
 		Action:     models.AuditActionClientUpdate,
 		TargetID:   clientID,
@@ -698,7 +699,7 @@ func (h *OAuthHandler) UpdateClient(c *gin.Context) {
 func (h *OAuthHandler) DeleteClient(c *gin.Context) {
 	startTime := time.Now()
 
-	if err := services.VerifyPermissions(c, h.roleService, []string{
+	if err := services.VerifyPermissions(c, h.roleSrv, []string{
 		permissions.OAuthClientDelete,
 	}); err != nil {
 		response.HandlerError(c, err)
@@ -708,7 +709,7 @@ func (h *OAuthHandler) DeleteClient(c *gin.Context) {
 	clientID := c.Param("id")
 
 	// 获取客户端信息用于审计
-	client, _ := h.oauthService.GetClientByID(clientID)
+	client, _ := h.oauthSrv.GetClientByID(clientID)
 	clientName := ""
 	var deletedClientData map[string]any
 	if client != nil {
@@ -725,9 +726,9 @@ func (h *OAuthHandler) DeleteClient(c *gin.Context) {
 		}
 	}
 
-	if err := h.oauthService.DeleteClient(clientID); err != nil {
+	if err := h.oauthSrv.DeleteClient(clientID); err != nil {
 		utilities.GetLogger().Error("Delete OAuth client error", "error", err)
-		h.auditService.LogWithGinContext(c, &services.AuditEntry{
+		h.auditSrv.LogWithGinContext(c, &services.AuditEntry{
 			Module:       models.AuditModuleClient,
 			Action:       models.AuditActionClientDelete,
 			TargetID:     clientID,
@@ -742,7 +743,7 @@ func (h *OAuthHandler) DeleteClient(c *gin.Context) {
 	}
 
 	// 记录客户端删除
-	h.auditService.LogWithGinContext(c, &services.AuditEntry{
+	h.auditSrv.LogWithGinContext(c, &services.AuditEntry{
 		Module:     models.AuditModuleClient,
 		Action:     models.AuditActionClientDelete,
 		TargetID:   clientID,
@@ -761,7 +762,7 @@ func (h *OAuthHandler) DeleteClient(c *gin.Context) {
 // ListClients 获取客户端列表
 // GET /oauth/clients
 func (h *OAuthHandler) ListClients(c *gin.Context) {
-	if err := services.VerifyPermissions(c, h.roleService, []string{
+	if err := services.VerifyPermissions(c, h.roleSrv, []string{
 		permissions.OAuthClientList,
 	}); err != nil {
 		response.HandlerError(c, err)
@@ -783,7 +784,7 @@ func (h *OAuthHandler) ListClients(c *gin.Context) {
 		params.PageSize = 100
 	}
 
-	clients, total, err := h.oauthService.ListClientsFull(params)
+	clients, total, err := h.oauthSrv.ListClientsFull(params)
 	if err != nil {
 		utilities.GetLogger().Error("List OAuth clients error", "error", err)
 		response.HandlerError(c, app_error.ErrInternalServerError)
@@ -809,7 +810,7 @@ func (h *OAuthHandler) ListClients(c *gin.Context) {
 func (h *OAuthHandler) RegenerateSecret(c *gin.Context) {
 	startTime := time.Now()
 
-	if err := services.VerifyPermissions(c, h.roleService, []string{
+	if err := services.VerifyPermissions(c, h.roleSrv, []string{
 		permissions.OAuthClientUpdate,
 	}); err != nil {
 		response.HandlerError(c, err)
@@ -819,7 +820,7 @@ func (h *OAuthHandler) RegenerateSecret(c *gin.Context) {
 	clientID := c.Param("id")
 
 	// 获取客户端信息
-	client, err := h.oauthService.GetClientByID(clientID)
+	client, err := h.oauthSrv.GetClientByID(clientID)
 	if err != nil {
 		response.HandlerError(c, app_error.ErrNotFound)
 		return
@@ -834,9 +835,9 @@ func (h *OAuthHandler) RegenerateSecret(c *gin.Context) {
 	}
 
 	// 更新密钥
-	if err := h.oauthService.RegenerateClientSecret(clientID, newSecret); err != nil {
+	if err := h.oauthSrv.RegenerateClientSecret(clientID, newSecret); err != nil {
 		utilities.GetLogger().Error("Regenerate client secret error", "error", err)
-		h.auditService.LogWithGinContext(c, &services.AuditEntry{
+		h.auditSrv.LogWithGinContext(c, &services.AuditEntry{
 			Module:       models.AuditModuleClient,
 			Action:       models.AuditActionClientUpdate,
 			TargetID:     clientID,
@@ -851,7 +852,7 @@ func (h *OAuthHandler) RegenerateSecret(c *gin.Context) {
 	}
 
 	// 记录密钥重新生成
-	h.auditService.LogWithGinContext(c, &services.AuditEntry{
+	h.auditSrv.LogWithGinContext(c, &services.AuditEntry{
 		Module:     models.AuditModuleClient,
 		Action:     models.AuditActionClientUpdate,
 		TargetID:   clientID,
@@ -875,14 +876,14 @@ func (h *OAuthHandler) RegenerateSecret(c *gin.Context) {
 // GetClientStats 获取客户端统计
 // GET /oauth/clients/stats
 func (h *OAuthHandler) GetClientStats(c *gin.Context) {
-	if err := services.VerifyPermissions(c, h.roleService, []string{
+	if err := services.VerifyPermissions(c, h.roleSrv, []string{
 		permissions.OAuthClientList,
 	}); err != nil {
 		response.HandlerError(c, err)
 		return
 	}
 
-	stats, err := h.oauthService.GetClientStats()
+	stats, err := h.oauthSrv.GetClientStats()
 	if err != nil {
 		utilities.GetLogger().Error("Get client stats error", "error", err)
 		response.HandlerError(c, app_error.ErrInternalServerError)
@@ -895,14 +896,14 @@ func (h *OAuthHandler) GetClientStats(c *gin.Context) {
 // GetClientOptions 获取创建/编辑客户端时的可选配置项
 // GET /oauth/clients/options
 func (h *OAuthHandler) GetClientOptions(c *gin.Context) {
-	if err := services.VerifyPermissions(c, h.roleService, []string{
+	if err := services.VerifyPermissions(c, h.roleSrv, []string{
 		permissions.OAuthClientList,
 	}); err != nil {
 		response.HandlerError(c, err)
 		return
 	}
 
-	oauthConfig := h.oauthService.GetConfig()
+	oauthConfig := h.oauthSrv.GetConfig()
 
 	// 构建授权范围选项
 	scopeOptions := make([]map[string]string, 0, len(oauthConfig.OAuth.ScopeSupported))
@@ -957,7 +958,7 @@ func (h *OAuthHandler) UserInfo(c *gin.Context) {
 		return
 	}
 
-	info, err := h.oauthService.GetTokenInfo(token)
+	info, err := h.oauthSrv.GetTokenInfo(token)
 	if err != nil {
 		response.HandlerError(c, app_error.ErrInvalidAccessToken)
 		return
@@ -967,9 +968,9 @@ func (h *OAuthHandler) UserInfo(c *gin.Context) {
 	issueAt := info.GetAccessCreateAt().Unix()
 	expiry := info.GetAccessExpiresIn().Seconds() + float64(issueAt)
 	audience := info.GetClientID()
-	issuer := h.oidcService.GetConfig().Issuer
+	issuer := h.oidcSrv.GetConfig().Issuer
 
-	user, err := h.userService.GetUserByID(userID, true)
+	user, err := h.userSrv.GetUserByID(userID, true)
 	if err != nil {
 		response.HandlerError(c, app_error.ErrUserNotFound)
 		return
@@ -1020,7 +1021,7 @@ func (h *OAuthHandler) Logout(c *gin.Context) {
 	}
 
 	// 获取令牌信息
-	info, err := h.oauthService.GetTokenInfo(token)
+	info, err := h.oauthSrv.GetTokenInfo(token)
 	if err != nil {
 		response.HandlerError(c, app_error.ErrInvalidAccessToken)
 		return
@@ -1028,8 +1029,8 @@ func (h *OAuthHandler) Logout(c *gin.Context) {
 
 	// 撤销访问令牌和刷新令牌
 	refreshToken := info.GetRefresh()
-	h.oauthService.GetManager().RemoveAccessToken(c, token)
-	h.oauthService.GetManager().RemoveRefreshToken(c, refreshToken)
+	h.oauthSrv.GetManager().RemoveAccessToken(c, token)
+	h.oauthSrv.GetManager().RemoveRefreshToken(c, refreshToken)
 
 	// 处理登出重定向，只允许重定向到相对路径或空路径
 	postLogoutRedirectURI := c.Query("post_logout_redirect_uri")

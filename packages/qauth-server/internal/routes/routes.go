@@ -31,7 +31,7 @@ func RegisterRoutes(r *gin.Engine, handlers *RegisterRouterHandlers) {
 	oauthHandler := handlers.OAuthHandler
 	oidcHandler := handlers.OIDCHandler
 	roleHandler := handlers.RoleHandler
-	permissionHandler := handlers.PermissionHandler
+	permHandler := handlers.PermissionHandler
 
 	r.Use(
 		middleware.Logger(),
@@ -147,20 +147,20 @@ func RegisterRoutes(r *gin.Engine, handlers *RegisterRouterHandlers) {
 				roleGroup.GET("/:id", roleHandler.GetRole)
 				roleGroup.PUT("/:id", roleHandler.UpdateRole)
 				roleGroup.DELETE("/:id", roleHandler.DeleteRole)
-				roleGroup.GET("/:id/permissions", permissionHandler.GetRolePermissions)
-				roleGroup.PUT("/:id/permissions", permissionHandler.SetRolePermissions)
+				roleGroup.GET("/:id/permissions", permHandler.GetRolePermissions)
+				roleGroup.PUT("/:id/permissions", permHandler.SetRolePermissions)
 			}
 
 			// 权限管理
 			// /system/v1/permissions
 			permissionGroup := authRequiredGroup.Group("/permissions")
 			{
-				permissionGroup.GET("", permissionHandler.GetPermissions)
-				permissionGroup.GET("/grouped", permissionHandler.GetPermissionsGrouped)
-				permissionGroup.POST("", permissionHandler.CreatePermission)
-				permissionGroup.GET("/:id", permissionHandler.GetPermission)
-				permissionGroup.PUT("/:id", permissionHandler.UpdatePermission)
-				permissionGroup.DELETE("/:id", permissionHandler.DeletePermission)
+				permissionGroup.GET("", permHandler.GetPermissions)
+				permissionGroup.GET("/grouped", permHandler.GetPermissionsGrouped)
+				permissionGroup.POST("", permHandler.CreatePermission)
+				permissionGroup.GET("/:id", permHandler.GetPermission)
+				permissionGroup.PUT("/:id", permHandler.UpdatePermission)
+				permissionGroup.DELETE("/:id", permHandler.DeletePermission)
 				permissionGroup.POST("/grant-to-role", roleHandler.GrantPermissionsToRole)
 				permissionGroup.POST("/revoke-from-role", roleHandler.RevokePermissionsFromRole)
 			}

@@ -146,7 +146,7 @@ func (s *AppGroupService) HasAppGroupAdminPermission(clientID, userID string, re
 
 // CreateAppGroupPermission 创建应用组权限
 func (s *AppGroupService) CreateAppGroupPermission(clientID, resource string, action int8, code, name, description string) (*models.AppGroupPermission, error) {
-	permission := &models.AppGroupPermission{
+	perm := &models.AppGroupPermission{
 		ClientID:    clientID,
 		Resource:    resource,
 		Action:      action,
@@ -155,28 +155,28 @@ func (s *AppGroupService) CreateAppGroupPermission(clientID, resource string, ac
 		Description: description,
 	}
 
-	if err := s.appGroupPermRepo.Create(permission); err != nil {
+	if err := s.appGroupPermRepo.Create(perm); err != nil {
 		return nil, e.ErrFailedToCreateAppGroupPermission.Wrap(err)
 	}
 
-	return permission, nil
+	return perm, nil
 }
 
 // UpdateAppGroupPermission 更新应用组权限
 func (s *AppGroupService) UpdateAppGroupPermission(permissionID, name, description string) (*models.AppGroupPermission, error) {
-	permission, err := s.appGroupPermRepo.FindByID(permissionID)
+	perm, err := s.appGroupPermRepo.FindByID(permissionID)
 	if err != nil {
 		return nil, e.ErrFailedToFindPermission.Wrap(err)
 	}
 
-	permission.Name = name
-	permission.Description = description
+	perm.Name = name
+	perm.Description = description
 
-	if err := s.appGroupPermRepo.Update(permission); err != nil {
+	if err := s.appGroupPermRepo.Update(perm); err != nil {
 		return nil, e.ErrFailedToUpdateAppGroupPermission.Wrap(err)
 	}
 
-	return permission, nil
+	return perm, nil
 }
 
 // DeleteAppGroupPermission 删除应用组权限
@@ -196,20 +196,20 @@ func (s *AppGroupService) DeleteAppGroupPermission(permissionID string) error {
 
 // GetAppGroupPermission 获取应用组权限详情
 func (s *AppGroupService) GetAppGroupPermission(permissionID string) (*models.AppGroupPermission, error) {
-	permission, err := s.appGroupPermRepo.FindByID(permissionID)
+	perm, err := s.appGroupPermRepo.FindByID(permissionID)
 	if err != nil {
 		return nil, e.ErrFailedToGetAppGroupPermission.Wrap(err)
 	}
-	return permission, nil
+	return perm, nil
 }
 
 // GetAppGroupPermissions 获取应用组的所有权限
 func (s *AppGroupService) GetAppGroupPermissions(clientID string) ([]models.AppGroupPermission, error) {
-	perms, err := s.appGroupPermRepo.FindByClientID(clientID)
+	perm, err := s.appGroupPermRepo.FindByClientID(clientID)
 	if err != nil {
 		return nil, e.ErrFailedToGetAppGroupPermissions.Wrap(err)
 	}
-	return perms, nil
+	return perm, nil
 }
 
 // GetAppGroupPermissionsByResource 获取应用组按资源分组的权限

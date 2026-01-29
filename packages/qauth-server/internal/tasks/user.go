@@ -2,21 +2,21 @@ package tasks
 
 import (
 	"fmt"
-	"qauth-server/internal/services"
+	"qauth-server/internal/providers"
 	"qauth-server/internal/utilities"
 
 	"github.com/robfig/cron/v3"
 )
 
 type UserTask struct {
-	cacheService *services.CacheService
+	cache providers.ICache
 }
 
 func NewUserTask(
-	cacheService *services.CacheService,
+	cache providers.ICache,
 ) *UserTask {
 	return &UserTask{
-		cacheService: cacheService,
+		cache: cache,
 	}
 }
 
@@ -34,8 +34,8 @@ func (t *UserTask) Register(cronScheduler *cron.Cron) (func(), error) {
 
 // 更新最大活跃用户数到缓存
 func (t *UserTask) SaveDailyMaxActiveUserCount() {
-	activeCnt, err := t.cacheService.CountPrefixKeys("oauth2_token:atk:")
-	maxActiveCnt, err := t.cacheService.GetKeyValueAsInt64("daily-max-active-user-count")
+	activeCnt, err := t.cache.CountPrefixKeys("oauth2_token:atk:")
+	maxActiveCnt, err := t.cache.GetKeyValueAsInt64("daily-max-active-user-count")
 	if err != nil {
 		utilities.GetLogger().Error("failed to save daily max active user count", "error", err.Error(), "cnt", activeCnt)
 		return
@@ -46,5 +46,5 @@ func (t *UserTask) SaveDailyMaxActiveUserCount() {
 	}
 
 	// 保存新的最大活跃用户数，有效期24小时
-	err = t.cacheService.SetKeyValue("daily-max-active-user-count", fmt.Sprint(activeCnt), 24*3600)
+	err = t.cache.SetKeyValue("daily-max-active-user-count", fmt.Sprint(activeCnt), 24*3600)
 }

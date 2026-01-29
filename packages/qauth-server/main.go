@@ -64,6 +64,7 @@ func main() {
 
 	// 创建提供者
 	loggerProvider := providers.NewRootLogger()
+	cacheProvider := providers.NewRedisCache(cfg)
 
 	// 创建仓储
 	appGroupAdminRepo := repository.NewAppGroupAdminRepository(db)
@@ -78,9 +79,6 @@ func main() {
 		panic("failed to create storage service")
 	}
 	defer storeSrv.Close()
-
-	cacheSrv := services.NewCacheService(cfg)
-	defer cacheSrv.Close()
 
 	permSrv := services.NewPermissionService(db)
 	fileSrv := services.NewFileService(storeSrv, db)
@@ -118,14 +116,14 @@ func main() {
 	cronScheduler := cron.New(cron.WithSeconds())
 
 	// 创建定时任务
-	counterTask := tasks.NewCounterTask(counterSrv, cacheSrv, userSrv, oauthSrv)
+	counterTask := tasks.NewCounterTask(cacheProvider, counterSrv, userSrv, oauthSrv)
 	cleanupCounterTask, err := counterTask.Register(cronScheduler)
 	if err != nil {
 		panic("failed to register counter task: " + err.Error())
 	}
 	defer cleanupCounterTask()
 
-	userTask := tasks.NewUserTask(cacheSrv)
+	userTask := tasks.NewUserTask(cacheProvider)
 	cleanupUserTask, err := userTask.Register(cronScheduler)
 	if err != nil {
 		panic("failed to register user task: " + err.Error())
@@ -136,13 +134,13 @@ func main() {
 	healthHandler := handlers.NewHealthHandler()
 	fileHandler := handlers.NewFileHandler(fileSrv)
 	authHandler := handlers.NewAuthHandler(userSrv, roleSrv, auditSrv)
-	oauthHandler := handlers.NewOAuthHandler(oauthSrv, roleSrv, userSrv, oidcSrv, cacheSrv, auditSrv, appGroupSrv)
+	oauthHandler := handlers.NewOAuthHandler(cacheProvider, oauthSrv, roleSrv, userSrv, oidcSrv, auditSrv, appGroupSrv)
 	oidcHandler := handlers.NewOIDCHandler(oidcSrv, userSrv)
 	roleHandler := handlers.NewRoleHandler(roleSrv, permSrv, auditSrv)
-	permissionHandler := handlers.NewPermissionHandler(roleSrv, permSrv, auditSrv)
+	permHandler := handlers.NewPermissionHandler(roleSrv, permSrv, auditSrv)
 	userHandler := handlers.NewUserHandler(userSrv, roleSrv, auditSrv)
 	appGroupHandler := handlers.NewAppGroupHandler(appGroupSrv, oauthSrv, roleSrv, auditSrv)
-	dashboardHandler := business.NewDashboardHandler(userSrv, counterSrv, cacheSrv, oauthSrv)
+	dashboardHandler := business.NewDashboardHandler(cacheProvider, userSrv, counterSrv, oauthSrv)
 	auditHandler := business.NewAuditHandler(auditSrv, roleSrv)
 
 	// 注册路由
@@ -153,7 +151,7 @@ func main() {
 		OAuthHandler:      oauthHandler,
 		OIDCHandler:       oidcHandler,
 		RoleHandler:       roleHandler,
-		PermissionHandler: permissionHandler,
+		PermissionHandler: permHandler,
 		UserHandler:       userHandler,
 		AppGroupHandler:   appGroupHandler,
 		DashboardHandler:  dashboardHandler,

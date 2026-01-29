@@ -2,6 +2,7 @@ package tasks
 
 import (
 	"qauth-server/internal/config"
+	"qauth-server/internal/providers"
 	"qauth-server/internal/services"
 	"qauth-server/internal/utilities"
 
@@ -9,23 +10,23 @@ import (
 )
 
 type CounterTask struct {
-	cacheService   *services.CacheService
-	counterService *services.CounterService
-	userService    *services.UserService
-	authService    *services.OAuthService
+	cache      providers.ICache
+	counterSrv *services.CounterService
+	userSrv    *services.UserService
+	authSrv    *services.OAuthService
 }
 
 func NewCounterTask(
+	cacheService providers.ICache,
 	counterService *services.CounterService,
-	cacheService *services.CacheService,
 	userService *services.UserService,
 	oauthService *services.OAuthService,
 ) *CounterTask {
 	return &CounterTask{
-		counterService: counterService,
-		cacheService:   cacheService,
-		userService:    userService,
-		authService:    oauthService,
+		counterSrv: counterService,
+		cache:      cacheService,
+		userSrv:    userService,
+		authSrv:    oauthService,
 	}
 }
 
@@ -55,47 +56,47 @@ func (t *CounterTask) Register(cronScheduler *cron.Cron) (func(), error) {
 
 // 保存每日认证用户数量到计数器
 func (t *CounterTask) SaveAuthUserCount() {
-	authUserCnt, err := t.cacheService.GetKeyValueAsInt64("todays-authcount")
+	authUserCnt, err := t.cache.GetKeyValueAsInt64("todays-authcount")
 	if err != nil {
 		utilities.GetLogger().Error("faild to save auth user count", "error", err.Error(), "cnt", authUserCnt)
 		return
 	}
 
-	t.counterService.CreateCounter(string(config.CounterAuthUser), authUserCnt)
+	t.counterSrv.CreateCounter(string(config.CounterAuthUser), authUserCnt)
 }
 
 // 保存每周注册的 OAuth 应用数量到计数器
 func (t *CounterTask) SaveWeeklyOAuthAppCount() {
-	oauthAppCnt, err := t.authService.CountClients()
+	oauthAppCnt, err := t.authSrv.CountClients()
 	if err != nil {
 		utilities.GetLogger().Error("failed to save weekly oauth app count", "error", err.Error(), "cnt", oauthAppCnt)
 		return
 	}
 
-	t.counterService.CreateCounter(string(config.CounterOAuthApp), oauthAppCnt)
+	t.counterSrv.CreateCounter(string(config.CounterOAuthApp), oauthAppCnt)
 }
 
 // 保存每日最大活跃用户数量
 func (t *CounterTask) SaveDailyMaxActiveUserCount() {
-	activeUserCnt, err := t.cacheService.GetKeyValueAsInt64("todays-max-active-user-count")
+	activeUserCnt, err := t.cache.GetKeyValueAsInt64("todays-max-active-user-count")
 	if err != nil {
 		utilities.GetLogger().Error("failed to save daily max active user count", "error", err.Error(), "cnt", activeUserCnt)
 		return
 	}
 
-	t.counterService.CreateCounter(string(config.CounterDailyMaxActiveUser), activeUserCnt)
+	t.counterSrv.CreateCounter(string(config.CounterDailyMaxActiveUser), activeUserCnt)
 
 	// 重置当天最大活跃用户数缓存
-	t.cacheService.SetKeyValue("todays-max-active-user-count", "0", 24*3600)
+	t.cache.SetKeyValue("todays-max-active-user-count", "0", 24*3600)
 }
 
 // 保存用户数量到计数器
 func (t *CounterTask) SaveUserCount() {
-	userCnt, err := t.userService.UserCount()
+	userCnt, err := t.userSrv.UserCount()
 	if err != nil {
 		utilities.GetLogger().Error("failed to save user count", "error", err.Error(), "cnt", userCnt)
 		return
 	}
 
-	t.counterService.CreateCounter(string(config.CounterTotalUser), userCnt)
+	t.counterSrv.CreateCounter(string(config.CounterTotalUser), userCnt)
 }
