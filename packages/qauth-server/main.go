@@ -65,6 +65,7 @@ func main() {
 	// 创建提供者
 	loggerProvider := providers.NewRootLogger()
 	cacheProvider := providers.NewRedisCache(cfg)
+	storageProvider := providers.NewLocalStorage(cfg)
 
 	// 创建仓储
 	appGroupAdminRepo := repository.NewAppGroupAdminRepository(db)
@@ -72,20 +73,16 @@ func main() {
 	appGroupRoleRepo := repository.NewAppGroupRoleRepository(db)
 	appGroupUserRoleRepo := repository.NewAppGroupUserRoleRepository(db)
 	auditRepo := repository.NewAuditRepository(db)
+	counterRepo := repository.NewCounterRepository(db)
+	fileRepo := repository.NewFileRepository(db)
 
 	// 创建服务
-	storeSrv, err := services.NewStorageService(cfg)
-	if err != nil {
-		panic("failed to create storage service")
-	}
-	defer storeSrv.Close()
-
 	permSrv := services.NewPermissionService(db)
-	fileSrv := services.NewFileService(storeSrv, db)
+	fileSrv := services.NewFileService(storageProvider, fileRepo)
 	userSrv := services.NewUserService(db)
 	roleSrv := services.NewRoleService(db, permSrv, userSrv)
 	oauthSrv := services.NewOAuthService(db, cfg, jwksMgr, userSrv)
-	counterSrv := services.NewCounterService(db)
+	counterSrv := services.NewCounterService(counterRepo)
 	auditSrv := services.NewAuditService(
 		auditRepo,
 		userSrv,

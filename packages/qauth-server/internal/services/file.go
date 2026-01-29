@@ -3,11 +3,13 @@ package services
 import (
 	"mime/multipart"
 	"net/http"
+	e "qauth-server/internal/errors"
 	"qauth-server/internal/models"
+	"qauth-server/internal/providers"
+	"qauth-server/internal/repository"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
-	"gorm.io/gorm"
 )
 
 func _getMimeType(file multipart.File) string {
@@ -24,12 +26,18 @@ func _getMimeType(file multipart.File) string {
 }
 
 type FileService struct {
-	storageService *StorageService
-	db             *gorm.DB
+	storage providers.IStorage
+	repo    *repository.FileRepository
 }
 
-func NewFileService(storageService *StorageService, db *gorm.DB) *FileService {
-	return &FileService{storageService: storageService, db: db}
+func NewFileService(
+	storage providers.IStorage,
+	repo *repository.FileRepository,
+) *FileService {
+	return &FileService{
+		storage: storage,
+		repo:    repo,
+	}
 }
 
 func (s *FileService) SaveFile(
@@ -48,7 +56,7 @@ func (s *FileService) SaveFile(
 
 	mimeType := _getMimeType(file)
 
-	if err := s.storageService.Upload(ctx, uniqueName, file); err != nil {
+	if err := s.storage.Upload(ctx, uniqueName, file); err != nil {
 		return "", err
 	}
 
@@ -60,8 +68,8 @@ func (s *FileService) SaveFile(
 		CreatorID:  creatorID,
 	}
 
-	if err := s.db.Create(fileRecord).Error; err != nil {
-		return "", err
+	if err := s.repo.Create(fileRecord); err != nil {
+		return "", e.ErrFailedToCreateFile.Wrap(err)
 	}
 
 	return uniqueName, nil
