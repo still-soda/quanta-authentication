@@ -19,8 +19,8 @@ import (
 	"gorm.io/gorm"
 )
 
-// TokenInfo 令牌信息接口
-type TokenInfo interface {
+// ITokenInfo 令牌信息接口
+type ITokenInfo interface {
 	GetClientID() string
 	GetUserID() string
 	GetScope() string
@@ -40,8 +40,8 @@ type AuthorizeRequest struct {
 	State        string
 }
 
-// ClientInfo OAuth 客户端信息接口
-type ClientInfo interface {
+// IClientInfo OAuth 客户端信息接口
+type IClientInfo interface {
 	GetID() string
 	GetSecret() string
 	GetDomain() string
@@ -56,10 +56,16 @@ type UserAuthorizationHandler func(w http.ResponseWriter, r *http.Request) (user
 type PasswordAuthorizationHandler func(ctx context.Context, clientID, username, password string) (userID string, err error)
 
 // ExtensionFieldsHandler 扩展字段处理器（用于生成 ID Token 等）
-type ExtensionFieldsHandler func(ti TokenInfo) (fieldsValue map[string]any)
+type ExtensionFieldsHandler func(ti ITokenInfo) (fieldsValue map[string]any)
 
-// OAuthProvider OAuth 提供者接口
-type OAuthProvider interface {
+// IOAuth OAuth 提供者接口
+type IOAuth interface {
+	// SetResponseErrorHandler 设置响应错误处理器
+	SetResponseErrorHandler(handler func(re *oautherrors.Response))
+
+	// SetInternalErrorHandler 设置内部错误处理器
+	SetInternalErrorHandler(handler func(err error) (re *oautherrors.Response))
+
 	// HandleAuthorizeRequest 处理授权请求
 	HandleAuthorizeRequest(w http.ResponseWriter, r *http.Request) error
 
@@ -70,7 +76,7 @@ type OAuthProvider interface {
 	HandleTokenRequest(w http.ResponseWriter, r *http.Request) error
 
 	// ValidateToken 验证访问令牌
-	ValidateToken(r *http.Request) (TokenInfo, error)
+	ValidateToken(r *http.Request) (ITokenInfo, error)
 
 	// RevokeToken 撤销令牌
 	RevokeToken(ctx context.Context, accessToken string) error
@@ -79,7 +85,7 @@ type OAuthProvider interface {
 	RevokeRefreshToken(ctx context.Context, refreshToken string) error
 
 	// GetTokenInfo 获取令牌信息
-	GetTokenInfo(ctx context.Context, accessToken string) (TokenInfo, error)
+	GetTokenInfo(ctx context.Context, accessToken string) (ITokenInfo, error)
 
 	// SetUserAuthorizationHandler 设置用户授权处理器
 	SetUserAuthorizationHandler(handler UserAuthorizationHandler)
@@ -91,22 +97,22 @@ type OAuthProvider interface {
 	SetExtensionFieldsHandler(handler ExtensionFieldsHandler)
 }
 
-// ClientStore 客户端存储接口
-type ClientStore interface {
+// IClientStore 客户端存储接口
+type IClientStore interface {
 	// GetByID 根据 ID 获取客户端
-	GetByID(ctx context.Context, id string) (ClientInfo, error)
+	GetByID(ctx context.Context, id string) (IClientInfo, error)
 }
 
-// TokenGenerator 令牌生成器接口
-type TokenGenerator interface {
+// ITokenGenerator 令牌生成器接口
+type ITokenGenerator interface {
 	// GenerateAccessToken 生成访问令牌
 	GenerateAccessToken(ctx context.Context, isGenerateRefresh bool) (access, refresh string, err error)
 }
 
 // ========= provider 实现 ========
 
-// GoOAuth2Provider 基于 go-oauth2 库的 OAuth 提供者实现
-type GoOAuth2Provider struct {
+// GoOAuth 基于 go-oauth2 库的 OAuth 提供者实现
+type GoOAuth struct {
 	server      *server.Server
 	manager     *manage.Manager
 	clientStore *gormClientStore
@@ -198,8 +204,8 @@ func (w *tokenInfoWrapper) GetRefresh() string {
 	return w.TokenInfo.GetRefresh()
 }
 
-// NewGoOAuth2Provider 创建新的 go-oauth2 提供者
-func NewGoOAuth2Provider(db *gorm.DB, cfg *config.Config, errorHandler func(string, *string, string)) *GoOAuth2Provider {
+// NewGoOAuth 创建新的 go-oauth2 提供者
+func NewGoOAuth(db *gorm.DB, cfg *config.Config) *GoOAuth {
 	// 创建基于 GORM 的客户端存储
 	clientStore := newGormClientStore(db)
 
@@ -249,14 +255,6 @@ func NewGoOAuth2Provider(db *gorm.DB, cfg *config.Config, errorHandler func(stri
 	srv.SetAllowGetAccessRequest(true)
 	srv.SetClientInfoHandler(server.ClientFormHandler)
 
-	// 设置内部错误处理
-	srv.SetInternalErrorHandler(func(err error) (re *oautherrors.Response) {
-		if errorHandler != nil {
-			errorHandler("", nil, err.Error())
-		}
-		return
-	})
-
 	// 仅允许配置的授权类型
 	gt := []oauth2.GrantType{}
 	for _, grantType := range cfg.OAuth.GrantTypesSupported {
@@ -264,7 +262,7 @@ func NewGoOAuth2Provider(db *gorm.DB, cfg *config.Config, errorHandler func(stri
 	}
 	srv.SetAllowedGrantType(gt...)
 
-	return &GoOAuth2Provider{
+	return &GoOAuth{
 		server:      srv,
 		manager:     mgr,
 		clientStore: clientStore,
@@ -272,13 +270,23 @@ func NewGoOAuth2Provider(db *gorm.DB, cfg *config.Config, errorHandler func(stri
 	}
 }
 
+// SetInternalErrorHandler 设置内部错误处理器
+func (p *GoOAuth) SetInternalErrorHandler(handler func(err error) (re *oautherrors.Response)) {
+	p.server.SetInternalErrorHandler(handler)
+}
+
+// SetResponseErrorHandler 设置响应错误处理器
+func (p *GoOAuth) SetResponseErrorHandler(handler func(re *oautherrors.Response)) {
+	p.server.SetResponseErrorHandler(handler)
+}
+
 // HandleAuthorizeRequest 处理授权请求
-func (p *GoOAuth2Provider) HandleAuthorizeRequest(w http.ResponseWriter, r *http.Request) error {
+func (p *GoOAuth) HandleAuthorizeRequest(w http.ResponseWriter, r *http.Request) error {
 	return p.server.HandleAuthorizeRequest(w, r)
 }
 
 // ValidateAuthorizeRequest 验证授权请求
-func (p *GoOAuth2Provider) ValidateAuthorizeRequest(r *http.Request) (*AuthorizeRequest, error) {
+func (p *GoOAuth) ValidateAuthorizeRequest(r *http.Request) (*AuthorizeRequest, error) {
 	req, err := p.server.ValidationAuthorizeRequest(r)
 	if err != nil {
 		return nil, err
@@ -294,12 +302,12 @@ func (p *GoOAuth2Provider) ValidateAuthorizeRequest(r *http.Request) (*Authorize
 }
 
 // HandleTokenRequest 处理令牌请求
-func (p *GoOAuth2Provider) HandleTokenRequest(w http.ResponseWriter, r *http.Request) error {
+func (p *GoOAuth) HandleTokenRequest(w http.ResponseWriter, r *http.Request) error {
 	return p.server.HandleTokenRequest(w, r)
 }
 
 // ValidateToken 验证访问令牌
-func (p *GoOAuth2Provider) ValidateToken(r *http.Request) (TokenInfo, error) {
+func (p *GoOAuth) ValidateToken(r *http.Request) (ITokenInfo, error) {
 	ti, err := p.server.ValidationBearerToken(r)
 	if err != nil {
 		return nil, err
@@ -308,7 +316,7 @@ func (p *GoOAuth2Provider) ValidateToken(r *http.Request) (TokenInfo, error) {
 }
 
 // RevokeToken 撤销令牌
-func (p *GoOAuth2Provider) RevokeToken(ctx context.Context, accessToken string) error {
+func (p *GoOAuth) RevokeToken(ctx context.Context, accessToken string) error {
 	if err := p.manager.RemoveAccessToken(ctx, accessToken); err != nil {
 		return e.ErrTokenRevocationFailed.Wrap(err)
 	}
@@ -316,7 +324,7 @@ func (p *GoOAuth2Provider) RevokeToken(ctx context.Context, accessToken string) 
 }
 
 // RevokeRefreshToken 撤销刷新令牌
-func (p *GoOAuth2Provider) RevokeRefreshToken(ctx context.Context, refreshToken string) error {
+func (p *GoOAuth) RevokeRefreshToken(ctx context.Context, refreshToken string) error {
 	if err := p.manager.RemoveRefreshToken(ctx, refreshToken); err != nil {
 		return e.ErrTokenRevocationFailed.Wrap(err)
 	}
@@ -324,7 +332,7 @@ func (p *GoOAuth2Provider) RevokeRefreshToken(ctx context.Context, refreshToken 
 }
 
 // GetTokenInfo 获取令牌信息
-func (p *GoOAuth2Provider) GetTokenInfo(ctx context.Context, accessToken string) (TokenInfo, error) {
+func (p *GoOAuth) GetTokenInfo(ctx context.Context, accessToken string) (ITokenInfo, error) {
 	info, err := p.manager.LoadAccessToken(ctx, accessToken)
 	if err != nil {
 		return nil, e.ErrTokenLoadFailed.Wrap(err)
@@ -333,7 +341,7 @@ func (p *GoOAuth2Provider) GetTokenInfo(ctx context.Context, accessToken string)
 }
 
 // SetUserAuthorizationHandler 设置用户授权处理器
-func (p *GoOAuth2Provider) SetUserAuthorizationHandler(handler UserAuthorizationHandler) {
+func (p *GoOAuth) SetUserAuthorizationHandler(handler UserAuthorizationHandler) {
 	// 创建适配器，将我们的接口转换为 go-oauth2 的接口
 	p.server.SetUserAuthorizationHandler(func(w http.ResponseWriter, r *http.Request) (userID string, err error) {
 		return handler(w, r)
@@ -341,7 +349,7 @@ func (p *GoOAuth2Provider) SetUserAuthorizationHandler(handler UserAuthorization
 }
 
 // SetPasswordAuthorizationHandler 设置密码授权处理器
-func (p *GoOAuth2Provider) SetPasswordAuthorizationHandler(handler PasswordAuthorizationHandler) {
+func (p *GoOAuth) SetPasswordAuthorizationHandler(handler PasswordAuthorizationHandler) {
 	// 创建适配器，将我们的接口转换为 go-oauth2 的接口
 	p.server.SetPasswordAuthorizationHandler(func(ctx context.Context, clientID, username, password string) (userID string, err error) {
 		return handler(ctx, clientID, username, password)
@@ -349,7 +357,7 @@ func (p *GoOAuth2Provider) SetPasswordAuthorizationHandler(handler PasswordAutho
 }
 
 // SetExtensionFieldsHandler 设置扩展字段处理器
-func (p *GoOAuth2Provider) SetExtensionFieldsHandler(handler ExtensionFieldsHandler) {
+func (p *GoOAuth) SetExtensionFieldsHandler(handler ExtensionFieldsHandler) {
 	// 创建适配器，将我们的接口转换为 go-oauth2 的接口
 	p.server.SetExtensionFieldsHandler(func(ti oauth2.TokenInfo) (fieldsValue map[string]any) {
 		wrapper := &tokenInfoWrapper{TokenInfo: ti}

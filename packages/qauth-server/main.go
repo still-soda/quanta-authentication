@@ -66,6 +66,7 @@ func main() {
 	loggerProvider := providers.NewRootLogger()
 	cacheProvider := providers.NewRedisCache(cfg)
 	storageProvider := providers.NewLocalStorage(cfg)
+	oauthProvider := providers.NewGoOAuth(db, cfg)
 
 	// 创建仓储
 	appGroupAdminRepo := repository.NewAppGroupAdminRepository(db)
@@ -76,13 +77,24 @@ func main() {
 	counterRepo := repository.NewCounterRepository(db)
 	fileRepo := repository.NewFileRepository(db)
 	oauthRepo := repository.NewOAuthRepository(db)
+	loginStateRepo := repository.NewLoginStateRepository(db)
+	errRecordRepo := repository.NewErrorRecordRepository(db)
 
 	// 创建服务
 	permSrv := services.NewPermissionService(db)
 	fileSrv := services.NewFileService(storageProvider, fileRepo)
 	userSrv := services.NewUserService(db)
 	roleSrv := services.NewRoleService(db, permSrv, userSrv)
-	oauthSrv := services.NewOAuthService(db, cfg, jwksMgr, userSrv, oauthRepo)
+	oauthSrv := services.NewOAuthService(
+		cfg,
+		oauthProvider,
+		jwksMgr,
+		userSrv,
+		oauthRepo,
+		loginStateRepo,
+		errRecordRepo,
+		loggerProvider,
+	)
 	counterSrv := services.NewCounterService(counterRepo)
 	auditSrv := services.NewAuditService(
 		auditRepo,

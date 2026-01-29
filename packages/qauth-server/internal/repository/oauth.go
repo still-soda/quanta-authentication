@@ -19,6 +19,11 @@ func NewOAuthRepository(db *gorm.DB) *OAuthRepository {
 	}
 }
 
+// GetDB 获取数据库实例
+func (r *OAuthRepository) GetDB() *gorm.DB {
+	return r.db
+}
+
 // FindClientByID 根据 ID 获取客户端
 func (r *OAuthRepository) FindClientByID(ctx context.Context, id string) (*models.OAuth2Client, error) {
 	var client models.OAuth2Client
@@ -181,20 +186,4 @@ func (r *OAuthRepository) CountClientsByStatus() ([]ClientStatusCount, error) {
 		return nil, e.ErrClientQueryFailed.Wrap(err)
 	}
 	return statusCounts, nil
-}
-
-// CreateLoginState 创建登录状态记录
-func (r *OAuthRepository) CreateLoginState(loginState *models.LoginState) error {
-	if err := r.db.Create(loginState).Error; err != nil {
-		return e.ErrLoginStateRecordFailed.Wrap(err)
-	}
-	return nil
-}
-
-// CreateErrorRecord 创建错误记录
-func (r *OAuthRepository) CreateErrorRecord(errorRecord *models.ErrorRecord) error {
-	if err := r.db.Create(errorRecord).Error; err != nil {
-		return e.ErrErrorRecordFailed.Wrap(err)
-	}
-	return nil
 }
