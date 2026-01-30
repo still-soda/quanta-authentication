@@ -4,8 +4,8 @@ import (
 	"fmt"
 	app_error "qauth-server/internal/errors"
 	"qauth-server/internal/models"
+	"qauth-server/internal/providers"
 	"qauth-server/internal/services"
-	"qauth-server/internal/utilities"
 	"qauth-server/pkg/jwt"
 	"qauth-server/pkg/response"
 	"time"
@@ -19,6 +19,7 @@ type AppGroupHandler struct {
 	oauthService    *services.OAuthService
 	roleService     *services.RoleService
 	auditService    *services.AuditService
+	logger          providers.ILogger
 }
 
 // NewAppGroupHandler 创建应用组权限处理器
@@ -27,12 +28,14 @@ func NewAppGroupHandler(
 	oauthService *services.OAuthService,
 	roleService *services.RoleService,
 	auditService *services.AuditService,
+	logger providers.ILogger,
 ) *AppGroupHandler {
 	return &AppGroupHandler{
 		appGroupService: appGroupService,
 		oauthService:    oauthService,
 		roleService:     roleService,
 		auditService:    auditService,
+		logger:          logger.With("handler", "AppGroupHandler"),
 	}
 }
 
@@ -92,7 +95,7 @@ func (h *AppGroupHandler) GetAppGroupAdmins(c *gin.Context) {
 
 	admins, err := h.appGroupService.GetAppGroupAdmins(clientID)
 	if err != nil {
-		utilities.GetLogger().Error("failed to get app group admins", "error", err)
+		h.logger.Error("failed to get app group admins", "error", err)
 		response.HandlerError(c, app_error.ErrInternalServerError)
 		return
 	}
@@ -140,7 +143,7 @@ func (h *AppGroupHandler) AddAppGroupAdmin(c *gin.Context) {
 
 	userInfo := h.getUserInfo(c)
 	if err := h.appGroupService.AddAppGroupAdmin(clientID, req.UserID, req.AdminType, userInfo.UserID); err != nil {
-		utilities.GetLogger().Error("failed to add app group admin", "error", err)
+		h.logger.Error("failed to add app group admin", "error", err)
 		h.auditService.LogWithGinContext(c, &services.AuditEntry{
 			Module:       models.AuditModuleOAuth,
 			Action:       models.AuditActionAppGroupAdminAdd,
@@ -198,7 +201,7 @@ func (h *AppGroupHandler) RemoveAppGroupAdmin(c *gin.Context) {
 	}
 
 	if err := h.appGroupService.RemoveAppGroupAdmin(clientID, userID, adminType); err != nil {
-		utilities.GetLogger().Error("failed to remove app group admin", "error", err)
+		h.logger.Error("failed to remove app group admin", "error", err)
 		h.auditService.LogWithGinContext(c, &services.AuditEntry{
 			Module:       models.AuditModuleOAuth,
 			Action:       models.AuditActionAppGroupAdminRemove,
@@ -253,7 +256,7 @@ func (h *AppGroupHandler) GetAppGroupPermissions(c *gin.Context) {
 
 	permissions, err := h.appGroupService.GetAppGroupPermissions(clientID)
 	if err != nil {
-		utilities.GetLogger().Error("failed to get app group permissions", "error", err)
+		h.logger.Error("failed to get app group permissions", "error", err)
 		response.HandlerError(c, app_error.ErrInternalServerError)
 		return
 	}
@@ -288,7 +291,7 @@ func (h *AppGroupHandler) GetAppGroupPermissionsGrouped(c *gin.Context) {
 
 	grouped, err := h.appGroupService.GetAppGroupPermissionsByResource(clientID)
 	if err != nil {
-		utilities.GetLogger().Error("failed to get grouped permissions", "error", err)
+		h.logger.Error("failed to get grouped permissions", "error", err)
 		response.HandlerError(c, app_error.ErrInternalServerError)
 		return
 	}
@@ -342,7 +345,7 @@ func (h *AppGroupHandler) CreateAppGroupPermission(c *gin.Context) {
 		clientID, req.Resource, req.Action, fullCode, req.Name, req.Description,
 	)
 	if err != nil {
-		utilities.GetLogger().Error("failed to create app group permission", "error", err)
+		h.logger.Error("failed to create app group permission", "error", err)
 		h.auditService.LogWithGinContext(c, &services.AuditEntry{
 			Module:       models.AuditModuleOAuth,
 			Action:       models.AuditActionAppGroupPermissionCreate,
@@ -402,7 +405,7 @@ func (h *AppGroupHandler) UpdateAppGroupPermission(c *gin.Context) {
 
 	permission, err := h.appGroupService.UpdateAppGroupPermission(permissionID, req.Name, req.Description)
 	if err != nil {
-		utilities.GetLogger().Error("failed to update app group permission", "error", err)
+		h.logger.Error("failed to update app group permission", "error", err)
 		h.auditService.LogWithGinContext(c, &services.AuditEntry{
 			Module:       models.AuditModuleOAuth,
 			Action:       models.AuditActionAppGroupPermissionUpdate,
@@ -456,7 +459,7 @@ func (h *AppGroupHandler) DeleteAppGroupPermission(c *gin.Context) {
 	}
 
 	if err := h.appGroupService.DeleteAppGroupPermission(permissionID); err != nil {
-		utilities.GetLogger().Error("failed to delete app group permission", "error", err)
+		h.logger.Error("failed to delete app group permission", "error", err)
 		h.auditService.LogWithGinContext(c, &services.AuditEntry{
 			Module:       models.AuditModuleOAuth,
 			Action:       models.AuditActionAppGroupPermissionDelete,
@@ -512,7 +515,7 @@ func (h *AppGroupHandler) GetAppGroupRoles(c *gin.Context) {
 
 	roles, err := h.appGroupService.GetAppGroupRolesWithStats(clientID)
 	if err != nil {
-		utilities.GetLogger().Error("failed to get app group roles", "error", err)
+		h.logger.Error("failed to get app group roles", "error", err)
 		response.HandlerError(c, app_error.ErrInternalServerError)
 		return
 	}
@@ -536,7 +539,7 @@ func (h *AppGroupHandler) GetAppGroupRole(c *gin.Context) {
 
 	role, err := h.appGroupService.GetAppGroupRoleWithStats(roleID)
 	if err != nil {
-		utilities.GetLogger().Error("failed to get app group role", "error", err)
+		h.logger.Error("failed to get app group role", "error", err)
 		response.HandlerError(c, app_error.ErrInternalServerError)
 		return
 	}
@@ -578,7 +581,7 @@ func (h *AppGroupHandler) CreateAppGroupRole(c *gin.Context) {
 
 	role, err := h.appGroupService.CreateAppGroupRole(clientID, fullCode, req.Name, req.Description, req.IsDefault)
 	if err != nil {
-		utilities.GetLogger().Error("failed to create app group role", "error", err)
+		h.logger.Error("failed to create app group role", "error", err)
 		h.auditService.LogWithGinContext(c, &services.AuditEntry{
 			Module:       models.AuditModuleOAuth,
 			Action:       models.AuditActionAppGroupRoleCreate,
@@ -638,7 +641,7 @@ func (h *AppGroupHandler) UpdateAppGroupRole(c *gin.Context) {
 
 	role, err := h.appGroupService.UpdateAppGroupRole(roleID, req.Name, req.Description, req.IsDefault)
 	if err != nil {
-		utilities.GetLogger().Error("failed to update app group role", "error", err)
+		h.logger.Error("failed to update app group role", "error", err)
 		h.auditService.LogWithGinContext(c, &services.AuditEntry{
 			Module:       models.AuditModuleOAuth,
 			Action:       models.AuditActionAppGroupRoleUpdate,
@@ -693,7 +696,7 @@ func (h *AppGroupHandler) DeleteAppGroupRole(c *gin.Context) {
 	}
 
 	if err := h.appGroupService.DeleteAppGroupRole(roleID); err != nil {
-		utilities.GetLogger().Error("failed to delete app group role", "error", err)
+		h.logger.Error("failed to delete app group role", "error", err)
 		h.auditService.LogWithGinContext(c, &services.AuditEntry{
 			Module:       models.AuditModuleOAuth,
 			Action:       models.AuditActionAppGroupRoleDelete,
@@ -742,7 +745,7 @@ func (h *AppGroupHandler) GetAppGroupRolePermissions(c *gin.Context) {
 
 	permissions, err := h.appGroupService.GetAppGroupRolePermissions(roleID)
 	if err != nil {
-		utilities.GetLogger().Error("failed to get role permissions", "error", err)
+		h.logger.Error("failed to get role permissions", "error", err)
 		response.HandlerError(c, app_error.ErrInternalServerError)
 		return
 	}
@@ -778,7 +781,7 @@ func (h *AppGroupHandler) SetAppGroupRolePermissions(c *gin.Context) {
 	}
 
 	if err := h.appGroupService.SetAppGroupRolePermissions(roleID, req.PermissionIDs); err != nil {
-		utilities.GetLogger().Error("failed to set role permissions", "error", err)
+		h.logger.Error("failed to set role permissions", "error", err)
 		h.auditService.LogWithGinContext(c, &services.AuditEntry{
 			Module:       models.AuditModuleOAuth,
 			Action:       models.AuditActionAppGroupRoleAssignPermissions,
@@ -825,7 +828,7 @@ func (h *AppGroupHandler) GetAppGroupRoleUsers(c *gin.Context) {
 
 	users, err := h.appGroupService.GetAppGroupRoleUsers(roleID)
 	if err != nil {
-		utilities.GetLogger().Error("failed to get role users", "error", err)
+		h.logger.Error("failed to get role users", "error", err)
 		response.HandlerError(c, app_error.ErrInternalServerError)
 		return
 	}
@@ -874,7 +877,7 @@ func (h *AppGroupHandler) AssignAppGroupRoleToUser(c *gin.Context) {
 
 	userInfo := h.getUserInfo(c)
 	if err := h.appGroupService.AssignAppGroupRoleToUser(req.UserID, roleID, userInfo.UserID); err != nil {
-		utilities.GetLogger().Error("failed to assign role to user", "error", err)
+		h.logger.Error("failed to assign role to user", "error", err)
 		h.auditService.LogWithGinContext(c, &services.AuditEntry{
 			Module:       models.AuditModuleOAuth,
 			Action:       models.AuditActionAppGroupUserAssignRoles,
@@ -920,7 +923,7 @@ func (h *AppGroupHandler) RevokeAppGroupRoleFromUser(c *gin.Context) {
 	}
 
 	if err := h.appGroupService.RevokeAppGroupRoleFromUser(userID, roleID); err != nil {
-		utilities.GetLogger().Error("failed to revoke role from user", "error", err)
+		h.logger.Error("failed to revoke role from user", "error", err)
 		h.auditService.LogWithGinContext(c, &services.AuditEntry{
 			Module:       models.AuditModuleOAuth,
 			Action:       models.AuditActionAppGroupUserRevokeRoles,
@@ -965,7 +968,7 @@ func (h *AppGroupHandler) GetUserAppGroupRoles(c *gin.Context) {
 
 	roles, err := h.appGroupService.GetUserAppGroupRoles(userID, clientID)
 	if err != nil {
-		utilities.GetLogger().Error("failed to get user roles", "error", err)
+		h.logger.Error("failed to get user roles", "error", err)
 		response.HandlerError(c, app_error.ErrInternalServerError)
 		return
 	}
@@ -995,7 +998,7 @@ func (h *AppGroupHandler) GetUserAppGroupPermissions(c *gin.Context) {
 
 	permissions, err := h.appGroupService.GetUserAppGroupPermissions(userID, clientID)
 	if err != nil {
-		utilities.GetLogger().Error("failed to get user permissions", "error", err)
+		h.logger.Error("failed to get user permissions", "error", err)
 		response.HandlerError(c, app_error.ErrInternalServerError)
 		return
 	}

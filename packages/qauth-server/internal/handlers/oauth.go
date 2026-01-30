@@ -28,6 +28,7 @@ type OAuthHandler struct {
 	oidcSrv     *services.OIDCService
 	auditSrv    *services.AuditService
 	appGroupSrv *services.AppGroupService
+	logger      providers.ILogger
 }
 
 // NewOAuthHandler 创建新的 OAuth2 处理器
@@ -39,6 +40,7 @@ func NewOAuthHandler(
 	oidcSrv *services.OIDCService,
 	auditSrv *services.AuditService,
 	appGroupSrv *services.AppGroupService,
+	logger providers.ILogger,
 ) *OAuthHandler {
 	return &OAuthHandler{
 		oauthSrv:    oauthSrv,
@@ -48,6 +50,7 @@ func NewOAuthHandler(
 		cacheSrv:    cache,
 		auditSrv:    auditSrv,
 		appGroupSrv: appGroupSrv,
+		logger:      logger.With("handler", "OAuthHandler"),
 	}
 }
 
@@ -116,7 +119,7 @@ func (h *OAuthHandler) AuthorizePage(c *gin.Context) {
 	// 验证授权请求
 	_, err := h.oauthSrv.ValidateAuthorizeRequest(c.Request)
 	if err != nil {
-		utilities.GetLogger().Error("Validate authorize request error", "error", err)
+		h.logger.Error("Validate authorize request error", "error", err)
 		c.Error(app_error.ErrBadRequest)
 		return
 	}
@@ -124,7 +127,7 @@ func (h *OAuthHandler) AuthorizePage(c *gin.Context) {
 	// 将请求查询参数转换为 JSON 字符串
 	jsonStr, err := h.requestQueryToJSON(c.Request)
 	if err != nil {
-		utilities.GetLogger().Error("Convert request query to JSON error", "error", err)
+		h.logger.Error("Convert request query to JSON error", "error", err)
 		c.Error(app_error.ErrInternalServerError)
 		return
 	}
@@ -132,7 +135,7 @@ func (h *OAuthHandler) AuthorizePage(c *gin.Context) {
 	// 生成 authorizeID
 	authorizeID, err := utilities.GenerateRandomString(32)
 	if err != nil {
-		utilities.GetLogger().Error("Generate authorize ID error", "error", err)
+		h.logger.Error("Generate authorize ID error", "error", err)
 		c.Error(app_error.ErrInternalServerError)
 		return
 	}
@@ -156,7 +159,7 @@ func (h *OAuthHandler) AuthorizeInfo(c *gin.Context) {
 	authorizeID := r.URL.Query().Get("aid")
 	data, err := h.cacheSrv.GetKeyValue("authorize-" + authorizeID)
 	if err != nil || data == "" {
-		utilities.GetLogger().Error("Get authorize info from cache error", "error", err)
+		h.logger.Error("Get authorize info from cache error", "error", err)
 		response.HandlerError(c, app_error.ErrBadRequest)
 		return
 	}
@@ -164,7 +167,7 @@ func (h *OAuthHandler) AuthorizeInfo(c *gin.Context) {
 	// 将 JSON 字符串解析为 map
 	var params map[string]any
 	if err := json.Unmarshal([]byte(data), &params); err != nil {
-		utilities.GetLogger().Error("Parse authorize info JSON error", "error", err)
+		h.logger.Error("Parse authorize info JSON error", "error", err)
 		response.HandlerError(c, app_error.ErrInternalServerError)
 		return
 	}
@@ -177,14 +180,14 @@ func (h *OAuthHandler) restoreRequestQuery(c *gin.Context, aid string) error {
 	// 从缓存中获取请求参数
 	data, err := h.cacheSrv.GetKeyValue("authorize-" + aid)
 	if err != nil || data == "" {
-		utilities.GetLogger().Error("Get authorize info from cache error", "error", err)
+		h.logger.Error("Get authorize info from cache error", "error", err)
 		return app_error.ErrBadRequest
 	}
 
 	// 将 JSON 字符串解析为 map
 	var params map[string]any
 	if err := json.Unmarshal([]byte(data), &params); err != nil {
-		utilities.GetLogger().Error("Parse authorize info JSON error", "error", err)
+		h.logger.Error("Parse authorize info JSON error", "error", err)
 		return app_error.ErrInternalServerError
 	}
 
@@ -249,7 +252,7 @@ func (h *OAuthHandler) Authorize(c *gin.Context) {
 	// 处理授权请求
 	err := h.oauthSrv.HandleAuthorizeRequest(c.Writer, c.Request)
 	if err != nil {
-		utilities.GetLogger().Error("OAuth authorize error", "error", err)
+		h.logger.Error("OAuth authorize error", "error", err)
 		// 记录授权失败
 		h.auditSrv.LogOAuthAuthorize(c, "", "", &clientID, scopes, "", responseType, redirectUri, false, err.Error())
 		c.Error(app_error.ErrBadRequest)
@@ -305,7 +308,7 @@ func (h *OAuthHandler) Token(c *gin.Context) {
 
 	err := h.oauthSrv.HandleTokenRequest(c.Writer, c.Request)
 	if err != nil {
-		utilities.GetLogger().Error("OAuth token error", "error", err)
+		h.logger.Error("OAuth token error", "error", err)
 		h.auditSrv.LogWithGinContext(c, &services.AuditEntry{
 			Module:     models.AuditModuleOAuth,
 			Action:     models.AuditActionOAuthToken,
@@ -378,7 +381,7 @@ func (h *OAuthHandler) RevokeToken(c *gin.Context) {
 	}
 
 	if err != nil {
-		utilities.GetLogger().Error("OAuth revoke error", "error", err)
+		h.logger.Error("OAuth revoke error", "error", err)
 		h.auditSrv.LogWithGinContext(c, &services.AuditEntry{
 			Module:       models.AuditModuleOAuth,
 			Action:       models.AuditActionOAuthRevoke,
@@ -443,7 +446,7 @@ func (h *OAuthHandler) CreateClient(c *gin.Context) {
 	// 生成安全的客户端密钥
 	secret, err := utilities.GenerateRandomString(32)
 	if err != nil {
-		utilities.GetLogger().Error("Generate client secret error", "error", err)
+		h.logger.Error("Generate client secret error", "error", err)
 		response.HandlerError(c, app_error.ErrInternalServerError)
 		return
 	}
@@ -471,7 +474,7 @@ func (h *OAuthHandler) CreateClient(c *gin.Context) {
 		UserID:       userID,
 	})
 	if err != nil {
-		utilities.GetLogger().Error("Create OAuth client error", "error", err)
+		h.logger.Error("Create OAuth client error", "error", err)
 		h.auditSrv.LogWithGinContext(c, &services.AuditEntry{
 			Module:       models.AuditModuleClient,
 			Action:       models.AuditActionClientCreate,
@@ -488,7 +491,7 @@ func (h *OAuthHandler) CreateClient(c *gin.Context) {
 	// 初始化应用组管理员（将创建者设为 owner）
 	if h.appGroupSrv != nil && userID != "" {
 		if err := h.appGroupSrv.InitializeAppGroupAdmins(client.ID, userID); err != nil {
-			utilities.GetLogger().Error("Initialize app group admins error", "error", err, "clientID", client.ID)
+			h.logger.Error("Initialize app group admins error", "error", err, "clientID", client.ID)
 			// 不因此失败整个创建流程，只记录警告
 		}
 	}
@@ -599,7 +602,7 @@ func (h *OAuthHandler) UpdateClient(c *gin.Context) {
 	}
 
 	if err := h.oauthSrv.UpdateClientFull(clientID, params); err != nil {
-		utilities.GetLogger().Error("Update OAuth client error", "error", err)
+		h.logger.Error("Update OAuth client error", "error", err)
 		h.auditSrv.LogWithGinContext(c, &services.AuditEntry{
 			Module:       models.AuditModuleClient,
 			Action:       models.AuditActionClientUpdate,
@@ -727,7 +730,7 @@ func (h *OAuthHandler) DeleteClient(c *gin.Context) {
 	}
 
 	if err := h.oauthSrv.DeleteClient(clientID); err != nil {
-		utilities.GetLogger().Error("Delete OAuth client error", "error", err)
+		h.logger.Error("Delete OAuth client error", "error", err)
 		h.auditSrv.LogWithGinContext(c, &services.AuditEntry{
 			Module:       models.AuditModuleClient,
 			Action:       models.AuditActionClientDelete,
@@ -786,7 +789,7 @@ func (h *OAuthHandler) ListClients(c *gin.Context) {
 
 	clients, total, err := h.oauthSrv.ListClientsFull(params)
 	if err != nil {
-		utilities.GetLogger().Error("List OAuth clients error", "error", err)
+		h.logger.Error("List OAuth clients error", "error", err)
 		response.HandlerError(c, app_error.ErrInternalServerError)
 		return
 	}
@@ -829,14 +832,14 @@ func (h *OAuthHandler) RegenerateSecret(c *gin.Context) {
 	// 生成新的密钥
 	newSecret, err := utilities.GenerateRandomString(32)
 	if err != nil {
-		utilities.GetLogger().Error("Generate client secret error", "error", err)
+		h.logger.Error("Generate client secret error", "error", err)
 		response.HandlerError(c, app_error.ErrInternalServerError)
 		return
 	}
 
 	// 更新密钥
 	if err := h.oauthSrv.RegenerateClientSecret(clientID, newSecret); err != nil {
-		utilities.GetLogger().Error("Regenerate client secret error", "error", err)
+		h.logger.Error("Regenerate client secret error", "error", err)
 		h.auditSrv.LogWithGinContext(c, &services.AuditEntry{
 			Module:       models.AuditModuleClient,
 			Action:       models.AuditActionClientUpdate,
@@ -885,7 +888,7 @@ func (h *OAuthHandler) GetClientStats(c *gin.Context) {
 
 	stats, err := h.oauthSrv.GetClientStats()
 	if err != nil {
-		utilities.GetLogger().Error("Get client stats error", "error", err)
+		h.logger.Error("Get client stats error", "error", err)
 		response.HandlerError(c, app_error.ErrInternalServerError)
 		return
 	}

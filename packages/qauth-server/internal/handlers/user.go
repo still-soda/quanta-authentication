@@ -6,6 +6,7 @@ import (
 	"qauth-server/internal/config/permissions"
 	app_error "qauth-server/internal/errors"
 	"qauth-server/internal/models"
+	"qauth-server/internal/providers"
 	"qauth-server/internal/services"
 	"qauth-server/internal/utilities"
 	"qauth-server/pkg/response"
@@ -18,17 +19,20 @@ type UserHandler struct {
 	userService  *services.UserService
 	roleService  *services.RoleService
 	auditService *services.AuditService
+	logger       providers.ILogger
 }
 
 func NewUserHandler(
 	userService *services.UserService,
 	roleService *services.RoleService,
 	auditService *services.AuditService,
+	logger providers.ILogger,
 ) *UserHandler {
 	return &UserHandler{
 		userService:  userService,
 		roleService:  roleService,
 		auditService: auditService,
+		logger:       logger.With("handler", "UserHandler"),
 	}
 }
 
@@ -36,7 +40,7 @@ func NewUserHandler(
 func (h *UserHandler) ListUsers(c *gin.Context) {
 	// 验证权限
 	if err := services.VerifyPermissions(c, h.roleService, []string{permissions.UserList}); err != nil {
-		utilities.GetLogger().Error("permission denied when listing users", "error", err.Error())
+		h.logger.Error("permission denied when listing users", "error", err.Error())
 		response.HandlerError(c, err)
 		return
 	}
@@ -53,7 +57,7 @@ func (h *UserHandler) ListUsers(c *gin.Context) {
 
 	result, err := h.userService.ListUsers(params)
 	if err != nil {
-		utilities.GetLogger().Error("failed to list users", "error", err.Error())
+		h.logger.Error("failed to list users", "error", err.Error())
 		response.HandlerError(c, app_error.ErrFailedToGetUsers)
 		return
 	}
@@ -73,7 +77,7 @@ func (h *UserHandler) GetUser(c *gin.Context) {
 
 	user, err := h.userService.GetUserWithStats(userID)
 	if err != nil {
-		utilities.GetLogger().Error("failed to get user", "user_id", userID, "error", err.Error())
+		h.logger.Error("failed to get user", "user_id", userID, "error", err.Error())
 		response.HandlerError(c, app_error.ErrUserNotFound)
 		return
 	}
@@ -126,7 +130,7 @@ func (h *UserHandler) CreateUser(c *gin.Context) {
 		DisplayName: req.DisplayName,
 	})
 	if err != nil {
-		utilities.GetLogger().Error("failed to create user", "error", err.Error())
+		h.logger.Error("failed to create user", "error", err.Error())
 		h.auditService.LogWithGinContext(c, &services.AuditEntry{
 			Module:       models.AuditModuleUser,
 			Action:       models.AuditActionUserCreate,
@@ -149,7 +153,7 @@ func (h *UserHandler) CreateUser(c *gin.Context) {
 	// 如果提供了角色 ID，分配角色
 	if len(req.RoleIDs) > 0 {
 		if err := h.userService.SetUserRoles(user.ID, req.RoleIDs); err != nil {
-			utilities.GetLogger().Error("failed to assign roles to user", "user_id", user.ID, "error", err.Error())
+			h.logger.Error("failed to assign roles to user", "user_id", user.ID, "error", err.Error())
 			// 不中断流程，用户已创建成功
 		}
 	}
@@ -206,7 +210,7 @@ func (h *UserHandler) UpdateUser(c *gin.Context) {
 	// 获取旧用户信息
 	oldUser, err := h.userService.GetUserByID(userID, false)
 	if err != nil {
-		utilities.GetLogger().Error("user not found", "user_id", userID)
+		h.logger.Error("user not found", "user_id", userID)
 		response.HandlerError(c, app_error.ErrUserNotFound)
 		return
 	}
@@ -226,7 +230,7 @@ func (h *UserHandler) UpdateUser(c *gin.Context) {
 	// 更新用户
 	user, err := h.userService.UpdateUserByID(userID, updateParams)
 	if err != nil {
-		utilities.GetLogger().Error("failed to update user", "user_id", userID, "error", err.Error())
+		h.logger.Error("failed to update user", "user_id", userID, "error", err.Error())
 		h.auditService.LogWithGinContext(c, &services.AuditEntry{
 			Module:       models.AuditModuleUser,
 			Action:       models.AuditActionUserUpdate,
@@ -288,14 +292,14 @@ func (h *UserHandler) DeleteUser(c *gin.Context) {
 	// 获取用户信息
 	user, err := h.userService.GetUserByID(userID, false)
 	if err != nil {
-		utilities.GetLogger().Error("user not found", "user_id", userID)
+		h.logger.Error("user not found", "user_id", userID)
 		response.HandlerError(c, app_error.ErrUserNotFound)
 		return
 	}
 
 	// 删除用户
 	if err := h.userService.DeleteUser(userID); err != nil {
-		utilities.GetLogger().Error("failed to delete user", "user_id", userID, "error", err.Error())
+		h.logger.Error("failed to delete user", "user_id", userID, "error", err.Error())
 		h.auditService.LogWithGinContext(c, &services.AuditEntry{
 			Module:       models.AuditModuleUser,
 			Action:       models.AuditActionUserDelete,
@@ -343,7 +347,7 @@ func (h *UserHandler) GetUserRoles(c *gin.Context) {
 
 	roles, err := h.userService.GetUserRoles(userID)
 	if err != nil {
-		utilities.GetLogger().Error("failed to get user roles", "user_id", userID, "error", err.Error())
+		h.logger.Error("failed to get user roles", "user_id", userID, "error", err.Error())
 		response.HandlerError(c, app_error.ErrUserNotFound)
 		return
 	}
@@ -386,7 +390,7 @@ func (h *UserHandler) SetUserRoles(c *gin.Context) {
 
 	// 设置新角色
 	if err := h.userService.SetUserRoles(userID, req.RoleIDs); err != nil {
-		utilities.GetLogger().Error("failed to set user roles", "user_id", userID, "error", err.Error())
+		h.logger.Error("failed to set user roles", "user_id", userID, "error", err.Error())
 		h.auditService.LogWithGinContext(c, &services.AuditEntry{
 			Module:       models.AuditModuleUser,
 			Action:       models.AuditActionUserUpdate,
@@ -455,7 +459,7 @@ func (h *UserHandler) AssignRolesToUser(c *gin.Context) {
 
 	// 分配角色
 	if err := h.userService.AssignRolesToUser(userID, req.RoleIDs); err != nil {
-		utilities.GetLogger().Error("failed to assign roles to user", "user_id", userID, "error", err.Error())
+		h.logger.Error("failed to assign roles to user", "user_id", userID, "error", err.Error())
 		h.auditService.LogWithGinContext(c, &services.AuditEntry{
 			Module:       models.AuditModuleUser,
 			Action:       models.AuditActionUserUpdate,
@@ -526,7 +530,7 @@ func (h *UserHandler) RevokeRolesFromUser(c *gin.Context) {
 
 	// 撤销角色
 	if err := h.userService.RevokeRolesFromUser(userID, req.RoleIDs); err != nil {
-		utilities.GetLogger().Error("failed to revoke roles from user", "user_id", userID, "error", err.Error())
+		h.logger.Error("failed to revoke roles from user", "user_id", userID, "error", err.Error())
 		h.auditService.LogWithGinContext(c, &services.AuditEntry{
 			Module:       models.AuditModuleUser,
 			Action:       models.AuditActionUserUpdate,
@@ -605,7 +609,7 @@ func (h *UserHandler) ResetUserPassword(c *gin.Context) {
 
 	// 重置密码
 	if err := h.userService.ResetPassword(userID, newPassword); err != nil {
-		utilities.GetLogger().Error("failed to reset user password", "user_id", userID, "error", err.Error())
+		h.logger.Error("failed to reset user password", "user_id", userID, "error", err.Error())
 		h.auditService.LogWithGinContext(c, &services.AuditEntry{
 			Module:       models.AuditModuleUser,
 			Action:       models.AuditActionPasswordReset,
@@ -652,7 +656,7 @@ func (h *UserHandler) GetUserStatusCounts(c *gin.Context) {
 
 	counts, err := h.userService.GetUserStatusCounts()
 	if err != nil {
-		utilities.GetLogger().Error("failed to get user status counts", "error", err.Error())
+		h.logger.Error("failed to get user status counts", "error", err.Error())
 		response.HandlerError(c, app_error.ErrFailedToGetUsers)
 		return
 	}

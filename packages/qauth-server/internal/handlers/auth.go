@@ -3,6 +3,7 @@ package handlers
 import (
 	app_error "qauth-server/internal/errors"
 	"qauth-server/internal/models"
+	"qauth-server/internal/providers"
 	"qauth-server/internal/services"
 	"qauth-server/pkg/jwt"
 	"qauth-server/pkg/response"
@@ -15,17 +16,20 @@ type AuthHandler struct {
 	userService  *services.UserService
 	roleService  *services.RoleService
 	auditService *services.AuditService
+	logger       providers.ILogger
 }
 
 func NewAuthHandler(
 	userService *services.UserService,
 	roleService *services.RoleService,
 	auditService *services.AuditService,
+	logger providers.ILogger,
 ) *AuthHandler {
 	return &AuthHandler{
 		userService:  userService,
 		roleService:  roleService,
 		auditService: auditService,
+		logger:       logger.With("handler", "AuthHandler"),
 	}
 }
 

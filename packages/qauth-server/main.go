@@ -154,16 +154,16 @@ func main() {
 
 	// 创建处理器
 	healthHandler := handlers.NewHealthHandler()
-	fileHandler := handlers.NewFileHandler(fileSrv)
-	authHandler := handlers.NewAuthHandler(userSrv, roleSrv, auditSrv)
-	oauthHandler := handlers.NewOAuthHandler(cacheProvider, oauthSrv, roleSrv, userSrv, oidcSrv, auditSrv, appGroupSrv)
-	oidcHandler := handlers.NewOIDCHandler(oidcSrv, userSrv)
-	roleHandler := handlers.NewRoleHandler(roleSrv, permSrv, auditSrv)
-	permHandler := handlers.NewPermissionHandler(roleSrv, permSrv, auditSrv)
-	userHandler := handlers.NewUserHandler(userSrv, roleSrv, auditSrv)
-	appGroupHandler := handlers.NewAppGroupHandler(appGroupSrv, oauthSrv, roleSrv, auditSrv)
-	dashboardHandler := business.NewDashboardHandler(cacheProvider, userSrv, counterSrv, oauthSrv)
-	auditHandler := business.NewAuditHandler(auditSrv, roleSrv)
+	fileHandler := handlers.NewFileHandler(fileSrv, loggerProvider)
+	authHandler := handlers.NewAuthHandler(userSrv, roleSrv, auditSrv, loggerProvider)
+	oauthHandler := handlers.NewOAuthHandler(cacheProvider, oauthSrv, roleSrv, userSrv, oidcSrv, auditSrv, appGroupSrv, loggerProvider)
+	oidcHandler := handlers.NewOIDCHandler(oidcSrv, userSrv, loggerProvider)
+	roleHandler := handlers.NewRoleHandler(roleSrv, permSrv, auditSrv, loggerProvider)
+	permHandler := handlers.NewPermissionHandler(roleSrv, permSrv, auditSrv, loggerProvider)
+	userHandler := handlers.NewUserHandler(userSrv, roleSrv, auditSrv, loggerProvider)
+	appGroupHandler := handlers.NewAppGroupHandler(appGroupSrv, oauthSrv, roleSrv, auditSrv, loggerProvider)
+	dashboardHandler := business.NewDashboardHandler(cacheProvider, userSrv, counterSrv, oauthSrv, loggerProvider)
+	auditHandler := business.NewAuditHandler(auditSrv, roleSrv, loggerProvider)
 
 	// 注册路由
 	routes.RegisterRoutes(r, &routes.RegisterRouterHandlers{

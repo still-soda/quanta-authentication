@@ -5,7 +5,6 @@ import (
 	e "qauth-server/internal/errors"
 	"qauth-server/internal/providers"
 	"qauth-server/internal/services"
-	"qauth-server/internal/utilities"
 	"qauth-server/pkg/response"
 
 	"github.com/gin-gonic/gin"
@@ -16,6 +15,7 @@ type DashboardHandler struct {
 	userSrv    *services.UserService
 	counterSrv *services.CounterService
 	oauthSrv   *services.OAuthService
+	logger     providers.ILogger
 }
 
 func NewDashboardHandler(
@@ -23,12 +23,14 @@ func NewDashboardHandler(
 	userSrv *services.UserService,
 	counterSrv *services.CounterService,
 	oauthSrv *services.OAuthService,
+	logger providers.ILogger,
 ) *DashboardHandler {
 	return &DashboardHandler{
 		cache:      cache,
 		userSrv:    userSrv,
 		counterSrv: counterSrv,
 		oauthSrv:   oauthSrv,
+		logger:     logger.With("handler", "DashboardHandler"),
 	}
 }
 
@@ -37,13 +39,13 @@ func (h *DashboardHandler) GetDashboardStats(c *gin.Context) {
 	// 获取用户总数
 	userCnt, err := h.userSrv.UserCount()
 	if err != nil {
-		utilities.GetLogger().Error("failed to get total user count", "error", err.Error())
+		h.logger.Error("failed to get total user count", "error", err.Error())
 		response.HandlerError(c, e.ErrInternalServerError)
 		return
 	}
 	userCounter, err := h.counterSrv.GetRecentCounter(string(config.CounterTotalUser), 9, nil)
 	if err != nil {
-		utilities.GetLogger().Error("failed to get total user trend", "error", err.Error())
+		h.logger.Error("failed to get total user trend", "error", err.Error())
 		response.HandlerError(c, e.ErrInternalServerError)
 		return
 	}
@@ -58,13 +60,13 @@ func (h *DashboardHandler) GetDashboardStats(c *gin.Context) {
 	// 获取最近10天的认证用户数量趋势
 	authCounter, err := h.counterSrv.GetRecentCounter(string(config.CounterAuthUser), 9, &services.ZERO)
 	if err != nil {
-		utilities.GetLogger().Error("failed to get recent auth user count", "error", err.Error())
+		h.logger.Error("failed to get recent auth user count", "error", err.Error())
 		response.HandlerError(c, e.ErrInternalServerError)
 		return
 	}
 	userAuthCnt, err := h.cache.GetKeyValueAsInt64("todays-authcount")
 	if err != nil {
-		utilities.GetLogger().Error("failed to get todays auth count", "error", err.Error())
+		h.logger.Error("failed to get todays auth count", "error", err.Error())
 		response.HandlerError(c, e.ErrInternalServerError)
 		return
 	}
@@ -79,13 +81,13 @@ func (h *DashboardHandler) GetDashboardStats(c *gin.Context) {
 	// 获取最近 10 周的 OAuth 应用注册数量趋势
 	oauthAppCounter, err := h.counterSrv.GetRecentCounter(string(config.CounterOAuthApp), 9, nil)
 	if err != nil {
-		utilities.GetLogger().Error("failed to get recent oauth app count", "error", err.Error())
+		h.logger.Error("failed to get recent oauth app count", "error", err.Error())
 		response.HandlerError(c, e.ErrInternalServerError)
 		return
 	}
 	oauthAppCnt, err := h.oauthSrv.CountClients()
 	if err != nil {
-		utilities.GetLogger().Error("failed to get weekly oauth app count", "error", err.Error())
+		h.logger.Error("failed to get weekly oauth app count", "error", err.Error())
 		response.HandlerError(c, e.ErrInternalServerError)
 		return
 	}
@@ -100,13 +102,13 @@ func (h *DashboardHandler) GetDashboardStats(c *gin.Context) {
 	// 获取当前活跃 User 数量
 	realtimeActiveCnt, err := h.cache.CountPrefixKeys("oauth2_token:atk:")
 	if err != nil {
-		utilities.GetLogger().Error("failed to get active user count", "error", err.Error())
+		h.logger.Error("failed to get active user count", "error", err.Error())
 		response.HandlerError(c, e.ErrInternalServerError)
 		return
 	}
 	maxActiveTrend, err := h.counterSrv.GetRecentCounter(string(config.CounterDailyMaxActiveUser), 9, &services.ZERO)
 	if err != nil {
-		utilities.GetLogger().Error("failed to get active user trend", "error", err.Error())
+		h.logger.Error("failed to get active user trend", "error", err.Error())
 		response.HandlerError(c, e.ErrInternalServerError)
 		return
 	}
@@ -134,7 +136,7 @@ func (h *DashboardHandler) GetDashboardStats(c *gin.Context) {
 func (h *DashboardHandler) GetUserDistributionByRole(c *gin.Context) {
 	roleCountMap, err := h.userSrv.GetUserCountByRole()
 	if err != nil {
-		utilities.GetLogger().Error("failed to get user distribution by role", "error", err.Error())
+		h.logger.Error("failed to get user distribution by role", "error", err.Error())
 		response.HandlerError(c, e.ErrInternalServerError)
 		return
 	}
@@ -196,21 +198,21 @@ func (h *DashboardHandler) GetAuthTrend(c *gin.Context) {
 	case "monthly":
 		days = 30
 	default:
-		utilities.GetLogger().Error("invalid range type for auth trend", "range", rangeType)
+		h.logger.Error("invalid range type for auth trend", "range", rangeType)
 		response.HandlerError(c, e.ErrBadRequest)
 		return
 	}
 
 	authCounter, err := h.counterSrv.GetRecentCounter(string(config.CounterAuthUser), days-1, &services.ZERO)
 	if err != nil {
-		utilities.GetLogger().Error("failed to get auth user trend", "error", err.Error())
+		h.logger.Error("failed to get auth user trend", "error", err.Error())
 		response.HandlerError(c, e.ErrInternalServerError)
 		return
 	}
 
 	authCountToday, err := h.cache.GetKeyValueAsInt64("todays-authcount")
 	if err != nil {
-		utilities.GetLogger().Error("failed to get today's auth user count", "error", err.Error())
+		h.logger.Error("failed to get today's auth user count", "error", err.Error())
 		response.HandlerError(c, e.ErrInternalServerError)
 		return
 	}

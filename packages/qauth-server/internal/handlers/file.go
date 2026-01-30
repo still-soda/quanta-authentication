@@ -2,6 +2,7 @@ package handlers
 
 import (
 	app_error "qauth-server/internal/errors"
+	"qauth-server/internal/providers"
 	"qauth-server/internal/services"
 	"qauth-server/pkg/response"
 
@@ -10,10 +11,14 @@ import (
 
 type FileHandler struct {
 	fileService services.FileService
+	logger      providers.ILogger
 }
 
-func NewFileHandler(fileService *services.FileService) *FileHandler {
-	return &FileHandler{fileService: *fileService}
+func NewFileHandler(fileService *services.FileService, logger providers.ILogger) *FileHandler {
+	return &FileHandler{
+		fileService: *fileService,
+		logger:      logger.With("handler", "FileHandler"),
+	}
 }
 
 func (h *FileHandler) Upload(c *gin.Context) {

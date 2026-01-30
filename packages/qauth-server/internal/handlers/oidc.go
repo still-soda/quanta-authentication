@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"qauth-server/internal/providers"
 	"qauth-server/internal/services"
 	"qauth-server/pkg/response"
 
@@ -11,14 +12,20 @@ import (
 type OIDCHandler struct {
 	oidcService *services.OIDCService
 	userService *services.UserService
+	logger      providers.ILogger
 }
 
 // NewOIDCHandler 创建新的 OIDC 处理器
 func NewOIDCHandler(
 	oidcService *services.OIDCService,
 	userService *services.UserService,
+	logger providers.ILogger,
 ) *OIDCHandler {
-	return &OIDCHandler{oidcService: oidcService, userService: userService}
+	return &OIDCHandler{
+		oidcService: oidcService,
+		userService: userService,
+		logger:      logger.With("handler", "OIDCHandler"),
+	}
 }
 
 // GetOpenIDConfiguration 获取 OpenID Connect 配置

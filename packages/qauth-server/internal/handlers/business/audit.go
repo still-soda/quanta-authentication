@@ -4,6 +4,7 @@ import (
 	"qauth-server/internal/config/permissions"
 	app_error "qauth-server/internal/errors"
 	"qauth-server/internal/models"
+	"qauth-server/internal/providers"
 	"qauth-server/internal/services"
 	"qauth-server/pkg/response"
 	"time"
@@ -15,16 +16,19 @@ import (
 type AuditHandler struct {
 	auditService *services.AuditService
 	roleService  *services.RoleService
+	logger       providers.ILogger
 }
 
 // NewAuditHandler 创建审计日志处理器
 func NewAuditHandler(
 	auditService *services.AuditService,
 	roleService *services.RoleService,
+	logger providers.ILogger,
 ) *AuditHandler {
 	return &AuditHandler{
 		auditService: auditService,
 		roleService:  roleService,
+		logger:       logger.With("handler", "AuditHandler"),
 	}
 }
 

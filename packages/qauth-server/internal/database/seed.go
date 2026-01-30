@@ -114,8 +114,8 @@ func SeedingDB(db *gorm.DB) error {
 	// 创建服务
 	loggerProvider := providers.NewRootLogger()
 	permSrv := services.NewPermissionService(permRepo, loggerProvider)
-	userSrv := services.NewUserService(userRepo, auditRepo)
-	roleService := services.NewRoleService(roleRepo, usersRolesRepo, rolesPermsRepo, permSrv, userSrv)
+	userSrv := services.NewUserService(userRepo, auditRepo, loggerProvider)
+	roleService := services.NewRoleService(roleRepo, usersRolesRepo, rolesPermsRepo, permSrv, userSrv, loggerProvider)
 
 	// 超级管理员：拥有所有权限
 	roleService.GrantPermissionToRole(superAdmin.ID, []string{

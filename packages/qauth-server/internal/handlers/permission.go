@@ -4,6 +4,7 @@ import (
 	"qauth-server/internal/config/permissions"
 	app_error "qauth-server/internal/errors"
 	"qauth-server/internal/models"
+	"qauth-server/internal/providers"
 	"qauth-server/internal/repository"
 	"qauth-server/internal/services"
 	"qauth-server/internal/utilities"
@@ -17,17 +18,20 @@ type PermissionHandler struct {
 	roleService       *services.RoleService
 	permissionService *services.PermissionService
 	auditService      *services.AuditService
+	logger            providers.ILogger
 }
 
 func NewPermissionHandler(
 	roleService *services.RoleService,
 	permissionService *services.PermissionService,
 	auditService *services.AuditService,
+	logger providers.ILogger,
 ) *PermissionHandler {
 	return &PermissionHandler{
 		roleService:       roleService,
 		permissionService: permissionService,
 		auditService:      auditService,
+		logger:            logger.With("handler", "PermissionHandler"),
 	}
 }
 
@@ -35,7 +39,7 @@ func NewPermissionHandler(
 func (h *PermissionHandler) GetPermissions(c *gin.Context) {
 	// 验证是否有查看角色权限（查看权限需要角色查看权限）
 	if err := services.VerifyPermissions(c, h.roleService, []string{permissions.RoleView}); err != nil {
-		utilities.GetLogger().Error("permission denied when getting permissions", "error", err.Error())
+		h.logger.Error("permission denied when getting permissions", "error", err.Error())
 		response.HandlerError(c, err)
 		return
 	}
@@ -53,7 +57,7 @@ func (h *PermissionHandler) GetPermissions(c *gin.Context) {
 	if c.Query("all") == "true" {
 		perms, err := h.permissionService.GetAllPermissions()
 		if err != nil {
-			utilities.GetLogger().Error("failed to get permissions", "error", err.Error())
+			h.logger.Error("failed to get permissions", "error", err.Error())
 			response.HandlerError(c, app_error.ErrInternalServerError)
 			return
 		}
@@ -64,7 +68,7 @@ func (h *PermissionHandler) GetPermissions(c *gin.Context) {
 	// 分页查询
 	result, err := h.permissionService.ListPermissions(params)
 	if err != nil {
-		utilities.GetLogger().Error("failed to list permissions", "error", err.Error())
+		h.logger.Error("failed to list permissions", "error", err.Error())
 		response.HandlerError(c, app_error.ErrInternalServerError)
 		return
 	}
@@ -76,7 +80,7 @@ func (h *PermissionHandler) GetPermissions(c *gin.Context) {
 func (h *PermissionHandler) GetPermissionsGrouped(c *gin.Context) {
 	// 验证是否有查看角色权限
 	if err := services.VerifyPermissions(c, h.roleService, []string{permissions.RoleView}); err != nil {
-		utilities.GetLogger().Error("permission denied when getting grouped permissions", "error", err.Error())
+		h.logger.Error("permission denied when getting grouped permissions", "error", err.Error())
 		response.HandlerError(c, err)
 		return
 	}
@@ -84,7 +88,7 @@ func (h *PermissionHandler) GetPermissionsGrouped(c *gin.Context) {
 	// 获取按资源分组的权限
 	grouped, err := h.permissionService.GetPermissionsGroupedByResource()
 	if err != nil {
-		utilities.GetLogger().Error("failed to get grouped permissions", "error", err.Error())
+		h.logger.Error("failed to get grouped permissions", "error", err.Error())
 		response.HandlerError(c, app_error.ErrInternalServerError)
 		return
 	}
@@ -105,7 +109,7 @@ func (h *PermissionHandler) GetPermission(c *gin.Context) {
 	// 获取权限
 	perm, err := h.permissionService.GetPermissionByID(permissionID)
 	if err != nil {
-		utilities.GetLogger().Error("failed to get permission", "error", err.Error())
+		h.logger.Error("failed to get permission", "error", err.Error())
 		response.HandlerError(c, app_error.ErrPermissionNoExist)
 		return
 	}
@@ -138,7 +142,7 @@ func (h *PermissionHandler) CreatePermission(c *gin.Context) {
 	// 创建权限
 	perm, err := h.permissionService.CreatePermission(req.Resource, req.Action, req.Code, req.Description)
 	if err != nil {
-		utilities.GetLogger().Error("failed to create permission", "error", err.Error())
+		h.logger.Error("failed to create permission", "error", err.Error())
 		h.auditService.LogWithGinContext(c, &services.AuditEntry{
 			Module:       models.AuditModulePermission,
 			Action:       models.AuditActionPermissionCreate,
@@ -201,7 +205,7 @@ func (h *PermissionHandler) UpdatePermission(c *gin.Context) {
 	// 获取旧权限信息
 	oldPerm, err := h.permissionService.GetPermissionByID(permissionID)
 	if err != nil {
-		utilities.GetLogger().Error("failed to get permission before update", "error", err.Error())
+		h.logger.Error("failed to get permission before update", "error", err.Error())
 		response.HandlerError(c, app_error.ErrPermissionNoExist)
 		return
 	}
@@ -209,7 +213,7 @@ func (h *PermissionHandler) UpdatePermission(c *gin.Context) {
 	// 更新权限
 	perm, err := h.permissionService.UpdatePermission(permissionID, req.Resource, req.Action, req.Code, req.Description)
 	if err != nil {
-		utilities.GetLogger().Error("failed to update permission", "error", err.Error())
+		h.logger.Error("failed to update permission", "error", err.Error())
 		h.auditService.LogWithGinContext(c, &services.AuditEntry{
 			Module:       models.AuditModulePermission,
 			Action:       models.AuditActionPermissionUpdate,
@@ -268,14 +272,14 @@ func (h *PermissionHandler) DeletePermission(c *gin.Context) {
 	// 获取权限信息
 	perm, err := h.permissionService.GetPermissionByID(permissionID)
 	if err != nil {
-		utilities.GetLogger().Error("failed to get permission before delete", "error", err.Error())
+		h.logger.Error("failed to get permission before delete", "error", err.Error())
 		response.HandlerError(c, app_error.ErrPermissionNoExist)
 		return
 	}
 
 	// 删除权限
 	if err := h.permissionService.DeletePermission(permissionID); err != nil {
-		utilities.GetLogger().Error("failed to delete permission", "error", err.Error())
+		h.logger.Error("failed to delete permission", "error", err.Error())
 		h.auditService.LogWithGinContext(c, &services.AuditEntry{
 			Module:       models.AuditModulePermission,
 			Action:       models.AuditActionPermissionDelete,
@@ -317,7 +321,7 @@ func (h *PermissionHandler) GetRolePermissions(c *gin.Context) {
 	// 获取角色权限
 	perms, err := h.permissionService.GetRolePermissions(roleID)
 	if err != nil {
-		utilities.GetLogger().Error("failed to get role permissions", "error", err.Error())
+		h.logger.Error("failed to get role permissions", "error", err.Error())
 		response.HandlerError(c, app_error.ErrRoleNoExist)
 		return
 	}
@@ -349,7 +353,7 @@ func (h *PermissionHandler) SetRolePermissions(c *gin.Context) {
 	// 验证角色是否存在
 	role, err := h.roleService.GetRoleByID(roleID)
 	if err != nil {
-		utilities.GetLogger().Error("failed to get role", "error", err.Error())
+		h.logger.Error("failed to get role", "error", err.Error())
 		response.HandlerError(c, app_error.ErrRoleNoExist)
 		return
 	}
@@ -364,7 +368,7 @@ func (h *PermissionHandler) SetRolePermissions(c *gin.Context) {
 	// 验证新权限是否存在（如果有新权限的话）
 	if len(req.PermissionCodes) > 0 {
 		if exist, err := h.permissionService.CheckCodesExists(req.PermissionCodes); err != nil || !exist {
-			utilities.GetLogger().Error("permission does not exist when setting role permissions", "permissions", req.PermissionCodes)
+			h.logger.Error("permission does not exist when setting role permissions", "permissions", req.PermissionCodes)
 			response.HandlerError(c, app_error.ErrPermissionNoExist)
 			return
 		}
@@ -373,7 +377,7 @@ func (h *PermissionHandler) SetRolePermissions(c *gin.Context) {
 	// 先撤销所有权限
 	if len(currentCodes) > 0 {
 		if err := h.roleService.RevokePermissionFromRole(roleID, currentCodes); err != nil {
-			utilities.GetLogger().Error("failed to revoke permissions from role", "error", err.Error())
+			h.logger.Error("failed to revoke permissions from role", "error", err.Error())
 			response.HandlerError(c, app_error.ErrInternalServerError)
 			return
 		}
@@ -382,7 +386,7 @@ func (h *PermissionHandler) SetRolePermissions(c *gin.Context) {
 	// 授予新权限
 	if len(req.PermissionCodes) > 0 {
 		if err := h.roleService.GrantPermissionToRole(roleID, req.PermissionCodes); err != nil {
-			utilities.GetLogger().Error("failed to grant permissions to role", "error", err.Error())
+			h.logger.Error("failed to grant permissions to role", "error", err.Error())
 			h.auditService.LogWithGinContext(c, &services.AuditEntry{
 				Module:       models.AuditModulePermission,
 				Action:       models.AuditActionPermissionGrant,
