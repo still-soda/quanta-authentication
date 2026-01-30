@@ -104,7 +104,7 @@ quanta-authentication/
 
 ### 环境要求
 
-- Node.js >= 18
+- Node.js >= 24
 - Go >= 1.25
 - pnpm >= 9.0
 - Docker & Docker Compose
@@ -112,8 +112,10 @@ quanta-authentication/
 ### Docker Compose（推荐）
 
 ```bash
-cd docker
-docker-compose up -d
+pnpm docker:up
+
+# 或直接使用 docker-compose 命令
+docker-compose -f ./docker/docker-compose.yaml up -d
 ```
 
 ### 本地开发
