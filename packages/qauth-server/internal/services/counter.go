@@ -36,7 +36,7 @@ var ZERO int64 = 0
 func (s *CounterService) GetRecentCounter(key string, limit int, padNum *int64) ([]models.Counters, error) {
 	counters, err := s.repo.FindRecentByKey(key, limit)
 	if err != nil {
-		return nil, e.ErrFailedToFindCounters.Wrap(err)
+		return nil, e.ErrFailedToFindCounters.Wrap(err).WithScope("GetRecentCounter")
 	}
 
 	// 首部填充到指定长度

@@ -69,7 +69,7 @@ func (s *FileService) SaveFile(
 	}
 
 	if err := s.repo.Create(fileRecord); err != nil {
-		return "", e.ErrFailedToCreateFile.Wrap(err)
+		return "", e.ErrFailedToCreateFile.Wrap(err).WithScope("SaveFile")
 	}
 
 	return uniqueName, nil

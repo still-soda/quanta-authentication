@@ -102,14 +102,14 @@ func (s *OAuthService) userAuthorizationHandler(w http.ResponseWriter, r *http.R
 	cookie, err := r.Cookie("access_token")
 	if err != nil {
 		s.recordLoginState("", &clientID, models.LoginTypeOAuth2, false, "user not logged in")
-		return "", e.ErrUnauthorized.WithMessage("missing access token")
+		return "", e.ErrUnauthorized.WithMessage("missing access token").WithScope("userAuthorizationHandler")
 	}
 
 	// 解析 JWT Token
 	claims, err := app_jwt.ParseAccessToken(cookie.Value)
 	if err != nil {
 		s.recordLoginState("", &clientID, models.LoginTypeOAuth2, false, "invalid access token")
-		return "", e.ErrInvalidToken.Wrap(err)
+		return "", e.ErrInvalidToken.Wrap(err).WithScope("userAuthorizationHandler")
 	}
 
 	// 验证用户是否存在
@@ -117,15 +117,15 @@ func (s *OAuthService) userAuthorizationHandler(w http.ResponseWriter, r *http.R
 	if err != nil {
 		s.recordLoginState("", &clientID, models.LoginTypeOAuth2, false, "user not found")
 		if err == gorm.ErrRecordNotFound {
-			return "", e.ErrUserNotFound.WithMessage(claims.UserID)
+			return "", e.ErrUserNotFound.WithMessage(claims.UserID).WithScope("userAuthorizationHandler")
 		}
-		return "", e.ErrUserNotFound.Wrap(err)
+		return "", e.ErrUserNotFound.Wrap(err).WithScope("userAuthorizationHandler")
 	}
 
 	// 检查用户状态
 	if user.Status != models.UserStatusActive {
 		s.recordLoginState(user.ID, &clientID, models.LoginTypeOAuth2, false, "user account is not active")
-		return "", e.ErrUserInactive.WithMessage(user.ID)
+		return "", e.ErrUserInactive.WithMessage(user.ID).WithScope("userAuthorizationHandler")
 	}
 
 	s.recordLoginState(user.ID, &clientID, models.LoginTypeOAuth2, true, "")
@@ -139,22 +139,22 @@ func (s *OAuthService) passwordAuthorizationHandler(ctx context.Context, clientI
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
 			s.recordLoginState("", &clientID, models.LoginTypeOAuth2, false, "user not found")
-			return "", e.ErrUserNotFound.WithMessage(username)
+			return "", e.ErrUserNotFound.WithMessage(username).WithScope("passwordAuthorizationHandler")
 		}
 		s.recordLoginState("", &clientID, models.LoginTypeOAuth2, false, "database error: "+err.Error())
-		return "", e.ErrUserNotFound.Wrap(err)
+		return "", e.ErrUserNotFound.Wrap(err).WithScope("passwordAuthorizationHandler")
 	}
 
 	// 验证密码
 	if !utilities.VerifyPassword(password, user.Salt, user.PasswordHash) {
 		s.recordLoginState(user.ID, &clientID, models.LoginTypeOAuth2, false, "invalid password")
-		return "", e.ErrInvalidPassword
+		return "", e.ErrInvalidPassword.WithScope("passwordAuthorizationHandler")
 	}
 
 	// 检查用户状态
 	if user.Status != models.UserStatusActive {
 		s.recordLoginState(user.ID, &clientID, models.LoginTypeOAuth2, false, "user account is not active")
-		return "", e.ErrUserInactive.WithMessage(user.ID)
+		return "", e.ErrUserInactive.WithMessage(user.ID).WithScope("passwordAuthorizationHandler")
 	}
 
 	// 记录登录状态
@@ -172,7 +172,7 @@ func (s *OAuthService) extensionFieldsHandler(ti providers.ITokenInfo) (fieldsVa
 	user, err := s.userService.GetUserByID(ti.GetUserID(), false)
 	if err != nil {
 		clientID := ti.GetClientID()
-		s.recordError(ti.GetUserID(), &clientID, e.ErrUserNotFound.Wrap(err).Error())
+		s.recordError(ti.GetUserID(), &clientID, e.ErrUserNotFound.Wrap(err).WithScope("extensionFieldsHandler").Error())
 		return nil
 	}
 
@@ -238,7 +238,7 @@ func (s *OAuthService) extensionFieldsHandler(ti providers.ITokenInfo) (fieldsVa
 	idToken, err := s.jwksManager.SignToken(basic, data)
 	if err != nil {
 		clientID := ti.GetClientID()
-		s.recordError(ti.GetUserID(), &clientID, e.ErrIDTokenGenerationFailed.Wrap(err).Error())
+		s.recordError(ti.GetUserID(), &clientID, e.ErrIDTokenGenerationFailed.Wrap(err).WithScope("extensionFieldsHandler").Error())
 		return nil
 	}
 
@@ -474,7 +474,7 @@ func (s *OAuthService) UpdateClientFull(clientID string, params *UpdateClientPar
 	}
 
 	if len(updates) == 0 {
-		return e.ErrNoFieldsToUpdate
+		return e.ErrNoFieldsToUpdate.WithScope("UpdateClientFull")
 	}
 
 	return s.oauthRepo.UpdateClientFields(clientID, updates)

@@ -80,6 +80,9 @@ func main() {
 	loginStateRepo := repository.NewLoginStateRepository(db)
 	errRecordRepo := repository.NewErrorRecordRepository(db)
 	permRepo := repository.NewPermissionRepository(db)
+	roleRepo := repository.NewRoleRepository(db)
+	usersRolesRepo := repository.NewUsersRolesRepository(db)
+	rolesPermsRepo := repository.NewRolesPermissionsRepository(db)
 
 	// 创建服务
 	permSrv := services.NewPermissionService(
@@ -88,7 +91,13 @@ func main() {
 	)
 	fileSrv := services.NewFileService(storageProvider, fileRepo)
 	userSrv := services.NewUserService(db)
-	roleSrv := services.NewRoleService(db, permSrv, userSrv)
+	roleSrv := services.NewRoleService(
+		roleRepo,
+		usersRolesRepo,
+		rolesPermsRepo,
+		permSrv,
+		userSrv,
+	)
 	oauthSrv := services.NewOAuthService(
 		cfg,
 		oauthProvider,

@@ -234,7 +234,7 @@ func (s *AuditService) GetAuditLogByID(id string) (*models.AuditLog, error) {
 // GetRecentActivities 获取最近活动列表
 func (s *AuditService) GetRecentActivities(limit int) ([]models.AuditLog, error) {
 	if limit <= 0 {
-		return nil, e.ErrInvalidParameter.Wrapf("limit must be greater than 0, got %d", limit)
+		return nil, e.ErrInvalidParameter.Wrapf("limit must be greater than 0, got %d", limit).WithScope("GetRecentActivities")
 	}
 
 	return s.repo.FindRecent(limit)
@@ -243,7 +243,7 @@ func (s *AuditService) GetRecentActivities(limit int) ([]models.AuditLog, error)
 // GetAuditStatsByModule 按模块统计审计日志
 func (s *AuditService) GetAuditStatsByModule(startTime, endTime time.Time) (map[string]int64, error) {
 	if startTime.IsZero() || endTime.IsZero() || !endTime.After(startTime) {
-		return nil, e.ErrInvalidTimeRange.Wrapf("startTime: %v, endTime: %v", startTime, endTime)
+		return nil, e.ErrInvalidTimeRange.Wrapf("startTime: %v, endTime: %v", startTime, endTime).WithScope("GetAuditStatsByModule")
 	}
 
 	return s.repo.GetStatsByModule(startTime, endTime)
@@ -252,7 +252,7 @@ func (s *AuditService) GetAuditStatsByModule(startTime, endTime time.Time) (map[
 // GetAuditStatsByAction 按操作类型统计审计日志
 func (s *AuditService) GetAuditStatsByAction(startTime, endTime time.Time) (map[string]int64, error) {
 	if startTime.IsZero() || endTime.IsZero() || !endTime.After(startTime) {
-		return nil, e.ErrInvalidTimeRange.Wrapf("startTime: %v, endTime: %v", startTime, endTime)
+		return nil, e.ErrInvalidTimeRange.Wrapf("startTime: %v, endTime: %v", startTime, endTime).WithScope("GetAuditStatsByAction")
 	}
 
 	return s.repo.GetStatsByAction(startTime, endTime)
@@ -261,7 +261,7 @@ func (s *AuditService) GetAuditStatsByAction(startTime, endTime time.Time) (map[
 // GetAuditStatsByStatus 按状态统计审计日志
 func (s *AuditService) GetAuditStatsByStatus(startTime, endTime time.Time) (map[string]int64, error) {
 	if startTime.IsZero() || endTime.IsZero() || !endTime.After(startTime) {
-		return nil, e.ErrInvalidTimeRange.Wrapf("startTime: %v, endTime: %v", startTime, endTime)
+		return nil, e.ErrInvalidTimeRange.Wrapf("startTime: %v, endTime: %v", startTime, endTime).WithScope("GetAuditStatsByStatus")
 	}
 
 	return s.repo.GetStatsByStatus(startTime, endTime)
@@ -270,7 +270,7 @@ func (s *AuditService) GetAuditStatsByStatus(startTime, endTime time.Time) (map[
 // GetLoginStats 获取登录统计（用于替代单独的登录状态查询）
 func (s *AuditService) GetLoginStats(startTime, endTime time.Time) (successCount, failCount int64, err error) {
 	if startTime.IsZero() || endTime.IsZero() || !endTime.After(startTime) {
-		return 0, 0, e.ErrInvalidTimeRange.Wrapf("startTime: %v, endTime: %v", startTime, endTime)
+		return 0, 0, e.ErrInvalidTimeRange.Wrapf("startTime: %v, endTime: %v", startTime, endTime).WithScope("GetLoginStats")
 	}
 
 	return s.repo.GetLoginStats(startTime, endTime)

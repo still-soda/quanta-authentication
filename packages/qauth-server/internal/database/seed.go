@@ -3,6 +3,8 @@ package database
 import (
 	"qauth-server/internal/config/permissions"
 	"qauth-server/internal/models"
+	"qauth-server/internal/providers"
+	"qauth-server/internal/repository"
 	"qauth-server/internal/services"
 	"qauth-server/internal/utilities"
 
@@ -101,7 +103,17 @@ func SeedingDB(db *gorm.DB) error {
 		FirstOrCreate(&user)
 
 	// 分配权限到角色
-	roleService := services.NewRoleService(db, services.NewPermissionService(db), services.NewUserService(db))
+	// 创建仓储
+	permRepo := repository.NewPermissionRepository(db)
+	roleRepo := repository.NewRoleRepository(db)
+	usersRolesRepo := repository.NewUsersRolesRepository(db)
+	rolesPermsRepo := repository.NewRolesPermissionsRepository(db)
+
+	// 创建服务
+	loggerProvider := providers.NewRootLogger()
+	permSrv := services.NewPermissionService(permRepo, loggerProvider)
+	userSrv := services.NewUserService(db)
+	roleService := services.NewRoleService(roleRepo, usersRolesRepo, rolesPermsRepo, permSrv, userSrv)
 
 	// 超级管理员：拥有所有权限
 	roleService.GrantPermissionToRole(superAdmin.ID, []string{

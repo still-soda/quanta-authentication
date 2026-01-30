@@ -57,7 +57,7 @@ func (s *AppGroupService) InitializeAppGroupAdmins(clientID, creatorID string) e
 	}
 
 	if err := s.appGroupAdminRepo.Create(ownerAdmin); err != nil {
-		return e.ErrFailedToCreateOwnerAdmin.Wrap(err)
+		return e.ErrFailedToCreateOwnerAdmin.Wrap(err).WithScope("InitializeAppGroupAdmins")
 	}
 
 	s.logger.Info("initialized app group admins", "clientID", clientID, "creatorID", creatorID)
@@ -74,7 +74,7 @@ func (s *AppGroupService) AddAppGroupAdmin(clientID, userID string, adminType mo
 	}
 
 	if err := s.appGroupAdminRepo.Create(admin); err != nil {
-		return e.ErrFailedToAddAppGroupAdmin.Wrap(err)
+		return e.ErrFailedToAddAppGroupAdmin.Wrap(err).WithScope("AddAppGroupAdmin")
 	}
 
 	return nil
@@ -83,7 +83,7 @@ func (s *AppGroupService) AddAppGroupAdmin(clientID, userID string, adminType mo
 // RemoveAppGroupAdmin 移除应用组管理员
 func (s *AppGroupService) RemoveAppGroupAdmin(clientID, userID string, adminType models.AppGroupAdminType) error {
 	if err := s.appGroupAdminRepo.Delete(clientID, userID, adminType); err != nil {
-		return e.ErrFailedToRemoveAppGroupAdmin.Wrap(err)
+		return e.ErrFailedToRemoveAppGroupAdmin.Wrap(err).WithScope("RemoveAppGroupAdmin")
 	}
 	return nil
 }
@@ -92,7 +92,7 @@ func (s *AppGroupService) RemoveAppGroupAdmin(clientID, userID string, adminType
 func (s *AppGroupService) GetAppGroupAdmins(clientID string) ([]models.AppGroupAdmin, error) {
 	admins, err := s.appGroupAdminRepo.FindByClientID(clientID)
 	if err != nil {
-		return nil, e.ErrFailedToGetAppGroupAdmins.Wrap(err)
+		return nil, e.ErrFailedToGetAppGroupAdmins.Wrap(err).WithScope("GetAppGroupAdmins")
 	}
 	return admins, nil
 }
@@ -101,7 +101,7 @@ func (s *AppGroupService) GetAppGroupAdmins(clientID string) ([]models.AppGroupA
 func (s *AppGroupService) GetAppGroupAdminsByUser(userID string) ([]models.AppGroupAdmin, error) {
 	admins, err := s.appGroupAdminRepo.FindByUserID(userID)
 	if err != nil {
-		return nil, e.ErrFailedToGetUserAppGroupAdmins.Wrap(err)
+		return nil, e.ErrFailedToGetUserAppGroupAdmins.Wrap(err).WithScope("GetAppGroupAdminsByUser")
 	}
 	return admins, nil
 }
@@ -113,7 +113,7 @@ func (s *AppGroupService) IsAppGroupAdmin(clientID, userID string) (bool, models
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return false, "", nil
 		}
-		return false, "", e.ErrFailedToCheckAppGroupAdmin.Wrap(err)
+		return false, "", e.ErrFailedToCheckAppGroupAdmin.Wrap(err).WithScope("IsAppGroupAdmin")
 	}
 	return true, admin.AdminType, nil
 }
@@ -155,7 +155,7 @@ func (s *AppGroupService) CreateAppGroupPermission(clientID, resource string, ac
 	}
 
 	if err := s.appGroupPermRepo.Create(perm); err != nil {
-		return nil, e.ErrFailedToCreateAppGroupPermission.Wrap(err)
+		return nil, e.ErrFailedToCreateAppGroupPermission.Wrap(err).WithScope("CreateAppGroupPermission")
 	}
 
 	return perm, nil
@@ -165,14 +165,14 @@ func (s *AppGroupService) CreateAppGroupPermission(clientID, resource string, ac
 func (s *AppGroupService) UpdateAppGroupPermission(permissionID, name, description string) (*models.AppGroupPermission, error) {
 	perm, err := s.appGroupPermRepo.FindByID(permissionID)
 	if err != nil {
-		return nil, e.ErrFailedToFindPermission.Wrap(err)
+		return nil, e.ErrFailedToFindPermission.Wrap(err).WithScope("UpdateAppGroupPermission")
 	}
 
 	perm.Name = name
 	perm.Description = description
 
 	if err := s.appGroupPermRepo.Update(perm); err != nil {
-		return nil, e.ErrFailedToUpdateAppGroupPermission.Wrap(err)
+		return nil, e.ErrFailedToUpdateAppGroupPermission.Wrap(err).WithScope("UpdateAppGroupPermission")
 	}
 
 	return perm, nil
@@ -182,12 +182,12 @@ func (s *AppGroupService) UpdateAppGroupPermission(permissionID, name, descripti
 func (s *AppGroupService) DeleteAppGroupPermission(permissionID string) error {
 	// 先删除角色权限关联
 	if err := s.appGroupRoleRepo.DeletePermissionRoleAssociations(permissionID); err != nil {
-		return e.ErrFailedToDeleteRolePermissionAssociations.Wrap(err)
+		return e.ErrFailedToDeleteRolePermissionAssociations.Wrap(err).WithScope("DeleteAppGroupPermission")
 	}
 
 	// 删除权限
 	if err := s.appGroupPermRepo.Delete(permissionID); err != nil {
-		return e.ErrFailedToDeleteAppGroupPermission.Wrap(err)
+		return e.ErrFailedToDeleteAppGroupPermission.Wrap(err).WithScope("DeleteAppGroupPermission")
 	}
 
 	return nil
@@ -197,7 +197,7 @@ func (s *AppGroupService) DeleteAppGroupPermission(permissionID string) error {
 func (s *AppGroupService) GetAppGroupPermission(permissionID string) (*models.AppGroupPermission, error) {
 	perm, err := s.appGroupPermRepo.FindByID(permissionID)
 	if err != nil {
-		return nil, e.ErrFailedToGetAppGroupPermission.Wrap(err)
+		return nil, e.ErrFailedToGetAppGroupPermission.Wrap(err).WithScope("GetAppGroupPermission")
 	}
 	return perm, nil
 }
@@ -206,7 +206,7 @@ func (s *AppGroupService) GetAppGroupPermission(permissionID string) (*models.Ap
 func (s *AppGroupService) GetAppGroupPermissions(clientID string) ([]models.AppGroupPermission, error) {
 	perm, err := s.appGroupPermRepo.FindByClientID(clientID)
 	if err != nil {
-		return nil, e.ErrFailedToGetAppGroupPermissions.Wrap(err)
+		return nil, e.ErrFailedToGetAppGroupPermissions.Wrap(err).WithScope("GetAppGroupPermissions")
 	}
 	return perm, nil
 }
@@ -230,7 +230,7 @@ func (s *AppGroupService) GetAppGroupPermissionsByResource(clientID string) (map
 func (s *AppGroupService) GetAppGroupPermissionByCodes(clientID string, codes []string) ([]models.AppGroupPermission, error) {
 	perms, err := s.appGroupPermRepo.FindByCodes(clientID, codes)
 	if err != nil {
-		return nil, e.ErrFailedToGetPermissionByCodes.Wrap(err)
+		return nil, e.ErrFailedToGetPermissionByCodes.Wrap(err).WithScope("GetAppGroupPermissionByCodes")
 	}
 	return perms, nil
 }
@@ -248,7 +248,7 @@ func (s *AppGroupService) CreateAppGroupRole(clientID, code, name, description s
 	}
 
 	if err := s.appGroupRoleRepo.Create(role); err != nil {
-		return nil, e.ErrFailedToCreateAppGroupRole.Wrap(err)
+		return nil, e.ErrFailedToCreateAppGroupRole.Wrap(err).WithScope("CreateAppGroupRole")
 	}
 
 	return role, nil
@@ -258,7 +258,7 @@ func (s *AppGroupService) CreateAppGroupRole(clientID, code, name, description s
 func (s *AppGroupService) UpdateAppGroupRole(roleID, name, description string, isDefault bool) (*models.AppGroupRole, error) {
 	role, err := s.appGroupRoleRepo.FindByID(roleID)
 	if err != nil {
-		return nil, e.ErrFailedToFindRole.Wrap(err)
+		return nil, e.ErrFailedToFindRole.Wrap(err).WithScope("UpdateAppGroupRole")
 	}
 
 	role.Name = name
@@ -266,7 +266,7 @@ func (s *AppGroupService) UpdateAppGroupRole(roleID, name, description string, i
 	role.IsDefault = isDefault
 
 	if err := s.appGroupRoleRepo.Update(role); err != nil {
-		return nil, e.ErrFailedToUpdateAppGroupRole.Wrap(err)
+		return nil, e.ErrFailedToUpdateAppGroupRole.Wrap(err).WithScope("UpdateAppGroupRole")
 	}
 
 	return role, nil
@@ -276,17 +276,17 @@ func (s *AppGroupService) UpdateAppGroupRole(roleID, name, description string, i
 func (s *AppGroupService) DeleteAppGroupRole(roleID string) error {
 	// 先删除角色权限关联
 	if err := s.appGroupRoleRepo.DeleteRolePermissionAssociations(roleID); err != nil {
-		return e.ErrFailedToDeleteRolePermissionAssociations.Wrap(err)
+		return e.ErrFailedToDeleteRolePermissionAssociations.Wrap(err).WithScope("DeleteAppGroupRole")
 	}
 
 	// 删除用户角色关联
 	if err := s.appGroupRoleRepo.DeleteUserRoleAssociations(roleID); err != nil {
-		return e.ErrFailedToDeleteUserRoleAssociations.Wrap(err)
+		return e.ErrFailedToDeleteUserRoleAssociations.Wrap(err).WithScope("DeleteAppGroupRole")
 	}
 
 	// 删除角色
 	if err := s.appGroupRoleRepo.Delete(roleID); err != nil {
-		return e.ErrFailedToDeleteAppGroupRole.Wrap(err)
+		return e.ErrFailedToDeleteAppGroupRole.Wrap(err).WithScope("DeleteAppGroupRole")
 	}
 
 	return nil
@@ -296,7 +296,7 @@ func (s *AppGroupService) DeleteAppGroupRole(roleID string) error {
 func (s *AppGroupService) GetAppGroupRole(roleID string) (*models.AppGroupRole, error) {
 	role, err := s.appGroupRoleRepo.FindByID(roleID)
 	if err != nil {
-		return nil, e.ErrFailedToGetAppGroupRole.Wrap(err)
+		return nil, e.ErrFailedToGetAppGroupRole.Wrap(err).WithScope("GetAppGroupRole")
 	}
 	return role, nil
 }
@@ -305,7 +305,7 @@ func (s *AppGroupService) GetAppGroupRole(roleID string) (*models.AppGroupRole, 
 func (s *AppGroupService) GetAppGroupRoles(clientID string) ([]models.AppGroupRole, error) {
 	roles, err := s.appGroupRoleRepo.FindByClientID(clientID)
 	if err != nil {
-		return nil, e.ErrFailedToGetAppGroupRoles.Wrap(err)
+		return nil, e.ErrFailedToGetAppGroupRoles.Wrap(err).WithScope("GetAppGroupRoles")
 	}
 	return roles, nil
 }
@@ -348,12 +348,12 @@ func (s *AppGroupService) GetAppGroupRoleWithStats(roleID string) (*AppGroupRole
 
 	userCount, err := s.appGroupRoleRepo.CountUsers(role.ID)
 	if err != nil {
-		return nil, e.ErrFailedToCountRoleUsers.Wrap(err)
+		return nil, e.ErrFailedToCountRoleUsers.Wrap(err).WithScope("GetAppGroupRoleWithStats")
 	}
 
 	permCount, err := s.appGroupRoleRepo.CountPermissions(role.ID)
 	if err != nil {
-		return nil, e.ErrFailedToCountPermissions.Wrap(err)
+		return nil, e.ErrFailedToCountPermissions.Wrap(err).WithScope("GetAppGroupRoleWithStats")
 	}
 
 	return &AppGroupRoleWithStats{
@@ -367,18 +367,18 @@ func (s *AppGroupService) GetAppGroupRoleWithStats(roleID string) (*AppGroupRole
 func (s *AppGroupService) GrantPermissionsToAppGroupRole(roleID string, permissionIDs []string) error {
 	role, err := s.appGroupRoleRepo.FindByID(roleID)
 	if err != nil {
-		return e.ErrFailedToFindRole.Wrap(err)
+		return e.ErrFailedToFindRole.Wrap(err).WithScope("GrantPermissionsToAppGroupRole")
 	}
 
 	perms, err := s.appGroupPermRepo.FindByIDs(permissionIDs)
 	if err != nil {
-		return e.ErrFailedToFindPermissions.Wrap(err)
+		return e.ErrFailedToFindPermissions.Wrap(err).WithScope("GrantPermissionsToAppGroupRole")
 	}
 
 	// 验证权限属于同一客户端
 	for _, perm := range perms {
 		if perm.ClientID != role.ClientID {
-			return e.ErrPermissionNotBelongToClient.WithDetails("permissionID", perm.ID, "clientID", role.ClientID)
+			return e.ErrPermissionNotBelongToClient.WithDetails("permissionID", perm.ID, "clientID", role.ClientID).WithScope("GrantPermissionsToAppGroupRole")
 		}
 	}
 
@@ -389,7 +389,7 @@ func (s *AppGroupService) GrantPermissionsToAppGroupRole(roleID string, permissi
 	}
 
 	if err := s.appGroupRoleRepo.GrantPermissions(roleID, permIDs); err != nil {
-		return e.ErrFailedToGrantPermissionToRole.Wrap(err)
+		return e.ErrFailedToGrantPermissionToRole.Wrap(err).WithScope("GrantPermissionsToAppGroupRole")
 	}
 
 	return nil
@@ -398,7 +398,7 @@ func (s *AppGroupService) GrantPermissionsToAppGroupRole(roleID string, permissi
 // RevokePermissionsFromAppGroupRole 从应用组角色撤销权限
 func (s *AppGroupService) RevokePermissionsFromAppGroupRole(roleID string, permissionIDs []string) error {
 	if err := s.appGroupRoleRepo.RevokePermissions(roleID, permissionIDs); err != nil {
-		return e.ErrFailedToRevokePermissionsFromRole.Wrap(err)
+		return e.ErrFailedToRevokePermissionsFromRole.Wrap(err).WithScope("RevokePermissionsFromAppGroupRole")
 	}
 	return nil
 }
@@ -407,7 +407,7 @@ func (s *AppGroupService) RevokePermissionsFromAppGroupRole(roleID string, permi
 func (s *AppGroupService) SetAppGroupRolePermissions(roleID string, permissionIDs []string) error {
 	_, err := s.appGroupRoleRepo.FindByID(roleID)
 	if err != nil {
-		return e.ErrFailedToFindRole.Wrap(err)
+		return e.ErrFailedToFindRole.Wrap(err).WithScope("SetAppGroupRolePermissions")
 	}
 
 	// 开启事务
@@ -416,12 +416,12 @@ func (s *AppGroupService) SetAppGroupRolePermissions(roleID string, permissionID
 
 		// 删除现有关联
 		if err := repoWithTx.ClearPermissions(roleID); err != nil {
-			return e.ErrFailedToClearExistingPermissions.Wrap(err)
+			return e.ErrFailedToClearExistingPermissions.Wrap(err).WithScope("SetAppGroupRolePermissions")
 		}
 
 		// 添加新关联
 		if err := repoWithTx.GrantPermissions(roleID, permissionIDs); err != nil {
-			return e.ErrFailedToGrantPermissionToRole.Wrap(err)
+			return e.ErrFailedToGrantPermissionToRole.Wrap(err).WithScope("SetAppGroupRolePermissions")
 		}
 
 		return nil
@@ -432,7 +432,7 @@ func (s *AppGroupService) SetAppGroupRolePermissions(roleID string, permissionID
 func (s *AppGroupService) GetAppGroupRolePermissions(roleID string) ([]models.AppGroupPermission, error) {
 	role, err := s.appGroupRoleRepo.FindWithPermissions(roleID)
 	if err != nil {
-		return nil, e.ErrFailedToGetRolePermissions.Wrap(err)
+		return nil, e.ErrFailedToGetRolePermissions.Wrap(err).WithScope("GetAppGroupRolePermissions")
 	}
 	return role.Permissions, nil
 }
@@ -448,7 +448,7 @@ func (s *AppGroupService) AssignAppGroupRoleToUser(userID, roleID, assignedBy st
 	}
 
 	if err := s.appGroupUserRoleRepo.Assign(assignment); err != nil {
-		return e.ErrFailedToAssignRoleToUser.Wrap(err)
+		return e.ErrFailedToAssignRoleToUser.Wrap(err).WithScope("AssignAppGroupRoleToUser")
 	}
 
 	return nil
@@ -457,7 +457,7 @@ func (s *AppGroupService) AssignAppGroupRoleToUser(userID, roleID, assignedBy st
 // RevokeAppGroupRoleFromUser 从用户撤销应用组角色
 func (s *AppGroupService) RevokeAppGroupRoleFromUser(userID, roleID string) error {
 	if err := s.appGroupUserRoleRepo.Revoke(userID, roleID); err != nil {
-		return e.ErrFailedToRevokeRoleFromUser.Wrap(err)
+		return e.ErrFailedToRevokeRoleFromUser.Wrap(err).WithScope("RevokeAppGroupRoleFromUser")
 	}
 	return nil
 }
@@ -466,7 +466,7 @@ func (s *AppGroupService) RevokeAppGroupRoleFromUser(userID, roleID string) erro
 func (s *AppGroupService) GetUserAppGroupRoles(userID, clientID string) ([]models.AppGroupRole, error) {
 	assignments, err := s.appGroupUserRoleRepo.FindUserRoles(userID, clientID)
 	if err != nil {
-		return nil, e.ErrFailedToGetUserAppGroupRoles.Wrap(err)
+		return nil, e.ErrFailedToGetUserAppGroupRoles.Wrap(err).WithScope("GetUserAppGroupRoles")
 	}
 
 	roles := make([]models.AppGroupRole, len(assignments))
@@ -495,7 +495,7 @@ func (s *AppGroupService) GetUserAppGroupPermissions(userID, clientID string) ([
 
 	permissions, err := s.appGroupPermRepo.FindByRoleIDs(roleIDs)
 	if err != nil {
-		return nil, e.ErrFailedToGetUserAppGroupPermissions.Wrap(err)
+		return nil, e.ErrFailedToGetUserAppGroupPermissions.Wrap(err).WithScope("GetUserAppGroupPermissions")
 	}
 
 	return permissions, nil
@@ -505,7 +505,7 @@ func (s *AppGroupService) GetUserAppGroupPermissions(userID, clientID string) ([
 func (s *AppGroupService) GetAppGroupRoleUsers(roleID string) ([]models.Users, error) {
 	assignments, err := s.appGroupUserRoleRepo.FindRoleUsers(roleID)
 	if err != nil {
-		return nil, e.ErrFailedToGetRoleUsers.Wrap(err)
+		return nil, e.ErrFailedToGetRoleUsers.Wrap(err).WithScope("GetAppGroupRoleUsers")
 	}
 
 	users := make([]models.Users, len(assignments))
@@ -546,7 +546,7 @@ func (s *AppGroupService) GetDefaultAppGroupRole(clientID string) (*models.AppGr
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, nil
 		}
-		return nil, e.ErrFailedToGetDefaultRole.Wrap(err)
+		return nil, e.ErrFailedToGetDefaultRole.Wrap(err).WithScope("GetDefaultAppGroupRole")
 	}
 	return role, nil
 }
@@ -558,12 +558,12 @@ func (s *AppGroupService) SetDefaultAppGroupRole(clientID, roleID string) error 
 
 		// 取消现有默认角色
 		if err := repoWithTx.ClearDefaultRole(clientID); err != nil {
-			return e.ErrFailedToClearDefaultRole.Wrap(err)
+			return e.ErrFailedToClearDefaultRole.Wrap(err).WithScope("SetDefaultAppGroupRole")
 		}
 
 		// 设置新的默认角色
 		if err := repoWithTx.SetDefaultRole(roleID, clientID); err != nil {
-			return e.ErrFailedToSetDefaultRole.Wrap(err)
+			return e.ErrFailedToSetDefaultRole.Wrap(err).WithScope("SetDefaultAppGroupRole")
 		}
 
 		return nil

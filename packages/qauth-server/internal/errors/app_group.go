@@ -38,7 +38,6 @@ var (
 	ErrFailedToClearExistingPermissions         = NewAppError(500, "failed to clear existing permissions", "清除现有权限失败")
 	ErrFailedToGetRolePermissions               = NewAppError(500, "failed to get role permissions", "获取角色权限失败")
 	ErrFailedToCountRoleUsers                   = NewAppError(500, "failed to count role users", "统计角色用户数失败")
-	ErrFailedToCountPermissions                 = NewAppError(500, "failed to count permissions", "统计权限数失败")
 )
 
 // 应用组用户角色相关错误

@@ -25,7 +25,7 @@ func NewPermissionService(repo *repository.PermissionRepository, logger provider
 func (s *PermissionService) GetPermissionByCodes(code []string) ([]*models.Permissions, error) {
 	perms, err := s.repo.FindByCodes(code)
 	if err != nil {
-		return nil, e.ErrFailedToFindPermissionsByCodes.Wrap(err)
+		return nil, e.ErrFailedToFindPermissionsByCodes.Wrap(err).WithScope("GetPermissionByCodes")
 	}
 	return perms, nil
 }
@@ -34,7 +34,7 @@ func (s *PermissionService) GetPermissionByCodes(code []string) ([]*models.Permi
 func (s *PermissionService) CheckCodesExists(codes []string) (bool, error) {
 	count, err := s.repo.CountByCodes(codes)
 	if err != nil {
-		return false, e.ErrFailedToCountPermissionsByCodes.Wrap(err)
+		return false, e.ErrFailedToCountPermissionsByCodes.Wrap(err).WithScope("CheckCodesExists")
 	}
 	return count == int64(len(codes)), nil
 }
@@ -43,7 +43,7 @@ func (s *PermissionService) CheckCodesExists(codes []string) (bool, error) {
 func (s *PermissionService) GetAllPermissions() ([]models.Permissions, error) {
 	perms, err := s.repo.FindAll()
 	if err != nil {
-		return nil, e.ErrFailedToFindAllPermissions.Wrap(err)
+		return nil, e.ErrFailedToFindAllPermissions.Wrap(err).WithScope("GetAllPermissions")
 	}
 	return perms, nil
 }
@@ -52,7 +52,7 @@ func (s *PermissionService) GetAllPermissions() ([]models.Permissions, error) {
 func (s *PermissionService) ListPermissions(params repository.ListPermissionsParams) (*repository.ListPermissionsResult, error) {
 	result, err := s.repo.List(params)
 	if err != nil {
-		return nil, e.ErrFailedToListPermissions.Wrap(err)
+		return nil, e.ErrFailedToListPermissions.Wrap(err).WithScope("ListPermissions")
 	}
 	return result, nil
 }
@@ -61,7 +61,7 @@ func (s *PermissionService) ListPermissions(params repository.ListPermissionsPar
 func (s *PermissionService) GetPermissionByID(permID string) (*models.Permissions, error) {
 	perm, err := s.repo.FindByID(permID)
 	if err != nil {
-		return nil, e.ErrFailedToFindPermissionByID.Wrap(err)
+		return nil, e.ErrFailedToFindPermissionByID.Wrap(err).WithScope("GetPermissionByID")
 	}
 	return perm, nil
 }
