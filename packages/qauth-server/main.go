@@ -83,20 +83,19 @@ func main() {
 	roleRepo := repository.NewRoleRepository(db)
 	usersRolesRepo := repository.NewUsersRolesRepository(db)
 	rolesPermsRepo := repository.NewRolesPermissionsRepository(db)
+	userRepo := repository.NewUserRepository(db)
 
 	// 创建服务
-	permSrv := services.NewPermissionService(
-		permRepo,
-		loggerProvider,
-	)
-	fileSrv := services.NewFileService(storageProvider, fileRepo)
-	userSrv := services.NewUserService(db)
+	permSrv := services.NewPermissionService(permRepo, loggerProvider)
+	fileSrv := services.NewFileService(storageProvider, fileRepo, loggerProvider)
+	userSrv := services.NewUserService(userRepo, auditRepo, loggerProvider)
 	roleSrv := services.NewRoleService(
 		roleRepo,
 		usersRolesRepo,
 		rolesPermsRepo,
 		permSrv,
 		userSrv,
+		loggerProvider,
 	)
 	oauthSrv := services.NewOAuthService(
 		cfg,
@@ -108,7 +107,7 @@ func main() {
 		errRecordRepo,
 		loggerProvider,
 	)
-	counterSrv := services.NewCounterService(counterRepo)
+	counterSrv := services.NewCounterService(counterRepo, loggerProvider)
 	auditSrv := services.NewAuditService(
 		auditRepo,
 		userSrv,
@@ -129,7 +128,7 @@ func main() {
 
 	// OIDC 服务
 	issuer := "http://localhost:" + cfg.Server.Port
-	oidcSrv, err := services.NewOIDCService(cfg, issuer, jwksMgr)
+	oidcSrv, err := services.NewOIDCService(cfg, issuer, jwksMgr, loggerProvider)
 	if err != nil {
 		panic("failed to create oidc service: " + err.Error())
 	}

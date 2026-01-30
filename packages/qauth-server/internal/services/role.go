@@ -4,6 +4,7 @@ import (
 	"qauth-server/internal/config/permissions"
 	e "qauth-server/internal/errors"
 	"qauth-server/internal/models"
+	"qauth-server/internal/providers"
 	"qauth-server/internal/repository"
 )
 
@@ -13,6 +14,7 @@ type RoleService struct {
 	rolesPermsRepo    *repository.RolesPermissionsRepository
 	permissionService *PermissionService
 	userService       *UserService
+	logger            providers.ILogger
 }
 
 func NewRoleService(
@@ -21,6 +23,7 @@ func NewRoleService(
 	rolesPermsRepo *repository.RolesPermissionsRepository,
 	permissionService *PermissionService,
 	userService *UserService,
+	logger providers.ILogger,
 ) *RoleService {
 	return &RoleService{
 		roleRepo:          roleRepo,
@@ -28,6 +31,7 @@ func NewRoleService(
 		rolesPermsRepo:    rolesPermsRepo,
 		permissionService: permissionService,
 		userService:       userService,
+		logger:            logger.With("service", "RoleService"),
 	}
 }
 

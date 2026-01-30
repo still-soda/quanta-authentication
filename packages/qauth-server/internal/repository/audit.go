@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"errors"
 	"qauth-server/internal/models"
 	"time"
 
@@ -257,4 +258,18 @@ func (r *AuditRepository) FindClientByID(clientID string) (*models.OAuth2Client,
 func (r *AuditRepository) DeleteOldLogs(cutoffTime time.Time) (int64, error) {
 	result := r.db.Where("created_at < ?", cutoffTime).Delete(&models.AuditLog{})
 	return result.RowsAffected, result.Error
+}
+
+// FindLastLoginByUserID 获取用户最后登录时间
+func (r *AuditRepository) FindLastLoginByUserID(userID string) (*time.Time, error) {
+	var auditLog models.AuditLog
+	if err := r.db.Where("operator_id = ? AND action = ?", userID, models.AuditActionLogin).
+		Order("created_at DESC").
+		First(&auditLog).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return &auditLog.CreatedAt, nil
 }

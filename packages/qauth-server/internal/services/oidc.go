@@ -2,6 +2,7 @@ package services
 
 import (
 	"qauth-server/internal/config"
+	"qauth-server/internal/providers"
 	"qauth-server/pkg/jwks"
 )
 
@@ -32,10 +33,16 @@ type OIDCService struct {
 	cfg         *config.Config
 	jwksManager *jwks.JWKSManager
 	issuer      string
+	logger      providers.ILogger
 }
 
 // NewOIDCService 创建新的 OIDC 服务
-func NewOIDCService(cfg *config.Config, issuer string, jwksManager *jwks.JWKSManager) (*OIDCService, error) {
+func NewOIDCService(
+	cfg *config.Config,
+	issuer string,
+	jwksManager *jwks.JWKSManager,
+	logger providers.ILogger,
+) (*OIDCService, error) {
 	// 如果配置中有 issuer，优先使用配置
 	if cfg.OIDC.Issuer != "" {
 		issuer = cfg.OIDC.Issuer
@@ -45,6 +52,7 @@ func NewOIDCService(cfg *config.Config, issuer string, jwksManager *jwks.JWKSMan
 		cfg:         cfg,
 		jwksManager: jwksManager,
 		issuer:      issuer,
+		logger:      logger.With("service", "OIDCService"),
 	}
 
 	return service, nil

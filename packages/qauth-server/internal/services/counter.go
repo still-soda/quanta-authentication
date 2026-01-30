@@ -3,16 +3,21 @@ package services
 import (
 	e "qauth-server/internal/errors"
 	"qauth-server/internal/models"
+	"qauth-server/internal/providers"
 	"qauth-server/internal/repository"
 )
 
 type CounterService struct {
-	repo *repository.CounterRepository
+	repo   *repository.CounterRepository
+	logger providers.ILogger
 }
 
 // NewCounterService 创建计数器服务
-func NewCounterService(repo *repository.CounterRepository) *CounterService {
-	return &CounterService{repo: repo}
+func NewCounterService(repo *repository.CounterRepository, logger providers.ILogger) *CounterService {
+	return &CounterService{
+		repo:   repo,
+		logger: logger.With("service", "CounterService"),
+	}
 }
 
 // GetCountersWithinTimeRange 返回时间范围内的指定计数器

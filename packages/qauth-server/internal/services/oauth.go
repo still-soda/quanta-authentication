@@ -57,7 +57,7 @@ func NewOAuthService(
 		oauthRepo:      oauthRepo,
 		loginStateRepo: loginStateRepo,
 		errRecordRepo:  errRecordRepo,
-		logger:         logger,
+		logger:         logger.With("service", "OAuthService"),
 	}
 
 	// 设置处理器到 provider
@@ -255,7 +255,7 @@ func (s *OAuthService) recordLoginState(userID string, clientID *string, loginTy
 		FailReason: failReason,
 	}
 	if err := s.loginStateRepo.Create(loginState); err != nil {
-		utilities.GetLogger().Error("failed to record login state", "error", err)
+		s.logger.Error("failed to record login state", "error", err)
 	}
 }
 
@@ -269,7 +269,7 @@ func (s *OAuthService) recordError(userID string, clientID *string, errMsg strin
 		Timestamp: time.Now().Unix(),
 	}
 	if err := s.errRecordRepo.Create(record); err != nil {
-		utilities.GetLogger().Error("failed to record error", "error", err)
+		s.logger.Error("failed to record error", "error", err)
 	}
 }
 

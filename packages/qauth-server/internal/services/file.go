@@ -28,15 +28,18 @@ func _getMimeType(file multipart.File) string {
 type FileService struct {
 	storage providers.IStorage
 	repo    *repository.FileRepository
+	logger  providers.ILogger
 }
 
 func NewFileService(
 	storage providers.IStorage,
 	repo *repository.FileRepository,
+	logger providers.ILogger,
 ) *FileService {
 	return &FileService{
 		storage: storage,
 		repo:    repo,
+		logger:  logger.With("service", "FileService"),
 	}
 }
 
