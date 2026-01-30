@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"qauth-server/internal/config"
 	"qauth-server/internal/config/permissions"
-	app_error "qauth-server/internal/errors"
+	e "qauth-server/internal/errors"
 	"qauth-server/internal/models"
 	"qauth-server/internal/providers"
 	"qauth-server/internal/services"
@@ -120,7 +120,7 @@ func (h *OAuthHandler) AuthorizePage(c *gin.Context) {
 	_, err := h.oauthSrv.ValidateAuthorizeRequest(c.Request)
 	if err != nil {
 		h.logger.Error("Validate authorize request error", "error", err)
-		c.Error(app_error.ErrBadRequest)
+		c.Error(e.ErrBadRequest)
 		return
 	}
 
@@ -128,7 +128,7 @@ func (h *OAuthHandler) AuthorizePage(c *gin.Context) {
 	jsonStr, err := h.requestQueryToJSON(c.Request)
 	if err != nil {
 		h.logger.Error("Convert request query to JSON error", "error", err)
-		c.Error(app_error.ErrInternalServerError)
+		c.Error(e.ErrInternalServerError)
 		return
 	}
 
@@ -136,7 +136,7 @@ func (h *OAuthHandler) AuthorizePage(c *gin.Context) {
 	authorizeID, err := utilities.GenerateRandomString(32)
 	if err != nil {
 		h.logger.Error("Generate authorize ID error", "error", err)
-		c.Error(app_error.ErrInternalServerError)
+		c.Error(e.ErrInternalServerError)
 		return
 	}
 
@@ -160,7 +160,7 @@ func (h *OAuthHandler) AuthorizeInfo(c *gin.Context) {
 	data, err := h.cacheSrv.GetKeyValue("authorize-" + authorizeID)
 	if err != nil || data == "" {
 		h.logger.Error("Get authorize info from cache error", "error", err)
-		response.HandlerError(c, app_error.ErrBadRequest)
+		response.HandlerError(c, e.ErrBadRequest)
 		return
 	}
 
@@ -168,7 +168,7 @@ func (h *OAuthHandler) AuthorizeInfo(c *gin.Context) {
 	var params map[string]any
 	if err := json.Unmarshal([]byte(data), &params); err != nil {
 		h.logger.Error("Parse authorize info JSON error", "error", err)
-		response.HandlerError(c, app_error.ErrInternalServerError)
+		response.HandlerError(c, e.ErrInternalServerError)
 		return
 	}
 
@@ -181,14 +181,14 @@ func (h *OAuthHandler) restoreRequestQuery(c *gin.Context, aid string) error {
 	data, err := h.cacheSrv.GetKeyValue("authorize-" + aid)
 	if err != nil || data == "" {
 		h.logger.Error("Get authorize info from cache error", "error", err)
-		return app_error.ErrBadRequest
+		return e.ErrBadRequest
 	}
 
 	// 将 JSON 字符串解析为 map
 	var params map[string]any
 	if err := json.Unmarshal([]byte(data), &params); err != nil {
 		h.logger.Error("Parse authorize info JSON error", "error", err)
-		return app_error.ErrInternalServerError
+		return e.ErrInternalServerError
 	}
 
 	// 修改请求的 URL 查询参数
@@ -232,7 +232,7 @@ func (h *OAuthHandler) Authorize(c *gin.Context) {
 
 	// 处理非法请求
 	if action != "approve" {
-		response.HandlerError(c, app_error.ErrBadRequest)
+		response.HandlerError(c, e.ErrBadRequest)
 		return
 	}
 
@@ -255,7 +255,7 @@ func (h *OAuthHandler) Authorize(c *gin.Context) {
 		h.logger.Error("OAuth authorize error", "error", err)
 		// 记录授权失败
 		h.auditSrv.LogOAuthAuthorize(c, "", "", &clientID, scopes, "", responseType, redirectUri, false, err.Error())
-		c.Error(app_error.ErrBadRequest)
+		c.Error(e.ErrBadRequest)
 		return
 	}
 
@@ -322,7 +322,7 @@ func (h *OAuthHandler) Token(c *gin.Context) {
 			ErrorMessage: err.Error(),
 			DurationMs:   time.Since(startTime).Milliseconds(),
 		})
-		c.Error(app_error.ErrBadRequest)
+		c.Error(e.ErrBadRequest)
 		return
 	}
 
@@ -345,7 +345,7 @@ func (h *OAuthHandler) Token(c *gin.Context) {
 func (h *OAuthHandler) ValidateToken(c *gin.Context) {
 	tokenInfo, err := h.oauthSrv.ValidateToken(c.Request)
 	if err != nil {
-		c.Error(app_error.ErrUnauthorized)
+		c.Error(e.ErrUnauthorized)
 		return
 	}
 
@@ -369,7 +369,7 @@ func (h *OAuthHandler) RevokeToken(c *gin.Context) {
 	}
 
 	if err := c.ShouldBind(&req); err != nil {
-		c.Error(app_error.ErrBadRequest)
+		c.Error(e.ErrBadRequest)
 		return
 	}
 
@@ -390,7 +390,7 @@ func (h *OAuthHandler) RevokeToken(c *gin.Context) {
 			ErrorMessage: err.Error(),
 			DurationMs:   time.Since(startTime).Milliseconds(),
 		})
-		c.Error(app_error.ErrBadRequest)
+		c.Error(e.ErrBadRequest)
 		return
 	}
 
@@ -439,7 +439,7 @@ func (h *OAuthHandler) CreateClient(c *gin.Context) {
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.HandlerError(c, app_error.ErrBadRequest)
+		response.HandlerError(c, e.ErrBadRequest)
 		return
 	}
 
@@ -447,7 +447,7 @@ func (h *OAuthHandler) CreateClient(c *gin.Context) {
 	secret, err := utilities.GenerateRandomString(32)
 	if err != nil {
 		h.logger.Error("Generate client secret error", "error", err)
-		response.HandlerError(c, app_error.ErrInternalServerError)
+		response.HandlerError(c, e.ErrInternalServerError)
 		return
 	}
 
@@ -484,7 +484,7 @@ func (h *OAuthHandler) CreateClient(c *gin.Context) {
 			ErrorMessage: err.Error(),
 			DurationMs:   time.Since(startTime).Milliseconds(),
 		})
-		response.HandlerError(c, app_error.ErrInternalServerError)
+		response.HandlerError(c, e.ErrInternalServerError)
 		return
 	}
 
@@ -539,7 +539,7 @@ func (h *OAuthHandler) GetClient(c *gin.Context) {
 
 	client, err := h.oauthSrv.GetClientByID(clientID)
 	if err != nil {
-		response.HandlerError(c, app_error.ErrNotFound)
+		response.HandlerError(c, e.ErrNotFound)
 		return
 	}
 
@@ -575,7 +575,7 @@ func (h *OAuthHandler) UpdateClient(c *gin.Context) {
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.HandlerError(c, app_error.ErrBadRequest)
+		response.HandlerError(c, e.ErrBadRequest)
 		return
 	}
 
@@ -612,7 +612,7 @@ func (h *OAuthHandler) UpdateClient(c *gin.Context) {
 			ErrorMessage: err.Error(),
 			DurationMs:   time.Since(startTime).Milliseconds(),
 		})
-		response.HandlerError(c, app_error.ErrInternalServerError)
+		response.HandlerError(c, e.ErrInternalServerError)
 		return
 	}
 
@@ -741,7 +741,7 @@ func (h *OAuthHandler) DeleteClient(c *gin.Context) {
 			ErrorMessage: err.Error(),
 			DurationMs:   time.Since(startTime).Milliseconds(),
 		})
-		response.HandlerError(c, app_error.ErrInternalServerError)
+		response.HandlerError(c, e.ErrInternalServerError)
 		return
 	}
 
@@ -790,7 +790,7 @@ func (h *OAuthHandler) ListClients(c *gin.Context) {
 	clients, total, err := h.oauthSrv.ListClientsFull(params)
 	if err != nil {
 		h.logger.Error("List OAuth clients error", "error", err)
-		response.HandlerError(c, app_error.ErrInternalServerError)
+		response.HandlerError(c, e.ErrInternalServerError)
 		return
 	}
 
@@ -825,7 +825,7 @@ func (h *OAuthHandler) RegenerateSecret(c *gin.Context) {
 	// 获取客户端信息
 	client, err := h.oauthSrv.GetClientByID(clientID)
 	if err != nil {
-		response.HandlerError(c, app_error.ErrNotFound)
+		response.HandlerError(c, e.ErrNotFound)
 		return
 	}
 
@@ -833,7 +833,7 @@ func (h *OAuthHandler) RegenerateSecret(c *gin.Context) {
 	newSecret, err := utilities.GenerateRandomString(32)
 	if err != nil {
 		h.logger.Error("Generate client secret error", "error", err)
-		response.HandlerError(c, app_error.ErrInternalServerError)
+		response.HandlerError(c, e.ErrInternalServerError)
 		return
 	}
 
@@ -850,7 +850,7 @@ func (h *OAuthHandler) RegenerateSecret(c *gin.Context) {
 			ErrorMessage: err.Error(),
 			DurationMs:   time.Since(startTime).Milliseconds(),
 		})
-		response.HandlerError(c, app_error.ErrInternalServerError)
+		response.HandlerError(c, e.ErrInternalServerError)
 		return
 	}
 
@@ -889,7 +889,7 @@ func (h *OAuthHandler) GetClientStats(c *gin.Context) {
 	stats, err := h.oauthSrv.GetClientStats()
 	if err != nil {
 		h.logger.Error("Get client stats error", "error", err)
-		response.HandlerError(c, app_error.ErrInternalServerError)
+		response.HandlerError(c, e.ErrInternalServerError)
 		return
 	}
 
@@ -958,13 +958,13 @@ func (h *OAuthHandler) GetClientOptions(c *gin.Context) {
 func (h *OAuthHandler) UserInfo(c *gin.Context) {
 	token, err := jwt.ExtractTokenFromHeader(c)
 	if err != nil {
-		response.HandlerError(c, app_error.ErrBadRequest)
+		response.HandlerError(c, e.ErrBadRequest)
 		return
 	}
 
 	info, err := h.oauthSrv.GetTokenInfo(token)
 	if err != nil {
-		response.HandlerError(c, app_error.ErrInvalidAccessToken)
+		response.HandlerError(c, e.ErrInvalidAccessToken)
 		return
 	}
 
@@ -976,7 +976,7 @@ func (h *OAuthHandler) UserInfo(c *gin.Context) {
 
 	user, err := h.userSrv.GetUserByID(userID, true)
 	if err != nil {
-		response.HandlerError(c, app_error.ErrUserNotFound)
+		response.HandlerError(c, e.ErrUserNotFound)
 		return
 	}
 
@@ -1020,14 +1020,14 @@ func (h *OAuthHandler) Logout(c *gin.Context) {
 	// 提取访问令牌
 	token, err := jwt.ExtractTokenFromHeader(c)
 	if err != nil {
-		response.HandlerError(c, app_error.ErrInvalidAccessToken)
+		response.HandlerError(c, e.ErrInvalidAccessToken)
 		return
 	}
 
 	// 获取令牌信息
 	info, err := h.oauthSrv.GetTokenInfo(token)
 	if err != nil {
-		response.HandlerError(c, app_error.ErrInvalidAccessToken)
+		response.HandlerError(c, e.ErrInvalidAccessToken)
 		return
 	}
 
