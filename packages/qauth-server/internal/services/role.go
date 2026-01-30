@@ -35,14 +35,14 @@ func NewRoleService(
 func (s *RoleService) DeleteRole(roleID string) error {
 	// 先删除角色的权限关联
 	if err := s.rolesPermsRepo.DeleteByRoleID(roleID); err != nil {
-		return e.ErrFailedToDeleteRolePerms.WithScope("RoleService.DeleteRole").Wrap(err)
+		return e.ErrFailedToDeleteRolePerms.WithScope("DeleteRole").Wrap(err)
 	}
 	// 删除用户角色关联
 	if err := s.usersRolesRepo.DeleteByRoleID(roleID); err != nil {
-		return e.ErrFailedToDeleteUserRoles.WithScope("RoleService.DeleteRole").Wrap(err)
+		return e.ErrFailedToDeleteUserRoles.WithScope("DeleteRole").Wrap(err)
 	}
 	if err := s.roleRepo.Delete(roleID); err != nil {
-		return e.ErrFailedToDeleteRole.WithScope("RoleService.DeleteRole").Wrap(err)
+		return e.ErrFailedToDeleteRole.WithScope("DeleteRole").Wrap(err)
 	}
 	return nil
 }
@@ -51,7 +51,7 @@ func (s *RoleService) DeleteRole(roleID string) error {
 func (s *RoleService) UpdateRole(roleID, name string, code string, description string) (*models.Roles, error) {
 	role, err := s.roleRepo.FindByID(roleID)
 	if err != nil {
-		return nil, e.ErrRoleNotFound.WithScope("RoleService.UpdateRole").Wrap(err)
+		return nil, e.ErrRoleNotFound.WithScope("UpdateRole").Wrap(err)
 	}
 
 	role.Name = name
@@ -59,7 +59,7 @@ func (s *RoleService) UpdateRole(roleID, name string, code string, description s
 	role.Description = description
 
 	if err := s.roleRepo.Update(role); err != nil {
-		return nil, e.ErrFailedToUpdateRole.WithScope("RoleService.UpdateRole").Wrap(err)
+		return nil, e.ErrFailedToUpdateRole.WithScope("UpdateRole").Wrap(err)
 	}
 
 	return role, nil
@@ -73,7 +73,7 @@ func (s *RoleService) CreateRole(name, code string, permissionCodes []string) (*
 	}
 
 	if err := s.roleRepo.Create(role); err != nil {
-		return nil, e.ErrFailedToCreateRole.WithScope("RoleService.CreateRole").Wrap(err)
+		return nil, e.ErrFailedToCreateRole.WithScope("CreateRole").Wrap(err)
 	}
 
 	if len(permissionCodes) > 0 {
@@ -89,7 +89,7 @@ func (s *RoleService) CreateRole(name, code string, permissionCodes []string) (*
 func (s *RoleService) GetAllRoles() ([]models.Roles, error) {
 	roles, err := s.roleRepo.FindAll()
 	if err != nil {
-		return nil, e.ErrFailedToListRoles.WithScope("RoleService.GetAllRoles").Wrap(err)
+		return nil, e.ErrFailedToListRoles.WithScope("GetAllRoles").Wrap(err)
 	}
 	return roles, nil
 }
@@ -105,19 +105,19 @@ type RoleWithStats struct {
 func (s *RoleService) GetAllRolesWithStats() ([]RoleWithStats, error) {
 	roles, err := s.roleRepo.FindAll()
 	if err != nil {
-		return nil, e.ErrFailedToListRoles.WithScope("RoleService.GetAllRolesWithStats").Wrap(err)
+		return nil, e.ErrFailedToListRoles.WithScope("GetAllRolesWithStats").Wrap(err)
 	}
 
 	result := make([]RoleWithStats, len(roles))
 	for i, role := range roles {
 		userCount, err := s.roleRepo.CountUsersByRoleID(role.ID)
 		if err != nil {
-			return nil, e.ErrFailedToCountUsers.WithScope("RoleService.GetAllRolesWithStats").Wrap(err)
+			return nil, e.ErrFailedToCountUsers.WithScope("GetAllRolesWithStats").Wrap(err)
 		}
 
 		permCount, err := s.roleRepo.CountPermissionsByRoleID(role.ID)
 		if err != nil {
-			return nil, e.ErrFailedToCountPermissions.WithScope("RoleService.GetAllRolesWithStats").Wrap(err)
+			return nil, e.ErrFailedToCountPermissions.WithScope("GetAllRolesWithStats").Wrap(err)
 		}
 
 		result[i] = RoleWithStats{
@@ -153,7 +153,7 @@ func (s *RoleService) ListRolesWithStats(params ListRolesParams) (*ListRolesResu
 		Search:   params.Search,
 	})
 	if err != nil {
-		return nil, e.ErrFailedToListRoles.WithScope("RoleService.ListRolesWithStats").Wrap(err)
+		return nil, e.ErrFailedToListRoles.WithScope("ListRolesWithStats").Wrap(err)
 	}
 
 	// 添加统计信息
@@ -161,12 +161,12 @@ func (s *RoleService) ListRolesWithStats(params ListRolesParams) (*ListRolesResu
 	for i, role := range roles {
 		userCount, err := s.roleRepo.CountUsersByRoleID(role.ID)
 		if err != nil {
-			return nil, e.ErrFailedToCountUsers.WithScope("RoleService.ListRolesWithStats").Wrap(err)
+			return nil, e.ErrFailedToCountUsers.WithScope("ListRolesWithStats").Wrap(err)
 		}
 
 		permCount, err := s.roleRepo.CountPermissionsByRoleID(role.ID)
 		if err != nil {
-			return nil, e.ErrFailedToCountPermissions.WithScope("RoleService.ListRolesWithStats").Wrap(err)
+			return nil, e.ErrFailedToCountPermissions.WithScope("ListRolesWithStats").Wrap(err)
 		}
 
 		result[i] = RoleWithStats{
@@ -188,17 +188,17 @@ func (s *RoleService) ListRolesWithStats(params ListRolesParams) (*ListRolesResu
 func (s *RoleService) GetRoleWithStats(roleID string) (*RoleWithStats, error) {
 	role, err := s.roleRepo.FindByID(roleID)
 	if err != nil {
-		return nil, e.ErrRoleNotFound.WithScope("RoleService.GetRoleWithStats").Wrap(err)
+		return nil, e.ErrRoleNotFound.WithScope("GetRoleWithStats").Wrap(err)
 	}
 
 	userCount, err := s.roleRepo.CountUsersByRoleID(role.ID)
 	if err != nil {
-		return nil, e.ErrFailedToCountUsers.WithScope("RoleService.GetRoleWithStats").Wrap(err)
+		return nil, e.ErrFailedToCountUsers.WithScope("GetRoleWithStats").Wrap(err)
 	}
 
 	permCount, err := s.roleRepo.CountPermissionsByRoleID(role.ID)
 	if err != nil {
-		return nil, e.ErrFailedToCountPermissions.WithScope("RoleService.GetRoleWithStats").Wrap(err)
+		return nil, e.ErrFailedToCountPermissions.WithScope("GetRoleWithStats").Wrap(err)
 	}
 
 	return &RoleWithStats{
@@ -212,7 +212,7 @@ func (s *RoleService) GetRoleWithStats(roleID string) (*RoleWithStats, error) {
 func (s *RoleService) GetRoleByID(roleID string) (*models.Roles, error) {
 	role, err := s.roleRepo.FindByID(roleID)
 	if err != nil {
-		return nil, e.ErrRoleNotFound.WithScope("RoleService.GetRoleByID").Wrap(err)
+		return nil, e.ErrRoleNotFound.WithScope("GetRoleByID").Wrap(err)
 	}
 	return role, nil
 }
@@ -221,7 +221,7 @@ func (s *RoleService) GetRoleByID(roleID string) (*models.Roles, error) {
 func (s *RoleService) GetUserRole(userID string) (*models.Roles, error) {
 	userRole, err := s.usersRolesRepo.FindByUserID(userID)
 	if err != nil {
-		return nil, e.ErrFailedToGetUserRole.WithScope("RoleService.GetUserRole").Wrap(err)
+		return nil, e.ErrFailedToGetUserRole.WithScope("GetUserRole").Wrap(err)
 	}
 	return &userRole.Role, nil
 }
@@ -230,7 +230,7 @@ func (s *RoleService) GetUserRole(userID string) (*models.Roles, error) {
 func (s *RoleService) GetRoleByCode(roleCode string) (*models.Roles, error) {
 	role, err := s.roleRepo.FindByCode(roleCode)
 	if err != nil {
-		return nil, e.ErrRoleNotFound.WithScope("RoleService.GetRoleByCode").Wrap(err)
+		return nil, e.ErrRoleNotFound.WithScope("GetRoleByCode").Wrap(err)
 	}
 	return role, nil
 }
@@ -239,11 +239,11 @@ func (s *RoleService) GetRoleByCode(roleCode string) (*models.Roles, error) {
 func (s *RoleService) GrantPermissionToRole(roleID string, permissionCodes []string) error {
 	permissions, err := s.permissionService.GetPermissionByCodes(permissionCodes)
 	if err != nil {
-		return e.ErrPermissionNoExist.WithScope("RoleService.GrantPermissionToRole").Wrap(err)
+		return e.ErrPermissionNoExist.WithScope("GrantPermissionToRole").Wrap(err)
 	}
 
 	if err := s.roleRepo.AddPermissions(roleID, permissions); err != nil {
-		return e.ErrFailedToGrantPermissions.WithScope("RoleService.GrantPermissionToRole").Wrap(err)
+		return e.ErrFailedToGrantPermissions.WithScope("GrantPermissionToRole").Wrap(err)
 	}
 	return nil
 }
@@ -252,11 +252,11 @@ func (s *RoleService) GrantPermissionToRole(roleID string, permissionCodes []str
 func (s *RoleService) RevokePermissionFromRole(roleID string, permissionCodes []string) error {
 	permissions, err := s.permissionService.GetPermissionByCodes(permissionCodes)
 	if err != nil {
-		return e.ErrPermissionNoExist.WithScope("RoleService.RevokePermissionFromRole").Wrap(err)
+		return e.ErrPermissionNoExist.WithScope("RevokePermissionFromRole").Wrap(err)
 	}
 
 	if err := s.roleRepo.RemovePermissions(roleID, permissions); err != nil {
-		return e.ErrFailedToRevokePermissions.WithScope("RoleService.RevokePermissionFromRole").Wrap(err)
+		return e.ErrFailedToRevokePermissions.WithScope("RevokePermissionFromRole").Wrap(err)
 	}
 	return nil
 }
@@ -265,7 +265,7 @@ func (s *RoleService) RevokePermissionFromRole(roleID string, permissionCodes []
 func (s *RoleService) GrantPermissionToRoleByAction(roleID string, action permissions.Action) error {
 	permissions, err := s.rolesPermsRepo.FindPermissionsByAction(int8(action))
 	if err != nil {
-		return e.ErrPermissionNoExist.WithScope("RoleService.GrantPermissionToRoleByAction").Wrap(err)
+		return e.ErrPermissionNoExist.WithScope("GrantPermissionToRoleByAction").Wrap(err)
 	}
 
 	var permissionCodes []string
@@ -280,7 +280,7 @@ func (s *RoleService) GrantPermissionToRoleByAction(roleID string, action permis
 func (s *RoleService) RevokePermissionFromRoleByAction(roleID string, action permissions.Action) error {
 	permissions, err := s.rolesPermsRepo.FindPermissionsByAction(int8(action))
 	if err != nil {
-		return e.ErrPermissionNoExist.WithScope("RoleService.RevokePermissionFromRoleByAction").Wrap(err)
+		return e.ErrPermissionNoExist.WithScope("RevokePermissionFromRoleByAction").Wrap(err)
 	}
 
 	var permissionCodes []string
@@ -295,7 +295,7 @@ func (s *RoleService) RevokePermissionFromRoleByAction(roleID string, action per
 func (s *RoleService) RoleHasPermissions(roleID string, permissionCodes []string) (bool, error) {
 	role, err := s.roleRepo.FindByIDWithPermissions(roleID)
 	if err != nil {
-		return false, e.ErrFailedToCheckPermissions.WithScope("RoleService.RoleHasPermissions").Wrap(err)
+		return false, e.ErrFailedToCheckPermissions.WithScope("RoleHasPermissions").Wrap(err)
 	}
 
 	permissionMap := make(map[string]bool)
@@ -321,7 +321,7 @@ func (s *RoleService) AssignRoleToUserByID(userID, roleID string) error {
 
 	role, err := s.roleRepo.FindByID(roleID)
 	if err != nil {
-		return e.ErrRoleNotFound.WithScope("RoleService.AssignRoleToUserByID").Wrap(err)
+		return e.ErrRoleNotFound.WithScope("AssignRoleToUserByID").Wrap(err)
 	}
 
 	userRole := &models.UsersRoles{
@@ -330,7 +330,7 @@ func (s *RoleService) AssignRoleToUserByID(userID, roleID string) error {
 	}
 
 	if err := s.usersRolesRepo.Create(userRole); err != nil {
-		return e.ErrFailedToAssignRole.WithScope("RoleService.AssignRoleToUserByID").Wrap(err)
+		return e.ErrFailedToAssignRole.WithScope("AssignRoleToUserByID").Wrap(err)
 	}
 	return nil
 }
@@ -344,7 +344,7 @@ func (s *RoleService) AssignRolesToUserByCode(userID string, roleCodes []string)
 
 	roles, err := s.roleRepo.FindByCodes(roleCodes)
 	if err != nil {
-		return e.ErrRoleNotFound.WithScope("RoleService.AssignRolesToUserByCode").Wrap(err)
+		return e.ErrRoleNotFound.WithScope("AssignRolesToUserByCode").Wrap(err)
 	}
 
 	var userRoles []models.UsersRoles
@@ -356,7 +356,7 @@ func (s *RoleService) AssignRolesToUserByCode(userID string, roleCodes []string)
 	}
 
 	if err := s.usersRolesRepo.BatchCreate(userRoles); err != nil {
-		return e.ErrFailedToAssignRole.WithScope("RoleService.AssignRolesToUserByCode").Wrap(err)
+		return e.ErrFailedToAssignRole.WithScope("AssignRolesToUserByCode").Wrap(err)
 	}
 	return nil
 }
@@ -364,7 +364,7 @@ func (s *RoleService) AssignRolesToUserByCode(userID string, roleCodes []string)
 // RevokeRoleFromUser 从用户撤销角色
 func (s *RoleService) RevokeRoleFromUser(userID, roleID string) error {
 	if err := s.usersRolesRepo.DeleteByUserIDAndRoleID(userID, roleID); err != nil {
-		return e.ErrFailedToRevokeRole.WithScope("RoleService.RevokeRoleFromUser").Wrap(err)
+		return e.ErrFailedToRevokeRole.WithScope("RevokeRoleFromUser").Wrap(err)
 	}
 	return nil
 }
