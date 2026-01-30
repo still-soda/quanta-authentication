@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="./images/logo.jpg" alt="Quanta Authentication" width="200" />
+  <img src="./images/logo.png" alt="Quanta Authentication" width="200" />
 </p>
 
 <h1 align="center">Quanta Authentication</h1>
@@ -13,8 +13,6 @@
 </p>
 
 ---
-
-> **内部项目** - 本项目为实验室内部使用，仅限授权人员访问。
 
 ## 项目简介
 
@@ -146,5 +144,5 @@ pnpm dev
 ---
 
 <p align="center">
-  <sub>Quanta Authentication · 实验室内部项目</sub>
+  <sub>Quanta Authentication · QuantaCenter 实验室项目</sub>
 </p>

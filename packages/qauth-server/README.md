@@ -191,6 +191,9 @@ sequenceDiagram
 ### 安装依赖
 
 ```bash
+pnpm install
+
+# 或直接使用 go 命令
 go mod download
 ```
 
@@ -201,6 +204,9 @@ go mod download
 ### 启动服务
 
 ```bash
+pnpm dev
+
+# 或直接使用 go 命令
 go run main.go
 ```
 
@@ -209,5 +215,8 @@ go run main.go
 ### 构建
 
 ```bash
-go build -o qauth-server main.go
+pnpm build
+
+# 或直接使用 go 命令
+go build -o ./dist/qauth-server main.go
 ```
