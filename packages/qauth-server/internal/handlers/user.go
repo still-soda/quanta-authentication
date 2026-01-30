@@ -3,9 +3,9 @@ package handlers
 import (
 	"crypto/rand"
 	"encoding/base64"
+	"qauth-server/internal/config/permissions"
 	app_error "qauth-server/internal/errors"
 	"qauth-server/internal/models"
-	"qauth-server/internal/permissions"
 	"qauth-server/internal/services"
 	"qauth-server/internal/utilities"
 	"qauth-server/pkg/response"

@@ -2,8 +2,8 @@ package response
 
 import (
 	"errors"
+	app_error "qauth-server/internal/errors"
 	"qauth-server/internal/utilities"
-	"qauth-server/pkg/app_error"
 
 	"github.com/gin-gonic/gin"
 )
@@ -14,8 +14,8 @@ func HandlerError(ctx *gin.Context, err error) {
 	if errors.As(err, &appErr) {
 		ctx.JSON(appErr.Code, gin.H{
 			"code":  appErr.Code,
-			"msg":   "error",
-			"error": appErr.Message,
+			"msg":   appErr.SendError(),
+			"error": appErr.Error(),
 		})
 		return
 	}
@@ -24,8 +24,8 @@ func HandlerError(ctx *gin.Context, err error) {
 	logger.Error("internal server error: ", err)
 	ctx.JSON(500, gin.H{
 		"code":  500,
-		"msg":   "error",
-		"error": "internal server error",
+		"msg":   "internal server error",
+		"error": err.Error(),
 	})
 }
 

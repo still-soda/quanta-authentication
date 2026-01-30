@@ -1,8 +1,8 @@
 package services
 
 import (
+	"qauth-server/internal/config/permissions"
 	"qauth-server/internal/models"
-	"qauth-server/internal/permissions"
 
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"

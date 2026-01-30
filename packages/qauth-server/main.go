@@ -79,9 +79,13 @@ func main() {
 	oauthRepo := repository.NewOAuthRepository(db)
 	loginStateRepo := repository.NewLoginStateRepository(db)
 	errRecordRepo := repository.NewErrorRecordRepository(db)
+	permRepo := repository.NewPermissionRepository(db)
 
 	// 创建服务
-	permSrv := services.NewPermissionService(db)
+	permSrv := services.NewPermissionService(
+		permRepo,
+		loggerProvider,
+	)
 	fileSrv := services.NewFileService(storageProvider, fileRepo)
 	userSrv := services.NewUserService(db)
 	roleSrv := services.NewRoleService(db, permSrv, userSrv)

@@ -1,7 +1,5 @@
 package app_error
 
-import "qauth-server/pkg/app_error"
-
 var (
-	ErrFailedToCreateFile = app_error.NewAppError(500, "failed to create file")
+	ErrFailedToCreateFile = NewAppError(500, "failed to create file", "创建文件失败")
 )

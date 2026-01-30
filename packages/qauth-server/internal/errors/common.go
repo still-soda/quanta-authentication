@@ -1,14 +1,12 @@
 package app_error
 
-import "qauth-server/pkg/app_error"
-
 // 通用错误定义
 var (
-	ErrBadRequest          = app_error.NewAppError(400, "bad request")
-	ErrUnauthorized        = app_error.NewAppError(401, "unauthorized")
-	ErrNotFound            = app_error.NewAppError(404, "not found")
-	ErrInternalServerError = app_error.NewAppError(500, "internal server error")
-	ErrAPINotImplemented   = app_error.NewAppError(501, "api not implemented")
+	ErrBadRequest          = NewAppError(400, "bad request", "请求参数错误")
+	ErrUnauthorized        = NewAppError(401, "unauthorized", "未授权")
+	ErrNotFound            = NewAppError(404, "not found", "资源不存在")
+	ErrInternalServerError = NewAppError(500, "internal server error", "服务器内部错误")
+	ErrAPINotImplemented   = NewAppError(501, "api not implemented", "接口暂未实现")
 
-	ErrInvalidParameter = app_error.NewAppError(400, "invalid parameter")
+	ErrInvalidParameter = NewAppError(400, "invalid parameter", "参数格式错误")
 )

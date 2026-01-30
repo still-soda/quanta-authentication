@@ -1,12 +1,10 @@
 package app_error
 
-import "qauth-server/pkg/app_error"
-
 // 认证相关错误
 var (
-	ErrAuthenticationFailed  = app_error.NewAppError(401, "authentication failed")
-	ErrInvalidRefreshToken   = app_error.NewAppError(401, "invalid refresh token")
-	ErrInvalidAccessToken    = app_error.NewAppError(401, "invalid access token")
-	ErrFailedToGenerateToken = app_error.NewAppError(500, "failed to generate token")
-	ErrInvalidResponseType   = app_error.NewAppError(400, "invalid response type")
+	ErrAuthenticationFailed  = NewAppError(401, "authentication failed", "认证失败，请检查用户名或密码")
+	ErrInvalidRefreshToken   = NewAppError(401, "invalid refresh token", "刷新令牌无效")
+	ErrInvalidAccessToken    = NewAppError(401, "invalid access token", "访问令牌无效")
+	ErrFailedToGenerateToken = NewAppError(500, "failed to generate token", "生成令牌失败")
+	ErrInvalidResponseType   = NewAppError(400, "invalid response type", "响应类型无效")
 )

@@ -1,8 +1,8 @@
 package database
 
 import (
+	"qauth-server/internal/config/permissions"
 	"qauth-server/internal/models"
-	"qauth-server/internal/permissions"
 	"qauth-server/internal/services"
 	"qauth-server/internal/utilities"
 

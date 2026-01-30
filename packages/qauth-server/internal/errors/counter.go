@@ -1,7 +1,5 @@
 package app_error
 
-import "qauth-server/pkg/app_error"
-
 var (
-	ErrFailedToFindCounters = app_error.NewAppError(500, "failed to find counter")
+	ErrFailedToFindCounters = NewAppError(500, "failed to find counter", "获取计数器失败")
 )

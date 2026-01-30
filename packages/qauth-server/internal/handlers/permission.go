@@ -1,9 +1,10 @@
 package handlers
 
 import (
+	"qauth-server/internal/config/permissions"
 	app_error "qauth-server/internal/errors"
 	"qauth-server/internal/models"
-	"qauth-server/internal/permissions"
+	"qauth-server/internal/repository"
 	"qauth-server/internal/services"
 	"qauth-server/internal/utilities"
 	"qauth-server/pkg/response"
@@ -40,7 +41,7 @@ func (h *PermissionHandler) GetPermissions(c *gin.Context) {
 	}
 
 	// 获取查询参数
-	var params services.ListPermissionsParams
+	var params repository.ListPermissionsParams
 	params.Page = utilities.ParseIntParam(c.Query("page"), 1)
 	params.PageSize = utilities.ParseIntParam(c.Query("page_size"), 15)
 	params.Search = c.Query("search")
