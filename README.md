@@ -22,17 +22,20 @@
 
 ## 界面预览
 
-<p align="center">
-  <img src="./images/dashboard-page.png" alt="Dashboard" width="80%" />
-  <br />
-  <em>仪表盘 - 系统概览与数据统计</em>
-</p>
-
-<p align="center">
-  <img src="./images/oauth-page.png" alt="OAuth Apps" width="80%" />
-  <br />
-  <em>OAuth 应用管理</em>
-</p>
+<table align="center" style="border: none; border-collapse: collapse;">
+  <tr>
+    <td align="center" style="border: none; padding: 10px;">
+      <img src="./images/dashboard-page.png" alt="Dashboard" width="100%" />
+      <br />
+      <em>仪表盘 - 系统概览与数据统计</em>
+    </td>
+    <td align="center" style="border: none; padding: 10px;">
+      <img src="./images/oauth-page.png" alt="OAuth Apps" width="100%" />
+      <br />
+      <em>OAuth 应用管理</em>
+    </td>
+  </tr>
+</table>
 
 ## 核心服务能力
 
