@@ -17,50 +17,158 @@
 
 ```
 qauth-server/
-├── main.go                    # 入口文件
-├── go.mod                     # 依赖管理
-├── internal/
+├── main.go                    # 入口文件，服务初始化与启动
+├── go.mod                     # Go 模块依赖
+│
+├── internal/                  # 内部包（不对外暴露）
 │   ├── config/                # 配置管理
+│   │   ├── config.go          # 环境变量解析与配置结构
+│   │   ├── enums.go           # 枚举定义
+│   │   └── permissions/       # 权限定义
+│   │
 │   ├── database/              # 数据库连接与迁移
-│   ├── errors/                # 错误定义
-│   ├── handlers/              # 请求处理器
-│   │   ├── auth.go            # 认证处理
-│   │   ├── oauth.go           # OAuth2 处理
-│   │   ├── oidc.go            # OIDC 处理
+│   │
+│   ├── errors/                # 统一错误定义
+│   │
+│   ├── handlers/              # HTTP 请求处理器
+│   │   ├── auth.go            # 用户认证（注册/登录/刷新令牌）
+│   │   ├── oauth.go           # OAuth2 授权流程
+│   │   ├── oidc.go            # OIDC 端点
+│   │   ├── user.go            # 用户管理
 │   │   ├── role.go            # 角色管理
-│   │   └── file.go            # 文件上传
+│   │   ├── permission.go      # 权限管理
+│   │   ├── app_group.go       # 应用组管理
+│   │   ├── file.go            # 文件上传
+│   │   └── business/          # 业务处理（仪表盘、审计）
+│   │
 │   ├── middleware/            # 中间件
-│   ├── models/                # 数据模型
-│   ├── permissions/           # 权限定义
+│   │   ├── auth.go            # JWT 认证
+│   │   ├── cors.go            # 跨域处理
+│   │   └── logger.go          # 请求日志
+│   │
+│   ├── models/                # 数据模型（GORM）
+│   │
+│   ├── repository/            # 数据访问层
+│   │
 │   ├── routes/                # 路由注册
-│   ├── services/              # 业务逻辑
+│   │
+│   ├── services/              # 业务逻辑层
+│   │   ├── oauth.go           # OAuth2 服务
+│   │   ├── oidc.go            # OIDC 服务
+│   │   ├── user.go            # 用户服务
+│   │   ├── role.go            # 角色服务
+│   │   ├── permission.go      # 权限服务
+│   │   ├── audit.go           # 审计服务
+│   │   └── app_group.go       # 应用组服务
+│   │
+│   ├── providers/             # 外部依赖抽象
+│   │
+│   ├── tasks/                 # 定时任务
+│   │
 │   └── utilities/             # 工具函数
-├── pkg/
-│   ├── jwks/                  # JWKS 密钥管理
-│   ├── jwt/                   # JWT 工具
-│   └── response/              # 响应封装
-└── docs/                      # 文档
+│
+└── pkg/                       # 可复用包
+    ├── jwks/                  # JWKS 密钥管理
+    ├── jwt/                   # JWT 工具
+    └── response/              # 响应封装
 ```
 
-## 快速开始
+## 核心模块
 
-### 1. 安装依赖
+### Handlers（请求处理器）
 
-```bash
-go mod download
+| Handler | 职责 |
+|:---|:---|
+| `AuthHandler` | 用户注册、登录、令牌刷新 |
+| `OAuthHandler` | OAuth2 授权码流程、令牌管理、客户端管理 |
+| `OIDCHandler` | OpenID Connect 发现端点、JWKS |
+| `UserHandler` | 用户 CRUD、角色分配 |
+| `RoleHandler` | 角色 CRUD、权限分配 |
+| `PermissionHandler` | 权限 CRUD |
+| `AppGroupHandler` | 应用组管理（管理员、权限、角色） |
+| `DashboardHandler` | 仪表盘统计数据 |
+| `AuditHandler` | 审计日志查询 |
+
+### Services（业务逻辑）
+
+| Service | 职责 |
+|:---|:---|
+| `OAuthService` | OAuth2 授权处理、令牌生成与验证 |
+| `OIDCService` | ID Token 生成、OIDC 配置 |
+| `UserService` | 用户创建、认证、查询 |
+| `RoleService` | 角色管理、用户角色关联 |
+| `PermissionService` | 权限管理 |
+| `AuditService` | 审计日志记录 |
+| `AppGroupService` | 应用组权限与角色管理 |
+
+## OAuth 2.0 认证流程
+
+### 授权码模式
+
+```mermaid
+sequenceDiagram
+    participant User as 用户
+    participant Client as 客户端应用
+    participant QAuth as QAuth Server
+    participant DB as 数据库
+
+    User->>Client: 1. 访问受保护资源
+    Client->>QAuth: 2. 重定向至 /oauth/authorize
+    QAuth->>User: 3. 展示登录/授权页面
+    User->>QAuth: 4. 登录并授权
+    QAuth->>Client: 5. 重定向回调 + 授权码
+    Client->>QAuth: 6. POST /oauth/token (授权码 + 密钥)
+    QAuth->>DB: 7. 验证授权码
+    QAuth->>Client: 8. 返回 access_token + refresh_token + id_token
+    Client->>QAuth: 9. GET /oauth/userinfo (access_token)
+    QAuth->>Client: 10. 返回用户信息
 ```
 
-### 2. 配置环境变量
+### 令牌刷新流程
 
-复制 `.env.example` 到 `.env` 并修改配置。
+```mermaid
+sequenceDiagram
+    participant Client as 客户端应用
+    participant QAuth as QAuth Server
 
-### 3. 启动服务
-
-```bash
-go run main.go
+    Client->>QAuth: POST /oauth/token (grant_type=refresh_token)
+    QAuth->>QAuth: 验证 refresh_token
+    QAuth->>Client: 返回新的 access_token + refresh_token
 ```
 
-服务将在 http://localhost:8080 启动。
+## API 端点
+
+### 公开端点
+
+| 方法 | 路径 | 说明 |
+|:---|:---|:---|
+| GET | `/health` | 健康检查 |
+| GET | `/.well-known/openid-configuration` | OIDC 发现文档 |
+| GET | `/.well-known/jwks.json` | JWKS 公钥 |
+
+### OAuth 端点（/v1/oauth）
+
+| 方法 | 路径 | 说明 |
+|:---|:---|:---|
+| GET | `/authorize` | 授权页面 |
+| POST | `/authorize` | 处理授权 |
+| POST | `/token` | 获取令牌 |
+| POST | `/validate` | 验证令牌 |
+| POST | `/revoke` | 撤销令牌 |
+| GET | `/userinfo` | 获取用户信息 |
+| GET/POST | `/logout` | 登出 |
+
+### 系统管理端点（/_/v1）
+
+| 分组 | 端点 | 说明 |
+|:---|:---|:---|
+| `/auth` | register, login, refresh-token | 用户认证 |
+| `/users` | CRUD + 角色管理 | 用户管理 |
+| `/roles` | CRUD + 权限管理 | 角色管理 |
+| `/permissions` | CRUD | 权限管理 |
+| `/clients` | CRUD + 应用组管理 | OAuth 客户端管理 |
+| `/dashboard` | stats, user-distribution, auth-trend | 仪表盘 |
+| `/audit` | logs, activities, stats, export | 审计日志 |
 
 ## 环境变量
 
@@ -78,7 +186,27 @@ go run main.go
 | `OIDC_KEY_ROTATION_INTERVAL` | `86400` | JWKS 密钥轮换间隔（秒） |
 | `STORAGE_LOCAL_DIR` | `./uploads` | 本地存储目录 |
 
-## 构建
+## 快速开始
+
+### 安装依赖
+
+```bash
+go mod download
+```
+
+### 配置环境
+
+复制 `.env.example` 到 `.env` 并修改配置。
+
+### 启动服务
+
+```bash
+go run main.go
+```
+
+服务将在 <http://localhost:8080> 启动。
+
+### 构建
 
 ```bash
 go build -o qauth-server main.go
